@@ -49,7 +49,7 @@ export async function pestanaCarnet(ctx) {
           h("span", {}, [u.rol, u.apartamento].filter(Boolean).join(" · ")),
           u.parqueadero_asignado && u.parqueadero_asignado !== "Ninguno" ? h("span", {}, `Parqueadero ${u.parqueadero_asignado}`) : null)),
       h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Cómo usarlo")),
-        h("ol", { class: "pasos" },
+        h("ol", { class: "lista-pasos" },
           h("li", {}, "Abre esta pantalla y muéstrasela al guardia cuando te lo pida."),
           h("li", {}, "El guardia lo escanea y confirma que eres quien dices ser."),
           h("li", {}, "El QR no contiene tus datos: solo un código secreto que la portería valida.")),

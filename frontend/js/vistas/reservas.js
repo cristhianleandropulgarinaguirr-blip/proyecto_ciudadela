@@ -101,9 +101,9 @@ export async function render(ctx) {
       h("div", { class: "card-titulo" }, h("h2", {}, "Nueva reserva")),
       perfil.esta_al_dia ? null : h("div", { class: "aviso mora" }, icono("alerta"),
         h("div", {}, "Tu apartamento registra saldo en mora. ", h("a", { href: "#/cartera" }, "Ponte al día"), " para volver a reservar.")),
-      h("p", { class: "paso" }, "1. ¿Qué zona quieres?"), botonera,
-      h("p", { class: "paso" }, "2. ¿Qué día?"), cal.nodo,
-      h("p", { class: "paso" }, "3. ¿A qué hora?"), h("div", { class: "field" }, hora, h("label", { for: "hora" }, "Hora de inicio")),
+      h("p", { class: "paso-titulo" }, "1. ¿Qué zona quieres?"), botonera,
+      h("p", { class: "paso-titulo" }, "2. ¿Qué día?"), cal.nodo,
+      h("p", { class: "paso-titulo" }, "3. ¿A qué hora?"), h("div", { class: "field" }, hora, h("label", { for: "hora" }, "Hora de inicio")),
       elegida, enviar);
   }
 

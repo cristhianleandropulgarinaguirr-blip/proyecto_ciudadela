@@ -74,8 +74,8 @@ export function icono(nombre, tam) {
   return s;
 }
 
-// ---------- Tema claro / oscuro / automático (la lógica vive en tema.js) ----------
-const TEMAS = [["claro", "sol", "Tema claro"], ["oscuro", "luna", "Tema oscuro"], ["auto", "pantalla", "Tema automático (según tu dispositivo)"]];
+// ---------- Tema claro / oscuro (la lógica vive en tema.js) ----------
+const TEMAS = [["claro", "sol", "Tema claro"], ["oscuro", "luna", "Tema oscuro"]];
 export function botonTema(extra = "") {
   const btn = h("button", { class: `btn suave icono btn-tema ${extra}`, type: "button" });
   const pintar = () => {

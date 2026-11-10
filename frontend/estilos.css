@@ -66,6 +66,8 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; scroll-padding-top: 80px; }
+/* Sin zoom con los dedos ni doble toque: solo se permite desplazar */
+html, body { touch-action: pan-x pan-y; }
 body {
   margin: 0;
   font-family: var(--f-ui);
@@ -624,14 +626,13 @@ button.paso:not(:disabled):hover i { transform: scale(1.3); }
 html[data-fondo="off"] .ciudad { display: none; }
 html[data-anim="off"] *, html[data-anim="off"] *::before, html[data-anim="off"] *::after { animation: none !important; transition: none !important; }
 html[data-texto="grande"] { font-size: 112.5%; }
-html[data-texto="enorme"] { font-size: 125%; }
 @media (min-width: 640px) { .datos-perfil { grid-template-columns: 1fr 1fr; } }
 
 /* ==========================================================================
    Fase 2 · Códigos QR y Comercio
    ========================================================================== */
 .acciones-fila { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .8rem; }
-.pasos { margin: 0 0 .5rem; padding-left: 1.2rem; color: var(--tinta-2); display: grid; gap: .45rem; }
+.lista-pasos { margin: 0 0 .5rem; padding-left: 1.2rem; color: var(--tinta-2); display: grid; gap: .45rem; }
 .etiqueta-seccion { font-size: .8rem; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--tinta-2); margin: 1.2rem 0 .5rem; }
 
 /* El QR siempre va en negro sobre blanco (incluso en modo oscuro): así cualquier cámara lo lee. */
@@ -794,8 +795,8 @@ html[data-texto="enorme"] { font-size: 125%; }
 @media (min-width: 640px) { .mas-rejilla { grid-template-columns: repeat(3, 1fr); } }
 
 /* Calendario de reservas */
-.paso { font-weight: 600; margin: 1.1rem 0 .55rem; }
-.paso:first-of-type { margin-top: .4rem; }
+.paso-titulo { font-weight: 600; margin: 1.1rem 0 .55rem; text-align: left; }
+.paso-titulo:first-of-type { margin-top: .4rem; }
 .calendario { border: 1.5px solid var(--linea); border-radius: var(--r); padding: .7rem; background: var(--superficie); }
 .cal-cab { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .6rem; }
 .cal-titulo { text-transform: capitalize; font-size: 1.05rem; }
