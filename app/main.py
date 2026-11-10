@@ -85,7 +85,8 @@ async def cabeceras_de_seguridad(request: Request, call_next):
     respuesta.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")   # la cámara la usa el escáner QR
     if request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         respuesta.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
-    if request.url.path in ("/app/sw.js", "/app/manifest.webmanifest"):
+    # Toda la app (html, js, css) se revalida en cada carga: si no cambió responde 304 (rápido); si cambió, llega la versión nueva.
+    if request.url.path.startswith("/app"):
         respuesta.headers["Cache-Control"] = "no-cache"
     return respuesta
 

@@ -1,8 +1,8 @@
-// Service worker de Ciudadela Digital (versión 2.8.2).
+// Service worker de Ciudadela Digital (versión 2.8.3).
 // Objetivo: que la app se pueda INSTALAR y abra rápido, sin arriesgar datos viejos.
 //  - Archivos de la app (/app/…): red primero (siempre la versión más nueva) y, si no hay internet, la copia guardada.
 //  - La API (/auth, /reservas, /paquetes…) NUNCA se guarda ni se intercepta: los datos de los residentes no se cachean.
-const VERSION = "ciudadela-2.8.2";
+const VERSION = "ciudadela-2.8.3";
 const BASICOS = ["./", "estilos.css", "js/app.js", "img/logo.png", "img/icono.png", "img/favicon.png"];
 
 self.addEventListener("install", (e) => {
