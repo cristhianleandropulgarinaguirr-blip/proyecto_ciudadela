@@ -155,6 +155,24 @@ Peticiones, quejas, reclamos y sugerencias. Flujo: `Radicada → En trámite →
 
 > **Recuperar contraseña por correo:** queda pendiente. Un enlace de recuperación por correo necesita una tabla de tokens con vencimiento para que nadie pueda bloquear la cuenta de otro; mientras tanto el administrador sigue restableciendo claves desde *Usuarios*.
 
+## Versión 2.9: asistente de IA (solo borradores) — recuerda `alembic upgrade head`
+La IA **redacta borradores**; nunca radica, publica ni envía nada por su cuenta. Una persona revisa y confirma con los formularios de siempre.
+
+| Quién | Qué hace | Dónde |
+|---|---|---|
+| Residente | Cuenta el problema con sus palabras y recibe un borrador de **PQRS** o de **reporte de daño**, o consulta el **estado** de sus solicitudes | Botón «Ayúdame a redactarlo» en *Quejas y sugerencias* y *Reportar un daño* |
+| Administrador | Describe un aviso y recibe un borrador de **anuncio** con vista previa de a cuántas personas llegaría | «Redactar con IA» al crear un anuncio |
+
+**Activarlo (gratis):** crea una clave en Google AI Studio (https://aistudio.google.com/apikey) y en `.env` pon `IA_API_KEY=...` (en Render: variable de entorno). Sin clave el asistente queda apagado y la app funciona igual. Otras variables: `PROVEEDOR_IA` (`gemini`, `groq` o `compatible`), `IA_MODELO`, `IA_LIMITE_DIARIO_USUARIO` (10) e `IA_LIMITE_DIARIO_GLOBAL` (100). Los nombres de modelos cambian: confírmalo en la consola del proveedor.
+
+**Seguridad (por diseño):**
+- La IA no tiene herramientas ni acceso a la base de datos; su respuesta se valida con esquemas estrictos y se limpia (sin enlaces ni caracteres de control).
+- El mensaje del usuario va delimitado como *datos* (defensa contra inyección de instrucciones) y se ocultan correos y números largos (posibles cédulas) antes de salir del servidor. Nunca se envían nombre, apartamento ni datos de otros usuarios.
+- «¿Cómo va mi solicitud?» lo responde el backend leyendo solo las solicitudes de esa persona; la IA no las ve.
+- Si el mensaje suena a emergencia (incendio, gas, herido…) no se consulta la IA: se remite a los contactos de emergencia y a la línea 123.
+- La clave vive solo en el servidor y viaja en un encabezado (no en la URL). Topes diarios por persona y globales. La auditoría registra *que* se usó el asistente, nunca el texto.
+- **Privacidad:** en el plan gratuito de Google, lo que se envía puede usarse para mejorar sus productos. Para demostraciones usa datos ficticios; para operar con residentes reales usa un plan de pago o un proveedor con garantías de privacidad, y ajusta la política de datos.
+
 ## Cómo probar la seguridad en Swagger
 1. Pulsa **Authorize** 🔒 e ingresa el correo y la contraseña del administrador.
 2. Swagger enviará el token en cada petición. Prueba las rutas protegidas.
@@ -226,6 +244,7 @@ alembic revision --autogenerate -m "describe el cambio"   # crear una nueva tras
 - `0003` – trazabilidad de portería (quién registró cada ingreso/salida) y tablas `anuncios` y `anuncio_asistencias`.
 - `0005` – bloque 1: `usuarios.debe_cambiar_password` y tablas `auditoria` e `intentos_login`.
 - `0004` – fase 2: tablas `codigos_qr`, `escaneos_qr` y `publicidad`. No toca datos existentes.
+- `0010` – versión 2.9: tabla `uso_asistente` (topes diarios del asistente de IA; no guarda el texto de los mensajes); en PostgreSQL con RLS activo.
 - `0009` – versión 2.7: tabla `pagos` (comprobantes) y columna `usuarios.politica_datos_fecha`; en PostgreSQL deja `pagos` con RLS activo.
 - `0008` – seguridad en PostgreSQL/Supabase: activa RLS en todas las tablas (en SQLite no hace nada).
 - `0007` – bloque 3: tablas `notificaciones`, `pqrs` y `documentos`. No toca datos existentes.

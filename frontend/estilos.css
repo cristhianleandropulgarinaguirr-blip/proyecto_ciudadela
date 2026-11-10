@@ -838,3 +838,30 @@ html[data-texto="grande"] { font-size: 112.5%; }
   .btn.sm { min-height: 44px; padding: .45rem 1rem; font-size: .9rem; }
   .chip { min-height: 44px; }
 }
+
+/* ==========================================================================
+   ASISTENTE DE IA (v2.9) · solo borradores
+   ========================================================================== */
+.asistente-caja { margin-bottom: 1rem; }
+.asistente-caja:empty { display: none; }
+.aviso-ia {
+  display: flex; gap: .6rem; align-items: flex-start; margin: .6rem 0 1rem; padding: .7rem .85rem;
+  border-radius: var(--r-sm); background: var(--bosque-100); color: var(--tinta-2); font-size: .875rem; line-height: 1.4;
+}
+.aviso-ia svg { flex: none; margin-top: .1rem; }
+.aviso-ia.error, .aviso-ia.peligro { background: var(--arcilla-100); color: var(--arcilla-ink); }
+.aviso-ia.ok { background: var(--verde-100); color: var(--verde-ink); }
+.asistente-pie { display: flex; justify-content: space-between; gap: 1rem; margin: -.4rem 0 .5rem; }
+.asistente-res { margin-top: .75rem; display: grid; gap: .5rem; }
+.asistente-res:empty { display: none; }
+.borrador { border: 1px dashed var(--bosque); border-radius: var(--r); padding: .9rem 1rem; background: var(--superficie); }
+.borrador h3 { margin: .55rem 0 0; font-size: 1.05rem; }
+.borrador p { margin: .4rem 0 0; white-space: pre-wrap; color: var(--tinta-2); }
+.asistente-fila {
+  display: flex; justify-content: space-between; align-items: center; gap: .75rem; min-height: 48px; padding: .6rem .8rem;
+  border: 1px solid var(--linea); border-radius: var(--r-sm); background: var(--superficie); color: inherit; text-decoration: none;
+}
+.asistente-fila div { display: grid; gap: .1rem; }
+.asistente-panel { border: 1px solid var(--linea); border-radius: var(--r); padding: 0 .9rem .8rem; margin-bottom: 1rem; background: var(--superficie); }
+.asistente-panel summary { display: flex; align-items: center; gap: .5rem; min-height: 48px; cursor: pointer; font-weight: 600; color: var(--bosque); }
+.asistente-panel[open] summary { margin-bottom: .25rem; }

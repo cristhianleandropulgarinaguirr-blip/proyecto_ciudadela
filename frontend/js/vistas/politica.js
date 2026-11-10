@@ -10,6 +10,7 @@ const PUNTOS = [
   ["¿Para qué?", "Solo para administrar el conjunto: reservas, cartera, portería, paquetes y comunicación con los residentes."],
   ["¿Quién los ve?", "La administración y la portería, y solo lo necesario para su trabajo. Otros residentes no ven tu saldo ni tus datos personales."],
   ["Tus derechos", "Puedes conocer, actualizar y corregir tus datos, pedir que se eliminen y retirar tu autorización escribiendo a la administración."],
+  ["Asistente de IA", "Si usas el asistente para redactar una solicitud o un aviso, el texto que escribes se envía a un servicio de IA externo solo para preparar el borrador (ocultamos correos y números largos antes). No escribas cédulas, teléfonos ni contraseñas. El asistente nunca envía nada por ti y puedes no usarlo: los formularios de siempre siguen disponibles."],
   ["Si autorizas a otra persona", "Asegúrate de que sabe que registraste su nombre y documento en la portería del conjunto."],
 ];
 

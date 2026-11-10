@@ -3,6 +3,7 @@
 //            GET /mantenimiento/danios/{id}/foto (protegida: se pide con el token y se muestra como blob)
 //            PATCH /mantenimiento/cambiar-estado/{id} (admin)
 import { api, apiBlob } from "../api.js";
+import { botonResidente, tomarBorrador } from "../asistente.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, deUtc, hace } from "../ui.js";
 import { cabecera, filtros, mapaUsuarios, nombreDe } from "./comun.js";
 
@@ -73,6 +74,7 @@ export async function render(ctx) {
   ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("sobre"); }));
   ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("sobre"); }));
   drop.addEventListener("drop", (e) => elegir(e.dataTransfer.files[0]));
+  const usarBorrador = (b) => { titulo.value = b.titulo; desc.value = b.descripcion; desc.focus(); };
   const enviar = h("button", { class: "btn block", type: "submit" }, "Enviar reporte");
   const form = h("form", { class: "card sticky", novalidate: true, onsubmit: async (e) => {
     e.preventDefault();
@@ -87,11 +89,13 @@ export async function render(ctx) {
       datos = await api("/mantenimiento/listar-danios"); pintar();
     } catch (err) { toast(err.message, "error"); }
   } },
-    h("div", { class: "card-titulo" }, h("h2", {}, "Reportar un daño")),
+    h("div", { class: "card-titulo" }, h("h2", {}, "Reportar un daño")), botonResidente("danio", usarBorrador),
     h("div", { class: "field" }, titulo, h("label", { for: "titulo" }, "¿Qué pasó?")),
     h("div", { class: "field" }, desc, h("label", { for: "desc" }, "Cuéntanos los detalles")),
     drop, entrada, enviar);
 
+  const llegado = tomarBorrador("danio");      // el asistente lo trajo desde otra pantalla
+  if (llegado) { usarBorrador(llegado); toast("Borrador cargado. Revísalo, agrega una foto si quieres y envíalo."); }
   pintar();
   return h("div", {},
     cabecera(esAdmin ? "Mantenimiento" : "Reportar un daño", esAdmin ? "Toca un paso del avance para actualizar el estado de cada reporte." : "Cuéntanos qué se dañó en las zonas comunes y sigue cómo avanza la solución."),

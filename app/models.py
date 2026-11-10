@@ -343,3 +343,16 @@ class Pago(Base):
     saldo_anterior = Column(Integer, nullable=False)
     saldo_posterior = Column(Integer, nullable=False)
     fecha = Column(DateTime, default=ahora_utc, index=True)
+
+
+# ==========================================
+#   VERSIÓN 2.9: ASISTENTE DE IA
+# ==========================================
+class UsoAsistente(Base):
+    """Una fila por consulta al asistente de IA. Sirve para los topes diarios (por persona y global). NO guarda el texto escrito."""
+    __tablename__ = "uso_asistente"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    funcion = Column(String, nullable=False)           # residente | anuncio
+    fecha = Column(DateTime, default=ahora_utc, index=True)

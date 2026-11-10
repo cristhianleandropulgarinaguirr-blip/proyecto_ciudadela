@@ -1,6 +1,7 @@
 // PQRS: peticiones, quejas, reclamos y sugerencias.
 // Endpoints: GET/POST /pqrs/ · PATCH /pqrs/{id} (administrador) · GET /reportes/pqrs.xlsx (administrador)
 import { api } from "../api.js";
+import { botonResidente, tomarBorrador } from "../asistente.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, deUtc, hace, fmtFechaHora, kpi } from "../ui.js";
 import { cabecera, filtros } from "./comun.js";
 import { descargar, hoyArchivo } from "../descargas.js";
@@ -58,6 +59,7 @@ export async function render(ctx) {
   let formulario = null;
   if (!esAdmin) {
     let tipo = "Peticion";
+    const usarBorrador = (b) => { tipo = b.tipo; asunto.value = b.asunto; desc.value = b.descripcion; pintarTipos(); asunto.focus(); };
     const asunto = h("input", { id: "pq-asunto", placeholder: " ", maxlength: "100", autocomplete: "off" });
     const desc = h("textarea", { id: "pq-desc", placeholder: " ", maxlength: "2000" });
     const tipos = h("div", { class: "chips", role: "group", "aria-label": "Tipo de solicitud" });
@@ -73,10 +75,12 @@ export async function render(ctx) {
         toast(`Solicitud radicada: ${r.radicado}`); asunto.value = ""; desc.value = ""; filtro = "pendientes"; await recargar();
       } catch (err) { toast(err.message, "error"); }
     } },
-      h("div", { class: "card-titulo" }, h("h2", {}, "Nueva solicitud")), tipos, ayuda,
+      h("div", { class: "card-titulo" }, h("h2", {}, "Nueva solicitud")), botonResidente("pqrs", usarBorrador), tipos, ayuda,
       h("div", { class: "field" }, asunto, h("label", { for: "pq-asunto" }, "Asunto")),
       h("div", { class: "field" }, desc, h("label", { for: "pq-desc" }, "Cuéntanos qué pasó o qué necesitas")), enviar);
     pintarTipos();
+    const llegado = tomarBorrador("pqrs");      // el asistente lo trajo desde otra pantalla
+    if (llegado) { usarBorrador(llegado); toast("Borrador cargado. Revísalo y envíalo cuando estés de acuerdo."); }
   }
 
   pintar();

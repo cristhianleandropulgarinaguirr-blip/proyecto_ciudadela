@@ -8,7 +8,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.routers import (
-    anuncios, auditoria, auth, comercio, documentos, emergencias, modulos, notificaciones, paquetes, pqrs, qr, reportes, usuarios, visitantes,
+    anuncios, asistente, auditoria, auth, comercio, documentos, emergencias, modulos, notificaciones, paquetes, pqrs, qr, reportes, usuarios, visitantes,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -43,6 +43,7 @@ TAGS = [
     {"name": "Paquetes y Correspondencia", "description": "Portería registra lo que llega, el residente lo ve en la app y se registra la entrega."},
     {"name": "Contactos de Emergencia", "description": "Directorio de emergencias del conjunto: lo ven todos, lo edita el administrador."},
     {"name": "PQRS", "description": "Peticiones, quejas, reclamos y sugerencias: el residente radica y la administración responde."},
+    {"name": "Asistente de IA", "description": "Borradores con IA para PQRS, daños y anuncios. Solo redacta: una persona revisa y envía con los formularios normales."},
     {"name": "Documentos del Conjunto", "description": "Reglamento, actas y circulares en PDF: los sube el administrador y los descargan todos."},
     {"name": "Notificaciones", "description": "La campana de la app: avisos de paquetes, PQRS, reservas, anuncios y documentos."},
     {"name": "Reportes", "description": "Excel para el administrador y PDF del estado de cuenta."},
@@ -52,7 +53,7 @@ TAGS = [
 
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="2.8.0", openapi_tags=TAGS)
+              version="2.9.0", openapi_tags=TAGS)
 
 app.include_router(auth.router)
 app.include_router(usuarios.router)
@@ -64,6 +65,7 @@ app.include_router(visitantes.router)
 app.include_router(paquetes.router)
 app.include_router(emergencias.router)
 app.include_router(pqrs.router)
+app.include_router(asistente.router)
 app.include_router(documentos.router)
 app.include_router(notificaciones.router)
 app.include_router(reportes.router)

@@ -1,6 +1,7 @@
 // Cartelera del conjunto.
 // Endpoints: GET /anuncios/ · POST /anuncios/ (admin) · PATCH/DELETE /anuncios/{id} (admin)
 //            PUT /anuncios/{id}/asistencia?asistire= · GET /anuncios/{id}/asistentes (admin)
+import { panelAnuncioIA } from "../asistente.js";
 import { api } from "../api.js";
 import { h, icono, badgeTipo, etiquetaTipo, estadoVacio, toast, conCarga, modal, confirmar, deLocal, deUtc, hace, fmtFechaLarga, fmtHora, iniciales } from "../ui.js";
 import { cabecera, filtros } from "./comun.js";
@@ -34,6 +35,10 @@ function formulario(existente, alGuardar) {
   const fecha = h("input", { id: "a-fecha", type: "datetime-local", placeholder: " ", value: existente?.fecha_evento?.slice(0, 16) ?? "" });
   const lugar = h("input", { id: "a-lugar", placeholder: " ", maxlength: "100", value: existente?.lugar ?? "" });
   const fijado = h("input", { type: "checkbox", id: "a-fijado", checked: existente?.fijado ?? false });
+  const aplicarIA = (d) => {      // borrador de la IA: solo llena el formulario; publicar lo decide el administrador
+    titulo.value = d.titulo; contenido.value = d.contenido; tipo.value = d.tipo; lugar.value = d.lugar ?? "";
+    fecha.value = d.fecha_evento ? d.fecha_evento.slice(0, 16) : ""; fijado.checked = false; titulo.focus();
+  };
   const guardar = h("button", { class: "btn", type: "submit", form: "f-anuncio" }, existente ? "Guardar cambios" : "Publicar");
   const m = modal(existente ? "Editar anuncio" : "Nuevo anuncio", h("form", { id: "f-anuncio", novalidate: true, onsubmit: async (e) => {
     e.preventDefault();
@@ -46,6 +51,7 @@ function formulario(existente, alGuardar) {
       m.cerrar(); toast(existente ? "Anuncio actualizado" : "Anuncio publicado para todos los usuarios"); alGuardar();
     } catch (err) { toast(err.message, "error"); }
   } },
+    existente ? null : panelAnuncioIA(aplicarIA),
     campo("a-titulo", "Título", titulo), campo("a-contenido", "Mensaje", contenido),
     h("div", { class: "fila-campos" }, campo("a-tipo", "Tipo", tipo), campo("a-fecha", "Fecha y hora (si es un evento)", fecha)),
     campo("a-lugar", "Lugar (opcional)", lugar),
