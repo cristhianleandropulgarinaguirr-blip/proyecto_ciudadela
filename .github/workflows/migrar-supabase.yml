@@ -1,0 +1,29 @@
+name: Aplicar migraciones a Supabase
+# Se ejecuta a mano: pestaña Actions → «Aplicar migraciones a Supabase» → Run workflow.
+# Crea/actualiza las tablas en Supabase y el administrador, SIN instalar nada en tu computador.
+# Requiere estos «Secrets» (Settings → Secrets and variables → Actions): DATABASE_URL, ADMIN_EMAIL, ADMIN_PASSWORD.
+on:
+  workflow_dispatch:
+
+jobs:
+  migrar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Migraciones (alembic upgrade head)
+        run: alembic upgrade head
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: ${{ github.run_id }}-clave-temporal-solo-para-migrar-0123456789
+      - name: Roles y administrador
+        run: python -m app.seed
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SECRET_KEY: ${{ github.run_id }}-clave-temporal-solo-para-migrar-0123456789
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}

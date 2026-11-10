@@ -1,0 +1,35 @@
+# Despliegue en Render desde GitHub (Blueprint). Render lee este archivo, crea el servicio y lo vuelve a publicar en cada push a main.
+# La base de datos y los archivos NO viven en Render: están en Supabase (DATABASE_URL y Supabase Storage).
+services:
+  - type: web
+    name: ciudadela-digital
+    runtime: python
+    plan: free                 # gratis: se «duerme» tras 15 min sin uso y tarda ~1 min en despertar. Para operar de verdad, plan de pago.
+    region: virginia           # la más cercana a Colombia; en Supabase elige East US (N. Virginia) para que queden juntas
+    buildCommand: pip install -r requirements.txt
+    # Cada arranque: aplica migraciones pendientes, asegura roles/administrador y levanta la API.
+    startCommand: alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /salud
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: SECRET_KEY
+        generateValue: true     # Render la genera una vez y la conserva
+      - key: DATABASE_URL
+        sync: false             # la pegas en el panel de Render (Supabase → Connect → Session pooler)
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ALMACEN
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: ciudadela-archivos
+      - key: PAGOS_SIMULADOS
+        value: "0"              # en producción NO hay pagos de mentira
+      - key: PAGOS_INSTRUCCIONES
+        sync: false

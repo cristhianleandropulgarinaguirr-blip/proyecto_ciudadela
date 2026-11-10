@@ -1,0 +1,22 @@
+# Entorno virtual y cachés
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secretos: NUNCA se suben al repositorio
+.env
+
+# Base de datos local y archivos subidos por los usuarios
+*.db
+uploads/*
+!uploads/.gitkeep
+
+# Editor / sistema
+.vscode/
+.idea/
+.DS_Store
+
+# Copias de seguridad automaticas de iniciar.bat
+respaldos/

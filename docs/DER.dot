@@ -1,0 +1,261 @@
+digraph DER {
+  graph [rankdir=LR, fontname="Helvetica", pad=0.4, nodesep=0.7, ranksep=1.1, bgcolor="white", label="DER – Propiedad Horizontal (Mi Proyecto SENA)", labelloc=t, fontsize=18];
+  node  [shape=plain, fontname="Helvetica", fontsize=11];
+  edge  [fontname="Helvetica", fontsize=10, color="#37474f", arrowhead=crow, arrowtail=tee, dir=both];
+
+  roles [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff8e1">
+      <TR><TD BGCOLOR="#ffb300" COLSPAN="2"><B>roles</B></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT">UQ</TD><TD ALIGN="LEFT">nombre : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">descripcion : String</TD></TR>
+    </TABLE>>];
+
+  usuarios [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e3f2fd">
+      <TR><TD BGCOLOR="#1e88e5" COLSPAN="2"><FONT COLOR="white"><B>usuarios</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">rol_id : Integer → roles.id</TD></TR>
+      <TR><TD ALIGN="LEFT">UQ</TD><TD ALIGN="LEFT">email : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">nombre_completo : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">password_encriptada : String (bcrypt)</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">apartamento : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">esta_activo : Boolean</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">esta_al_dia : Boolean</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">valor_administracion : Integer</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">saldo_pendiente : Integer</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">parqueadero_asignado : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">debe_cambiar_password : Boolean</TD></TR>
+    </TABLE>>];
+
+  reservas [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f5e9">
+      <TR><TD BGCOLOR="#43a047" COLSPAN="2"><FONT COLOR="white"><B>reservas</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">usuario_id : Integer → usuarios.id</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">zona_comun : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">fecha_reserva : DateTime</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">estado : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">fecha_creacion : DateTime</TD></TR>
+    </TABLE>>];
+
+  reportes_danios [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fce4ec">
+      <TR><TD BGCOLOR="#d81b60" COLSPAN="2"><FONT COLOR="white"><B>reportes_danios</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">usuario_id : Integer → usuarios.id</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">titulo : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">descripcion : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">foto_url : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">estado : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">fecha_creacion : DateTime</TD></TR>
+    </TABLE>>];
+
+  vehiculos_visitantes [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#ede7f6">
+      <TR><TD BGCOLOR="#5e35b1" COLSPAN="2"><FONT COLOR="white"><B>vehiculos_visitantes</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">placa : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">apartamento_destino : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">fecha_ingreso : DateTime</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">fecha_salida : DateTime</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">estado : String</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">ingreso_registrado_por → usuarios.id</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">salida_registrada_por → usuarios.id</TD></TR>
+    </TABLE>>];
+
+  roles -> usuarios [label=" 1 rol  →  N usuarios", taillabel="1", headlabel="N"];
+  usuarios -> reservas [label=" 1 usuario  →  N reservas", taillabel="1", headlabel="N"];
+  usuarios -> reportes_danios [label=" 1 usuario  →  N reportes", taillabel="1", headlabel="N"];
+
+  anuncios [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e0f2f1">
+      <TR><TD BGCOLOR="#00897b" COLSPAN="2"><FONT COLOR="white"><B>anuncios</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">autor_id : Integer → usuarios.id</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">titulo : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">contenido : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">tipo : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">fecha_evento : DateTime</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">fijado : Boolean</TD></TR>
+    </TABLE>>];
+
+  anuncio_asistencias [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e0f2f1">
+      <TR><TD BGCOLOR="#00897b" COLSPAN="2"><FONT COLOR="white"><B>anuncio_asistencias</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">anuncio_id : Integer → anuncios.id</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">usuario_id : Integer → usuarios.id</TD></TR>
+    </TABLE>>];
+
+  codigos_qr [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff3e0">
+      <TR><TD BGCOLOR="#f57c00" COLSPAN="2"><FONT COLOR="white"><B>codigos_qr</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">usuario_id : Integer → usuarios.id</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">tipo : String (Carnet | Visitante)</TD></TR>
+      <TR><TD ALIGN="LEFT">UQ</TD><TD ALIGN="LEFT">token : String (aleatorio)</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">estado : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">nombre_visitante : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">placa : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">valido_hasta : DateTime</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">vehiculo_id : Integer → vehiculos_visitantes.id</TD></TR>
+    </TABLE>>];
+
+  escaneos_qr [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fff3e0">
+      <TR><TD BGCOLOR="#f57c00" COLSPAN="2"><FONT COLOR="white"><B>escaneos_qr</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">codigo_id : Integer → codigos_qr.id (nulo si no existe)</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">escaneado_por : Integer → usuarios.id</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">resultado : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">detalle : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">fecha : DateTime</TD></TR>
+    </TABLE>>];
+
+  publicidad [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#fce4ec">
+      <TR><TD BGCOLOR="#c2185b" COLSPAN="2"><FONT COLOR="white"><B>publicidad</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">propietario_id : Integer → usuarios.id</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">nombre_negocio : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">categoria : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">titulo : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">whatsapp : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">plan : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">valor : Integer</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">estado : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">referencia_pago : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">fecha_inicio / fecha_fin : DateTime</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">contactos : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">revisado_por : Integer → usuarios.id</TD></TR>
+    </TABLE>>];
+
+  usuarios -> anuncios [label=" 1 usuario  →  N anuncios", taillabel="1", headlabel="N"];
+  anuncios -> anuncio_asistencias [label=" 1 anuncio  →  N asistencias", taillabel="1", headlabel="N"];
+  usuarios -> codigos_qr [label=" 1 usuario  →  N códigos QR", taillabel="1", headlabel="N"];
+  codigos_qr -> escaneos_qr [label=" 1 código  →  N escaneos", taillabel="1", headlabel="N"];
+  vehiculos_visitantes -> codigos_qr [label=" 1 vehículo  ←  0..1 pase", taillabel="1", headlabel="0..1"];
+  usuarios -> publicidad [label=" 1 vecino  →  N anuncios pagos", taillabel="1", headlabel="N"];
+
+  auditoria [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#eceff1">
+      <TR><TD BGCOLOR="#455a64" COLSPAN="2"><FONT COLOR="white"><B>auditoria</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"><B>FK</B></TD><TD ALIGN="LEFT">actor_id : Integer → usuarios.id (nulo = sistema)</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">accion : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">entidad / entidad_id</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">detalle : String</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">fecha : DateTime</TD></TR>
+    </TABLE>>];
+
+  intentos_login [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#eceff1">
+      <TR><TD BGCOLOR="#455a64" COLSPAN="2"><FONT COLOR="white"><B>intentos_login</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT">UQ</TD><TD ALIGN="LEFT">clave : String (correo escrito)</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">fallos : Integer</TD></TR>
+      <TR><TD></TD><TD ALIGN="LEFT">bloqueado_hasta : DateTime</TD></TR>
+    </TABLE>>];
+
+  usuarios -> auditoria [label=" 1 usuario  →  N registros", taillabel="1", headlabel="N"];
+
+  visitantes_autorizados [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f5e9">
+      <TR><TD BGCOLOR="#2e7d32" COLSPAN="2"><FONT COLOR="white"><B>visitantes_autorizados</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT">FK</TD><TD ALIGN="LEFT">usuario_id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">nombre : String</TD></TR>
+      <TR><TD ALIGN="LEFT">UQ*</TD><TD ALIGN="LEFT">documento : String (único por usuario)</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">tipo : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">vigente_hasta : DateTime</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">notas : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">activo : Boolean</TD></TR>
+    </TABLE>>];
+
+  accesos_visitantes [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f5e9">
+      <TR><TD BGCOLOR="#2e7d32" COLSPAN="2"><FONT COLOR="white"><B>accesos_visitantes</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT">FK</TD><TD ALIGN="LEFT">visitante_id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">fecha_ingreso : DateTime</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">fecha_salida : DateTime</TD></TR>
+      <TR><TD ALIGN="LEFT">FK</TD><TD ALIGN="LEFT">ingreso_registrado_por : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT">FK</TD><TD ALIGN="LEFT">salida_registrada_por : Integer</TD></TR>
+    </TABLE>>];
+
+  paquetes [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f5e9">
+      <TR><TD BGCOLOR="#2e7d32" COLSPAN="2"><FONT COLOR="white"><B>paquetes</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT">FK</TD><TD ALIGN="LEFT">destinatario_id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">tipo : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">remitente : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">descripcion : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">estado : String</TD></TR>
+      <TR><TD ALIGN="LEFT">FK</TD><TD ALIGN="LEFT">recibido_por : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">fecha_recepcion : DateTime</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">entregado_a : String</TD></TR>
+      <TR><TD ALIGN="LEFT">FK</TD><TD ALIGN="LEFT">entregado_por : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">fecha_entrega : DateTime</TD></TR>
+    </TABLE>>];
+
+  contactos_emergencia [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f5e9">
+      <TR><TD BGCOLOR="#2e7d32" COLSPAN="2"><FONT COLOR="white"><B>contactos_emergencia</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">nombre : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">telefono : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">categoria : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">descripcion : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">orden : Integer</TD></TR>
+    </TABLE>>];
+
+  usuarios -> visitantes_autorizados [label=" 1 residente  →  N autorizados", taillabel="1", headlabel="N"];
+  visitantes_autorizados -> accesos_visitantes [label=" 1 persona  →  N ingresos", taillabel="1", headlabel="N"];
+  usuarios -> paquetes [label=" 1 residente  →  N paquetes", taillabel="1", headlabel="N"];
+
+  notificaciones [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f5e9">
+      <TR><TD BGCOLOR="#2e7d32" COLSPAN="2"><FONT COLOR="white"><B>notificaciones</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT">FK</TD><TD ALIGN="LEFT">usuario_id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">titulo : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">mensaje : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">enlace : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">leida : Boolean</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">fecha : DateTime</TD></TR>
+    </TABLE>>];
+
+  pqrs [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f5e9">
+      <TR><TD BGCOLOR="#2e7d32" COLSPAN="2"><FONT COLOR="white"><B>pqrs</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT">FK</TD><TD ALIGN="LEFT">usuario_id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">tipo : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">asunto : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">descripcion : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">estado : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">respuesta : String</TD></TR>
+      <TR><TD ALIGN="LEFT">FK</TD><TD ALIGN="LEFT">respondido_por : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">fecha_respuesta : DateTime</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">fecha_creacion : DateTime</TD></TR>
+    </TABLE>>];
+
+  documentos [label=<
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4" BGCOLOR="#e8f5e9">
+      <TR><TD BGCOLOR="#2e7d32" COLSPAN="2"><FONT COLOR="white"><B>documentos</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><B>PK</B></TD><TD ALIGN="LEFT">id : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">titulo : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">categoria : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">descripcion : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">archivo : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">nombre_original : String</TD></TR>
+      <TR><TD ALIGN="LEFT"></TD><TD ALIGN="LEFT">tamano : Integer</TD></TR>
+      <TR><TD ALIGN="LEFT">FK</TD><TD ALIGN="LEFT">subido_por : Integer</TD></TR>
+    </TABLE>>];
+
+  usuarios -> notificaciones [label=" 1 usuario  →  N avisos", taillabel="1", headlabel="N"];
+  usuarios -> pqrs [label=" 1 residente  →  N solicitudes", taillabel="1", headlabel="N"];
+  usuarios -> documentos [label=" 1 admin  →  N documentos", taillabel="1", headlabel="N"];
+}
