@@ -268,6 +268,29 @@ def test_gemini_clave_en_encabezado_y_nunca_en_la_url(ia_on):
     assert "tools" not in cuerpo                                              # la IA no tiene herramientas
 
 
+def test_gemini_3_usa_pensamiento_bajo_y_sin_temperatura_y_gemini_2_no(monkeypatch, ia_on):
+    cuerpos = []
+
+    def manejador(req: httpx.Request):
+        cuerpos.append(json.loads(req.content)["generationConfig"])
+        return httpx.Response(200, json={"candidates": [{"content": {"parts": [{"text": "{}"}]}}]})
+
+    monkeypatch.setattr(config, "IA_MODELO", "gemini-3.5-flash")
+    monkeypatch.setattr(config, "IA_PENSAMIENTO", "low")
+    ia.generar_json("s", "u", cliente=cliente_falso(manejador))
+    assert cuerpos[0]["thinkingConfig"] == {"thinkingLevel": "LOW"} and "temperature" not in cuerpos[0] and cuerpos[0]["maxOutputTokens"] >= 2048
+    monkeypatch.setattr(config, "IA_PENSAMIENTO", "")                               # vacío = no se envía nada
+    ia.generar_json("s", "u", cliente=cliente_falso(manejador))
+    assert "thinkingConfig" not in cuerpos[1]
+    monkeypatch.setattr(config, "IA_PENSAMIENTO", "raro")                            # valor inválido = se ignora (no rompe la petición)
+    ia.generar_json("s", "u", cliente=cliente_falso(manejador))
+    assert "thinkingConfig" not in cuerpos[2]
+    monkeypatch.setattr(config, "IA_MODELO", "gemini-2.5-flash")                     # modelos anteriores no aceptan thinkingLevel
+    monkeypatch.setattr(config, "IA_PENSAMIENTO", "low")
+    ia.generar_json("s", "u", cliente=cliente_falso(manejador))
+    assert "thinkingConfig" not in cuerpos[3] and cuerpos[3]["temperature"] == 0.2
+
+
 def test_groq_y_compatible(monkeypatch, ia_on):
     visto = {}
 

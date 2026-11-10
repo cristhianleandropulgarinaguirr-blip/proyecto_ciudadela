@@ -18,7 +18,8 @@ from app import config
 
 logger = logging.getLogger("ia")
 
-MODELOS_POR_DEFECTO = {"gemini": "gemini-2.5-flash", "groq": "llama-3.3-70b-versatile", "compatible": ""}
+MODELOS_POR_DEFECTO = {"gemini": "gemini-3.5-flash", "groq": "llama-3.3-70b-versatile", "compatible": ""}
+NIVELES_PENSAMIENTO = ("minimal", "low", "medium", "high")
 URL_GROQ = "https://api.groq.com/openai/v1"
 URL_GEMINI = "https://generativelanguage.googleapis.com/v1beta"
 BOGOTA = timezone(timedelta(hours=-5))      # Colombia no tiene horario de verano
@@ -134,13 +135,20 @@ def generar_json(sistema: str, usuario: str, esquema_gemini: Optional[dict] = No
     cliente = cliente or httpx.Client(timeout=config.IA_TIMEOUT_SEGUNDOS)
     try:
         if proveedor == "gemini":
+            generacion = {"responseMimeType": "application/json", "maxOutputTokens": 2048}     # holgura: en Gemini 3 el «pensamiento» también gasta tokens
+            if modelo.startswith("gemini-3"):
+                # Google recomienda no tocar la temperatura en Gemini 3 y controlar la velocidad con el nivel de pensamiento.
+                if config.IA_PENSAMIENTO in NIVELES_PENSAMIENTO:
+                    generacion["thinkingConfig"] = {"thinkingLevel": config.IA_PENSAMIENTO.upper()}
+            else:
+                generacion["temperature"] = 0.2
+            if esquema_gemini:
+                generacion["responseSchema"] = esquema_gemini
             cuerpo = {
                 "systemInstruction": {"parts": [{"text": sistema}]},
                 "contents": [{"role": "user", "parts": [{"text": usuario}]}],
-                "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2, "maxOutputTokens": 900},
+                "generationConfig": generacion,
             }
-            if esquema_gemini:
-                cuerpo["generationConfig"]["responseSchema"] = esquema_gemini
             res = cliente.post(f"{URL_GEMINI}/models/{modelo}:generateContent", json=cuerpo, headers={"x-goog-api-key": config.IA_API_KEY})
         else:
             base = URL_GROQ if proveedor == "groq" else config.IA_URL_BASE

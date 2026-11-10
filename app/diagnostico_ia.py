@@ -3,12 +3,13 @@
 # Qué hace: lee tu .env, le pregunta a Google qué modelos tienes y prueba una consulta mínima, mostrando el motivo EXACTO del error.
 # NUNCA imprime tu clave. Puedes copiar y pegar la salida completa para pedir ayuda.
 import sys
+import time
 from typing import Optional
 
 import httpx
 
 from app import config
-from app.ia import MODELOS_POR_DEFECTO, URL_GEMINI, URL_GROQ
+from app.ia import MODELOS_POR_DEFECTO, NIVELES_PENSAMIENTO, URL_GEMINI, URL_GROQ
 
 EXCLUIR = ("preview", "tts", "image", "live", "lite", "exp", "embedding", "audio", "robotics", "computer", "thinking", "customtools", "deep", "veo", "imagen")
 PRUEBA = {"systemInstruction": {"parts": [{"text": "Responde solo con JSON."}]}, "contents": [{"role": "user", "parts": [{"text": 'Responde {"ok": true}'}]}],
@@ -24,14 +25,20 @@ def _motivo(res: httpx.Response) -> str:
 
 
 def probar_gemini(cliente: httpx.Client, modelo: str, cabeceras: dict) -> tuple[int, str]:
-    res = cliente.post(f"{URL_GEMINI}/models/{modelo}:generateContent", json=PRUEBA, headers=cabeceras)
-    return res.status_code, ("funciona" if res.status_code == 200 else _motivo(res))
+    cuerpo = {**PRUEBA, "generationConfig": {**PRUEBA["generationConfig"], "maxOutputTokens": 2048}}
+    if modelo.startswith("gemini-3") and config.IA_PENSAMIENTO in NIVELES_PENSAMIENTO:       # igual que hace la app
+        cuerpo["generationConfig"]["thinkingConfig"] = {"thinkingLevel": config.IA_PENSAMIENTO.upper()}
+    inicio = time.monotonic()
+    res = cliente.post(f"{URL_GEMINI}/models/{modelo}:generateContent", json=cuerpo, headers=cabeceras)
+    seg = time.monotonic() - inicio
+    return res.status_code, (f"funciona ({seg:.1f} s)" if res.status_code == 200 else _motivo(res))
 
 
 def diagnosticar(cliente: Optional[httpx.Client] = None, salida=print) -> int:
     cliente = cliente or httpx.Client(timeout=30)
     clave = config.IA_API_KEY
     salida(f"Proveedor configurado: {config.PROVEEDOR_IA}")
+    salida(f"Pensamiento (Gemini 3): {config.IA_PENSAMIENTO or '(por defecto de Google)'}   · Tiempo máximo de espera: {config.IA_TIMEOUT_SEGUNDOS} s")
     salida(f"Modelo configurado:    {config.IA_MODELO or '(por defecto) ' + MODELOS_POR_DEFECTO.get(config.PROVEEDOR_IA, '?')}")
     if not clave:
         salida("PROBLEMA: no hay IA_API_KEY en el .env (o el servidor no se reinició).")

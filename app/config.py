@@ -84,7 +84,10 @@ PROVEEDOR_IA = os.getenv("PROVEEDOR_IA", "gemini").strip().lower()
 IA_API_KEY = (os.getenv("IA_API_KEY") or os.getenv("GEMINI_API_KEY") or "").strip()
 IA_MODELO = os.getenv("IA_MODELO", "").strip()                    # vacío = modelo por defecto del proveedor
 IA_URL_BASE = os.getenv("IA_URL_BASE", "").strip().rstrip("/")    # solo para PROVEEDOR_IA=compatible
-IA_TIMEOUT_SEGUNDOS = _entero("IA_TIMEOUT_SEGUNDOS", 20) or 20
+IA_TIMEOUT_SEGUNDOS = _entero("IA_TIMEOUT_SEGUNDOS", 45) or 45
+# Modelos Gemini 3.x: cuánto «piensan» antes de responder (minimal | low | medium | high). Para borradores cortos basta «low»: es mucho más rápido.
+# Vacío = no enviar nada (usa el valor por defecto de Google, que es más lento). Se ignora en modelos que no son Gemini 3.
+IA_PENSAMIENTO = os.getenv("IA_PENSAMIENTO", "low").strip().lower()
 # Topes para proteger la cuota gratuita y evitar abuso: por persona y para todo el conjunto, por día (hora de Colombia).
 IA_LIMITE_DIARIO_USUARIO = _entero("IA_LIMITE_DIARIO_USUARIO", 10)
 IA_LIMITE_DIARIO_GLOBAL = _entero("IA_LIMITE_DIARIO_GLOBAL", 100)
