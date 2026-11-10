@@ -1,8 +1,8 @@
-// Service worker de Ciudadela Digital (versión 2.8.1).
+// Service worker de Ciudadela Digital (versión 2.8.2).
 // Objetivo: que la app se pueda INSTALAR y abra rápido, sin arriesgar datos viejos.
 //  - Archivos de la app (/app/…): red primero (siempre la versión más nueva) y, si no hay internet, la copia guardada.
 //  - La API (/auth, /reservas, /paquetes…) NUNCA se guarda ni se intercepta: los datos de los residentes no se cachean.
-const VERSION = "ciudadela-2.8.1";
+const VERSION = "ciudadela-2.8.2";
 const BASICOS = ["./", "estilos.css", "js/app.js", "img/logo.png", "img/icono.png", "img/favicon.png"];
 
 self.addEventListener("install", (e) => {
@@ -22,7 +22,7 @@ self.addEventListener("fetch", (e) => {
   if (!url.pathname.startsWith("/app/") || url.pathname.endsWith("/sw.js")) return;   // todo lo que no sea la app: sin tocar
 
   e.respondWith(
-    fetch(req).then((res) => {
+    fetch(req.mode === "navigate" ? req : new Request(req, { cache: "no-cache" })).then((res) => {   // no-cache: revalida siempre, nunca usa una copia vieja del navegador
       if (res.ok) { const copia = res.clone(); caches.open(VERSION).then((c) => c.put(req, copia)); }
       return res;
     }).catch(async () => (await caches.match(req)) || (req.mode === "navigate" ? caches.match("./") : Response.error()))
