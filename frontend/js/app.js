@@ -1,5 +1,6 @@
 // Arranque de Ciudadela Digital: sesión, "shell" (menú + barra superior) y enrutador por hash.
 import { api, sesion, cuandoExpire } from "./api.js";
+import { borrarAutoTodos } from "./autoguardado.js";
 import { h, icono, logo, toast, iniciales, vaciar, esqueleto, estadoVacio, botonTema } from "./ui.js";
 import { vistaLogin } from "./vistas/login.js";
 import { crearCampana, detenerCampana } from "./campana.js";
@@ -77,7 +78,7 @@ function precargarVistas() {
   });
 }
 
-function cerrarSesion() { sesion.cerrar(); location.hash = ""; mostrarLogin(); }
+function cerrarSesion() { borrarAutoTodos(); sesion.cerrar(); location.hash = ""; mostrarLogin(); }   // al salir con el botón también se borran los borradores guardados en el equipo
 
 function construirShell() {
   const permitidas = RUTAS.filter((r) => r.roles.includes(usuario.rol));

@@ -3,6 +3,7 @@
 //            PATCH /paquetes/{id}/entregar · PATCH /paquetes/{id}/anular · POST/GET /paquetes/{id}/foto
 import { api, apiBlob } from "../api.js";
 import { selectorFoto } from "../foto.js";
+import { autoguardar } from "../autoguardado.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, confirmar, deUtc, hace, fmtFechaHora, kpi } from "../ui.js";
 import { cabecera, filtros } from "./comun.js";
 import { descargar, hoyArchivo } from "../descargas.js";
@@ -81,18 +82,22 @@ export async function render(ctx) {
   // ----- Formulario de registro (solo portería y administración) -----
   let panel = null;
   if (esPersonal) {
-    let residentes = [], elegido = null, tipo = "Paquete";
+    let residentes = [], elegido = null, tipo = "Paquete", auto = null;   // `auto`: autoguardado del formulario (se crea más abajo)
     const buscar = h("input", { id: "pq-buscar", type: "search", placeholder: " ", autocomplete: "off" });
     const selector = h("div", { class: "selector-lista", role: "radiogroup", "aria-label": "Destinatario" });
     const remitente = h("input", { id: "pq-rem", placeholder: " ", maxlength: "60", autocomplete: "off" });
     const desc = h("input", { id: "pq-desc", placeholder: " ", maxlength: "120", autocomplete: "off" });
     const tipos = h("div", { class: "chips", role: "group", "aria-label": "Tipo" });
-    const pintarTipos = () => tipos.replaceChildren(...TIPOS.map((t) => h("button", { class: "chip", type: "button", "aria-pressed": String(t === tipo), onclick: () => { tipo = t; pintarTipos(); } }, t)));
-    const pintarSel = () => selector.replaceChildren(...(residentes.length ? residentes.map((r) => h("button", { type: "button", role: "radio", "aria-checked": String(elegido?.id === r.id), onclick: () => { elegido = r; pintarSel(); } },
+    const pintarTipos = () => tipos.replaceChildren(...TIPOS.map((t) => h("button", { class: "chip", type: "button", "aria-pressed": String(t === tipo), onclick: () => { tipo = t; pintarTipos(); auto?.programar(); } }, t)));
+    const pintarSel = () => selector.replaceChildren(...(residentes.length ? residentes.map((r) => h("button", { type: "button", role: "radio", "aria-checked": String(elegido?.id === r.id), onclick: () => { elegido = r; pintarSel(); auto?.programar(); } },
       r.nombre_completo, h("small", {}, r.apartamento ?? "Sin apartamento"))) : [h("p", { class: "small muted", style: "padding:.6rem" }, "No hay residentes con ese nombre o apartamento.")]));
     const buscarRes = async () => { try { residentes = await api("/paquetes/destinatarios", { params: buscar.value.trim() ? { q: buscar.value.trim() } : undefined }); pintarSel(); } catch (e) { toast(e.message, "error"); } };
     let t; buscar.addEventListener("input", () => { clearTimeout(t); t = setTimeout(buscarRes, 250); });
-    const foto = selectorFoto({ titulo: "Foto del paquete (opcional)", ayuda: "Sirve de evidencia de cómo llegó" });
+    const foto = selectorFoto({ titulo: "Foto del paquete (opcional)", ayuda: "Sirve de evidencia de cómo llegó",
+      antesDeAbrir: () => auto?.foto(true), alCambiar: (f) => auto?.foto(!!f) });
+    auto = autoguardar({ usuarioId: ctx.usuario.id, nombre: "paquete", campos: { buscar, remitente, desc },
+      extra: () => ({ tipo, elegido: elegido ? { id: elegido.id, nombre_completo: elegido.nombre_completo, apartamento: elegido.apartamento ?? null } : null }),
+      alRestaurar: (e) => { if (TIPOS.includes(e.tipo)) tipo = e.tipo; if (e.elegido?.id) elegido = e.elegido; } });
     const enviar = h("button", { class: "btn block", type: "submit" }, icono("mas", 18), "Registrar llegada");
     panel = h("form", { class: "card sticky", novalidate: true, onsubmit: async (e) => {
       e.preventDefault();
@@ -104,7 +109,7 @@ export async function render(ctx) {
           catch (errFoto) { toast(`Paquete registrado, pero la foto no se subió: ${errFoto.message}`, "error"); }
         }
         foto.limpiar();
-        toast(`Registrado para ${nuevo.destinatario_nombre}`); remitente.value = ""; desc.value = ""; elegido = null; pintarSel(); filtro = "En porteria"; await recargar();
+        toast(`Registrado para ${nuevo.destinatario_nombre}`); remitente.value = ""; desc.value = ""; elegido = null; auto.reiniciar(); pintarSel(); filtro = "En porteria"; await recargar();
       } catch (err) { toast(err.message, "error"); }
     } },
       h("div", { class: "card-titulo" }, h("h2", {}, "Registrar llegada")),
@@ -114,6 +119,9 @@ export async function render(ctx) {
       h("div", { class: "field" }, desc, h("label", { for: "pq-desc" }, "Descripción (opcional)"), h("div", { class: "ayuda" }, "Ej. «Caja mediana, frágil»")),
       foto.el, enviar);
     pintarTipos(); await buscarRes();
+    // Si el residente elegido no sale en la lista actual, se deja a la vista para que no parezca que se perdió la selección.
+    if (auto.restaurado && elegido && !residentes.some((r) => r.id === elegido.id)) { residentes = [elegido, ...residentes]; pintarSel(); }
+    auto.avisar();
   }
 
   pintar();

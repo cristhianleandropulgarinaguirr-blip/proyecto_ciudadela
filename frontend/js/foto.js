@@ -35,7 +35,7 @@ export async function comprimirImagen(archivo) {
  * selectorFoto({ titulo, ayuda, alCambiar })
  * Devuelve { el, archivo(), limpiar() }. `el` se agrega al formulario; `archivo()` entrega el File listo para FormData (o null).
  */
-export function selectorFoto({ titulo = "Agregar foto", ayuda = "Toma una foto o elígela de tu galería", alCambiar } = {}) {
+export function selectorFoto({ titulo = "Agregar foto", ayuda = "Toma una foto o elígela de tu galería", alCambiar, antesDeAbrir } = {}) {
   let archivo = null, urlVista = null, flujo = null;
 
   const inputGaleria = h("input", { type: "file", accept: TIPOS_ACEPTADOS, class: "sr-only", tabindex: "-1", "aria-hidden": "true" });
@@ -56,6 +56,9 @@ export function selectorFoto({ titulo = "Agregar foto", ayuda = "Toma una foto o
   }
   inputGaleria.addEventListener("change", () => { recibir(inputGaleria.files[0]); inputGaleria.value = ""; });
   inputCamara.addEventListener("change", () => { recibir(inputCamara.files[0]); inputCamara.value = ""; });
+  // Si la persona cierra la cámara o la galería sin elegir nada, se avisa con la foto que haya (o ninguna).
+  inputGaleria.addEventListener("cancel", () => alCambiar?.(archivo));
+  inputCamara.addEventListener("cancel", () => alCambiar?.(archivo));
 
   // Arrastrar y soltar (computador)
   ["dragenter", "dragover"].forEach((ev) => zona.addEventListener(ev, (e) => { e.preventDefault(); zona.classList.add("sobre"); }));
@@ -64,7 +67,11 @@ export function selectorFoto({ titulo = "Agregar foto", ayuda = "Toma una foto o
 
   function limpiar() { apagarCamara(); soltarVista(); archivo = null; pintar(); alCambiar?.(null); }
 
+  // `antesDeAbrir` avisa justo antes de salir a la cámara/galería: en el celular el sistema puede cerrar la página mientras tanto.
+  const abrirGaleria = () => { antesDeAbrir?.(); inputGaleria.click(); };
+
   async function abrirCamara() {
+    antesDeAbrir?.();
     if (esTactil() || !navigator.mediaDevices?.getUserMedia) return inputCamara.click();   // celular: cámara nativa
     try {
       flujo = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } }, audio: false });
@@ -86,7 +93,7 @@ export function selectorFoto({ titulo = "Agregar foto", ayuda = "Toma una foto o
   function botones() {
     return h("div", { class: "foto-acciones" },
       h("button", { type: "button", class: "btn suave", onclick: abrirCamara }, icono("camara", 18), "Tomar foto"),
-      h("button", { type: "button", class: "btn suave", onclick: () => inputGaleria.click() }, icono("subir", 18), "Galería"));
+      h("button", { type: "button", class: "btn suave", onclick: abrirGaleria }, icono("subir", 18), "Galería"));
   }
 
   function pintar() {

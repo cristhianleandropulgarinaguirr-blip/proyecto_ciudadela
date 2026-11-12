@@ -6,6 +6,7 @@ import { api, apiBlob } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, confirmar, dinero, kpi, deUtc, hace, fmtFechaCorta } from "../ui.js";
 import { cabecera, filtros } from "./comun.js";
 import { selectorFoto } from "../foto.js";
+import { autoguardar, leerAuto } from "../autoguardado.js";
 
 const CATEGORIAS = [["Comida", "Comida"], ["Belleza", "Belleza"], ["Hogar", "Hogar"], ["Servicios", "Servicios"], ["Mascotas", "Mascotas"], ["Educacion", "Educación"], ["Otros", "Otros"]];
 const etiquetaCat = (c) => CATEGORIAS.find(([k]) => k === c)?.[1] ?? c;
@@ -57,7 +58,7 @@ async function pestanaDirectorio() {
 }
 
 // ---------------------------------------------------------------- publicar
-async function formularioNuevo(alGuardar) {
+async function formularioNuevo(alGuardar, usuarioId) {
   const { planes, instrucciones_pago } = await api("/comercio/planes");
   const c = (id, et, el, ayuda) => h("div", { class: "field" }, el, h("label", { for: id }, et), ayuda ? h("div", { class: "ayuda" }, ayuda) : null);
   const negocio = h("input", { id: "c-neg", placeholder: " ", maxlength: "60" });
@@ -68,13 +69,17 @@ async function formularioNuevo(alGuardar) {
   const wa = h("input", { id: "c-wa", placeholder: " ", inputmode: "numeric", maxlength: "10", autocomplete: "off" });
   wa.addEventListener("input", () => { wa.value = wa.value.replace(/\D/g, ""); });
 
-  const foto = selectorFoto({ titulo: "Foto de tu negocio (opcional)", ayuda: "Toma una foto o elígela de tu galería" });
+  let auto = null;      // autoguardado: si el sistema cierra la app al abrir la cámara, el formulario se reabre con lo escrito
+  const foto = selectorFoto({ titulo: "Foto de tu negocio (opcional)", ayuda: "Toma una foto o elígela de tu galería",
+    antesDeAbrir: () => auto?.foto(true), alCambiar: (f) => auto?.foto(!!f) });
 
   let plan = "Mensual";
   const opciones = h("div", { class: "planes", role: "radiogroup", "aria-label": "Plan" }, planes.map((p) =>
-    h("label", { class: "plan" }, h("input", { type: "radio", name: "plan", value: p.plan, checked: p.plan === plan, onchange: () => { plan = p.plan; } }),
+    h("label", { class: "plan" }, h("input", { type: "radio", name: "plan", value: p.plan, checked: p.plan === plan, onchange: () => { plan = p.plan; auto?.programar(); } }),
       h("span", {}, h("b", {}, p.plan), h("small", {}, `${p.dias} días`), h("em", {}, dinero(p.valor))))));
 
+  auto = autoguardar({ usuarioId, nombre: "comercio", campos: { negocio, cat, titulo, desc, precio, wa }, extra: () => ({ plan }),
+    alRestaurar: (e) => { if (planes.some((p) => p.plan === e.plan)) { plan = e.plan; opciones.querySelectorAll('input[name="plan"]').forEach((i) => { i.checked = i.value === plan; }); } } });
   const ok = h("button", { class: "btn", type: "submit", form: "f-com" }, "Crear anuncio");
   const m = modal("Publica tu negocio", h("form", { id: "f-com", novalidate: true, onsubmit: async (e) => {
     e.preventDefault();
@@ -87,7 +92,7 @@ async function formularioNuevo(alGuardar) {
     fd.append("descripcion", desc.value.trim()); fd.append("whatsapp", wa.value); fd.append("plan", plan);
     if (precio.value.trim()) fd.append("precio_texto", precio.value.trim());
     if (foto.archivo()) fd.append("imagen", foto.archivo());
-    try { await conCarga(ok, () => api("/comercio/", { metodo: "POST", cuerpo: fd })); m.cerrar(); toast("Anuncio creado. Falta el pago para activarlo."); alGuardar(); }
+    try { await conCarga(ok, () => api("/comercio/", { metodo: "POST", cuerpo: fd })); auto.reiniciar(); auto.soltar(); m.cerrar(); toast("Anuncio creado. Falta el pago para activarlo."); alGuardar(); }
     catch (err) { toast(err.message, "error"); }
   } },
     c("c-neg", "Nombre del negocio", negocio),
@@ -96,7 +101,10 @@ async function formularioNuevo(alGuardar) {
     c("c-wa", "WhatsApp de contacto", wa, "Celular de 10 dígitos, sin +57"),
     foto.el, h("div", { class: "etiqueta-seccion" }, "Elige tu plan"), opciones,
     h("p", { class: "small muted", style: "margin-top:.8rem" }, instrucciones_pago)),
-    { pie: [h("button", { class: "btn suave", onclick: () => m.cerrar() }, "Cancelar"), ok] });
+    { pie: [h("button", { class: "btn suave", onclick: () => { auto.reiniciar(); auto.soltar(); m.cerrar(); } }, "Cancelar"), ok] });
+  // Si se cierra con la X, con Esc o tocando fuera, se conserva lo escrito (pero ya no se reabre sola).
+  document.getElementById("modal").addEventListener("close", () => { auto.abierto(false); auto.soltar(); }, { once: true });
+  auto.abierto(true); auto.avisar();
 }
 
 // ---------------------------------------------------------------- mis anuncios
@@ -125,7 +133,7 @@ function renovarModal(a, alGuardar) {
   }).catch((e) => toast(e.message, "error"));
 }
 
-async function pestanaMios(recargar) {
+async function pestanaMios(recargar, usuarioId) {
   const mios = await api("/comercio/mios");
   const filas = mios.map((a) => {
     const info = [];
@@ -147,7 +155,7 @@ async function pestanaMios(recargar) {
         ...info.map((t) => h("div", { class: "small" }, t)), acc.length ? h("div", { class: "acciones-fila" }, acc) : null));
   });
   return h("div", {}, h("div", { class: "barra" }, h("p", { class: "muted" }, "Tus vecinos verán tu negocio en el directorio mientras tu plan esté vigente."),
-    h("button", { class: "btn", onclick: () => formularioNuevo(recargar).catch((e) => toast(e.message, "error")) }, icono("mas", 18), "Publicar mi negocio")),
+    h("button", { class: "btn", onclick: () => formularioNuevo(recargar, usuarioId).catch((e) => toast(e.message, "error")) }, icono("mas", 18), "Publicar mi negocio")),
     filas.length ? h("div", { class: "lista" }, filas) : h("div", { class: "card" }, estadoVacio("Aún no has publicado", "Anuncia tu comida, servicio o producto a todo el conjunto.")));
 }
 
@@ -208,10 +216,15 @@ export async function render(ctx) {
     panel.replaceChildren(h("div", { class: "esq", style: "height:180px" }));
     const recargar = () => mostrar(cual);
     try {
-      const nodo = await ({ directorio: pestanaDirectorio, mios: () => pestanaMios(recargar), gestion: () => pestanaGestion(recargar) })[cual]();
+      const nodo = await ({ directorio: pestanaDirectorio, mios: () => pestanaMios(recargar, ctx.usuario.id), gestion: () => pestanaGestion(recargar) })[cual]();
       if (cual === actual) panel.replaceChildren(nodo);
     } catch (e) { toast(e.message, "error"); }
   }
   await mostrar("directorio");
+  // Si la app se cerró mientras se llenaba «Publicar mi negocio» (p. ej. al abrir la cámara), se reabre con lo que había.
+  if (PESTANAS.some(([id]) => id === "mios") && leerAuto(ctx.usuario.id, "comercio")?.meta?.abierto) {
+    await mostrar("mios");
+    formularioNuevo(() => mostrar("mios"), ctx.usuario.id).catch((e) => toast(e.message, "error"));
+  }
   return h("div", {}, cabecera("Comercio", "Los negocios de tus vecinos: comida, servicios y más, a un toque de WhatsApp."), PESTANAS.length > 1 ? tabs : null, panel);
 }

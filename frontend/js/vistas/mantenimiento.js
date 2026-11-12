@@ -6,6 +6,7 @@ import { api, apiBlob } from "../api.js";
 import { botonResidente, tomarBorrador } from "../asistente.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, deUtc, hace } from "../ui.js";
 import { selectorFoto } from "../foto.js";
+import { autoguardar } from "../autoguardado.js";
 import { cabecera, filtros, mapaUsuarios, nombreDe } from "./comun.js";
 
 const PASOS = [["Abierto", "Reportado"], ["En Revision", "En revisión"], ["En Reparacion", "En reparación"], ["Solucionado", "Solucionado"]];
@@ -73,8 +74,11 @@ export async function render(ctx) {
   // ----- Formulario -----
   const titulo = h("input", { id: "titulo", placeholder: " ", maxlength: "100", required: true });
   const desc = h("textarea", { id: "desc", placeholder: " ", maxlength: "1000", required: true });
-  const foto = selectorFoto({ titulo: "Agregar foto del daño (opcional)", ayuda: "Toma la foto con la cámara o elígela de tu galería" });
+  let auto = null;      // autoguardado del formulario (se crea abajo, cuando ya existen todos los campos)
+  const foto = selectorFoto({ titulo: "Agregar foto del daño (opcional)", ayuda: "Toma la foto con la cámara o elígela de tu galería",
+    antesDeAbrir: () => auto?.foto(true), alCambiar: (f) => auto?.foto(!!f) });
   const usarBorrador = (b) => { titulo.value = b.titulo; desc.value = b.descripcion; desc.focus(); };
+  auto = autoguardar({ usuarioId: ctx.usuario.id, nombre: "danio", campos: { titulo, desc } });
   const enviar = h("button", { class: "btn block", type: "submit" }, "Enviar reporte");
   const form = h("form", { class: "card sticky", novalidate: true, onsubmit: async (e) => {
     e.preventDefault();
@@ -85,7 +89,7 @@ export async function render(ctx) {
     try {
       await conCarga(enviar, () => api("/mantenimiento/reportar-danio", { metodo: "POST", cuerpo: fd }));
       toast("Reporte enviado. ¡Gracias por avisar!");
-      form.reset(); foto.limpiar();
+      form.reset(); foto.limpiar(); auto.reiniciar();
       datos = await api("/mantenimiento/listar-danios"); pintar();
     } catch (err) { toast(err.message, "error"); }
   } },
@@ -96,6 +100,7 @@ export async function render(ctx) {
 
   const llegado = tomarBorrador("danio");      // el asistente lo trajo desde otra pantalla
   if (llegado) { usarBorrador(llegado); toast("Borrador cargado. Revísalo, agrega una foto si quieres y envíalo."); }
+  else auto.avisar();
   pintar();
   return h("div", {},
     cabecera(esAdmin ? "Mantenimiento" : "Reportar un daño", esAdmin ? "Toca un paso del avance para actualizar el estado de cada reporte." : "Cuéntanos qué se dañó en las zonas comunes y sigue cómo avanza la solución."),

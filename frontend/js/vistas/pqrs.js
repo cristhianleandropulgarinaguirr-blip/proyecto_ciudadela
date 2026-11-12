@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { botonResidente, tomarBorrador } from "../asistente.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, deUtc, hace, fmtFechaHora, kpi } from "../ui.js";
 import { cabecera, filtros } from "./comun.js";
+import { autoguardar } from "../autoguardado.js";
 import { descargar, hoyArchivo } from "../descargas.js";
 
 const TIPOS = [["Peticion", "Petición"], ["Queja", "Queja"], ["Reclamo", "Reclamo"], ["Sugerencia", "Sugerencia"]];
@@ -58,13 +59,13 @@ export async function render(ctx) {
   // ----- Formulario del residente -----
   let formulario = null;
   if (!esAdmin) {
-    let tipo = "Peticion";
+    let tipo = "Peticion", auto = null;      // `auto`: autoguardado del formulario (se crea abajo)
     const usarBorrador = (b) => { tipo = b.tipo; asunto.value = b.asunto; desc.value = b.descripcion; pintarTipos(); asunto.focus(); };
     const asunto = h("input", { id: "pq-asunto", placeholder: " ", maxlength: "100", autocomplete: "off" });
     const desc = h("textarea", { id: "pq-desc", placeholder: " ", maxlength: "2000" });
     const tipos = h("div", { class: "chips", role: "group", "aria-label": "Tipo de solicitud" });
     const ayuda = h("p", { class: "small muted", style: "margin:.5rem 0 1rem" });
-    const pintarTipos = () => { tipos.replaceChildren(...TIPOS.map(([v, t]) => h("button", { class: "chip", type: "button", "aria-pressed": String(v === tipo), onclick: () => { tipo = v; pintarTipos(); } }, t))); ayuda.textContent = AYUDA[tipo]; };
+    const pintarTipos = () => { tipos.replaceChildren(...TIPOS.map(([v, t]) => h("button", { class: "chip", type: "button", "aria-pressed": String(v === tipo), onclick: () => { tipo = v; pintarTipos(); auto?.programar(); } }, t))); ayuda.textContent = AYUDA[tipo]; };
     const enviar = h("button", { class: "btn block", type: "submit" }, icono("flecha", 18), "Enviar solicitud");
     formulario = h("form", { class: "card sticky", novalidate: true, onsubmit: async (e) => {
       e.preventDefault();
@@ -72,15 +73,18 @@ export async function render(ctx) {
       if (desc.value.trim().length < 10) return toast("Cuéntanos un poco más (mínimo 10 caracteres).", "error");
       try {
         const r = await conCarga(enviar, () => api("/pqrs/", { metodo: "POST", json: { tipo, asunto: asunto.value.trim(), descripcion: desc.value.trim() } }));
-        toast(`Solicitud radicada: ${r.radicado}`); asunto.value = ""; desc.value = ""; filtro = "pendientes"; await recargar();
+        toast(`Solicitud radicada: ${r.radicado}`); asunto.value = ""; desc.value = ""; auto.reiniciar(); filtro = "pendientes"; await recargar();
       } catch (err) { toast(err.message, "error"); }
     } },
       h("div", { class: "card-titulo" }, h("h2", {}, "Nueva solicitud")), botonResidente("pqrs", usarBorrador), tipos, ayuda,
       h("div", { class: "field" }, asunto, h("label", { for: "pq-asunto" }, "Asunto")),
       h("div", { class: "field" }, desc, h("label", { for: "pq-desc" }, "Cuéntanos qué pasó o qué necesitas")), enviar);
+    auto = autoguardar({ usuarioId: ctx.usuario.id, nombre: "pqrs", campos: { asunto, desc }, extra: () => ({ tipo }),
+      alRestaurar: (e) => { if (TIPOS.some(([v]) => v === e.tipo)) tipo = e.tipo; } });
     pintarTipos();
     const llegado = tomarBorrador("pqrs");      // el asistente lo trajo desde otra pantalla
     if (llegado) { usarBorrador(llegado); toast("Borrador cargado. Revísalo y envíalo cuando estés de acuerdo."); }
+    else auto.avisar();
   }
 
   pintar();
