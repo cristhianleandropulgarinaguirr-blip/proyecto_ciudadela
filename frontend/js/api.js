@@ -1,10 +1,16 @@
 // Cliente HTTP de Ciudadela Digital: centraliza el token JWT y los errores de la API.
 const CLAVE = "ciudadela.token";
 
+// El token vive en localStorage (no en sessionStorage): al abrir la cámara nativa del celular el navegador/PWA pasa a segundo plano
+// y el sistema puede cerrar la página para liberar memoria. Al volver, la página se recarga y sessionStorage ya estaría vacío
+// (→ te mandaba al login). La seguridad no cambia: el JWT sigue expirando solo en el servidor (60 min; Guardia, más).
+const leer = (k) => { try { return localStorage.getItem(k) ?? sessionStorage.getItem(k); } catch { return null; } };
+const borrar = (k) => { try { localStorage.removeItem(k); } catch {} try { sessionStorage.removeItem(k); } catch {} };
+
 export const sesion = {
-  get token() { return sessionStorage.getItem(CLAVE); },
-  guardar(t) { sessionStorage.setItem(CLAVE, t); },
-  cerrar() { sessionStorage.removeItem(CLAVE); lecturas.clear(); },
+  get token() { return leer(CLAVE); },
+  guardar(t) { try { localStorage.setItem(CLAVE, t); } catch { sessionStorage.setItem(CLAVE, t); } },
+  cerrar() { borrar(CLAVE); lecturas.clear(); },
 };
 
 let alExpirar = () => {};
