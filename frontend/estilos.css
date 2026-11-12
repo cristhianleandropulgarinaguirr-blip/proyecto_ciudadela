@@ -8,17 +8,17 @@
   --bosque: #053550;
   --bosque-2: #1F5F82;
   --bosque-100: #DCEAF2;
-  --arcilla: #D2573A;
-  --arcilla-ink: #B1432A;
+  --arcilla: #C24A2E;
+  --arcilla-ink: #A63C23;
   --arcilla-100: #F9E0D8;
   --laton: #E7A23C;
   --laton-100: #FBEBCB;
 
-  --papel: #F2F5F6;
-  --superficie: #FBFCFC;
-  --tinta: #0F1E2A;
+  --papel: #F4F5F3;
+  --superficie: #FCFCFB;
+  --tinta: #1E2D3A;
   --tinta-2: #4F5F6B;
-  --tinta-3: #84929C;
+  --tinta-3: #62727E;
   --linea: #DCE4E8;
 
   --f-display: "Fraunces", Georgia, "Times New Roman", serif;
@@ -48,7 +48,7 @@
   --ciudad-op: .55;
   --acento-rol: var(--laton);     /* indicador del menú, avatar: cambia por rol */
   --rol-rgb: 5, 53, 80;           /* color del rol en RGB para sombras y resaltes */
-  --verde: #10A677; --verde-ink: #0B7A57; --verde-100: #D6F1E6;
+  --verde: #2FA84F; --verde-ink: #17702F; --verde-100: #DDF1DE;   /* éxito: verde «hoja», distinto del teal del Residente */
 }
 
 :root[data-tema="oscuro"] {
@@ -57,44 +57,44 @@
   --arcilla: #F08A6C; --arcilla-ink: #F6A58E; --arcilla-100: #40241F;
   --laton: #F0B36B; --laton-100: #3A2C17; --laton-ink: #F3CB92;
   --papel: #081633; --superficie: #0F2146;
-  --tinta: #E6EEF8; --tinta-2: #A5B6CC; --tinta-3: #7487A3; --linea: #1E3466;
+  --tinta: #E6EEF8; --tinta-2: #A5B6CC; --tinta-3: #8396B0; --linea: #1E3466;
   --menu: #06122B; --primario: #8EC7E6; --sobre-primario: #06122B; --sobre-arcilla: #2A100A;
   --esq-a: #12254C; --esq-b: #1B3263;
   --ciudad-op: .6;
   --rol-rgb: 142, 199, 230;
   --sombra: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px -12px rgba(0, 0, 0, .5);
   --sombra-alta: 0 2px 4px rgba(0, 0, 0, .35), 0 18px 40px -16px rgba(0, 0, 0, .7);
-  --verde: #3FD39A; --verde-ink: #6FE3B5; --verde-100: #0E3A3A;
+  --verde: #5FD97F; --verde-ink: #7FE09B; --verde-100: #0E3A22;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
 
 /* ==========================================================================
    COLOR POR ROL  (<html data-rol="…"> lo pone app.js / tema.js)
-   Administrador = azul marino (base de arriba). Residente = verde esmeralda. Guardia = cobre/ámbar.
+   Administrador = azul marino (base de arriba). Residente = verde azulado (teal). Guardia = ámbar.
    Solo se redefinen las variables del color principal: los componentes no se tocan.
    ========================================================================== */
 :root[data-rol="Residente"] {
-  --bosque: #0A5C45; --bosque-2: #1B8566; --bosque-100: #D8F0E6;
-  --menu: #063D30; --primario: #0A5C45; --sobre-primario: #F2FAF6;
-  --rol-rgb: 10, 92, 69;
+  --bosque: #0A5C55; --bosque-2: #12786F; --bosque-100: #D6EFEC;
+  --menu: #053B38; --primario: #0A5C55; --sobre-primario: #F2FAF8;
+  --rol-rgb: 10, 92, 85;
 }
 :root[data-rol="Residente"][data-tema="oscuro"] {
-  --bosque: #7FD6B4; --bosque-2: #4FB68F; --bosque-100: #0F3A33;
-  --menu: #04241D; --primario: #7FD6B4; --sobre-primario: #04241D;
-  --rol-rgb: 127, 214, 180;
+  --bosque: #7FD6CC; --bosque-2: #4FB5AB; --bosque-100: #0F3A3A;
+  --menu: #04201F; --primario: #7FD6CC; --sobre-primario: #04241F;
+  --rol-rgb: 127, 214, 204;
 }
 :root[data-rol="Guardia"] {
-  --bosque: #8A4B0F; --bosque-2: #B2691F; --bosque-100: #F6E5D0;
-  --menu: #4A2A0B; --primario: #8A4B0F; --sobre-primario: #FFF7EC;
-  --acento-rol: #FFD18A;
-  --rol-rgb: 138, 75, 15;
+  --bosque: #8A5600; --bosque-2: #A56500; --bosque-100: #FBEACB;
+  --menu: #4A3000; --primario: #8A5600; --sobre-primario: #FFF8E6;
+  --acento-rol: #FFC93C;
+  --rol-rgb: 138, 86, 0;
 }
 :root[data-rol="Guardia"][data-tema="oscuro"] {
-  --bosque: #F2B766; --bosque-2: #D99A45; --bosque-100: #3A2A12;
-  --menu: #231405; --primario: #F2B766; --sobre-primario: #231405;
-  --acento-rol: #FFD18A;
-  --rol-rgb: 242, 183, 102;
+  --bosque: #FFC247; --bosque-2: #E0A030; --bosque-100: #3A2A08;
+  --menu: #241800; --primario: #FFC247; --sobre-primario: #2A1A00;
+  --acento-rol: #FFC93C;
+  --rol-rgb: 255, 194, 71;
 }
 /* Insignia del rol junto al nombre */
 .rol-insignia { display: inline-block; margin-top: 2px; padding: .06rem .55rem; border-radius: 999px; font-size: .72rem !important; font-weight: 600; letter-spacing: .02em;

@@ -56,7 +56,7 @@ async function iniciar() {
     sesion.cerrar();
     return mostrarLogin();
   }
-  window.CiudadelaTema?.establecerRol(usuario.rol);   // color del rol (admin azul · residente verde · guardia cobre)
+  window.CiudadelaTema?.establecerRol(usuario.rol);   // color del rol (admin azul · residente teal · guardia ámbar)
   construirShell();
   navegar();
   precargarVistas();
