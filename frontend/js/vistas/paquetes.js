@@ -1,12 +1,35 @@
 // Paquetes y correspondencia.
 // Endpoints: GET /paquetes/?estado= · GET /paquetes/destinatarios?q= · POST /paquetes/
-//            PATCH /paquetes/{id}/entregar · PATCH /paquetes/{id}/anular
-import { api } from "../api.js";
+//            PATCH /paquetes/{id}/entregar · PATCH /paquetes/{id}/anular · POST/GET /paquetes/{id}/foto
+import { api, apiBlob } from "../api.js";
+import { selectorFoto } from "../foto.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, confirmar, deUtc, hace, fmtFechaHora, kpi } from "../ui.js";
 import { cabecera, filtros } from "./comun.js";
 import { descargar, hoyArchivo } from "../descargas.js";
 
 const TIPOS = ["Paquete", "Correspondencia", "Domicilio"];
+
+// Miniatura de la foto del paquete: se pide solo cuando la tarjeta está por verse; al tocarla se amplía.
+const observador = "IntersectionObserver" in window
+  ? new IntersectionObserver((items) => items.forEach((it) => { if (it.isIntersecting) { observador.unobserve(it.target); it.target._cargar?.(); } }), { rootMargin: "200px" })
+  : null;
+
+function fotoPaquete(p) {
+  const caja = h("button", { class: "paq-foto", type: "button", "aria-label": "Ver foto del paquete" }, icono("camara", 18));
+  caja._cargar = async () => {
+    try {
+      const url = URL.createObjectURL(await apiBlob(`/paquetes/${p.id}/foto`, { params: { miniatura: true } }));
+      caja.replaceChildren(h("img", { src: url, alt: "Foto del paquete" }));
+      caja.onclick = async () => {
+        const grande = h("img", { class: "visor", src: url, alt: "Foto del paquete" });
+        modal(`${p.tipo} para ${p.destinatario_nombre}`, grande);
+        try { grande.src = URL.createObjectURL(await apiBlob(`/paquetes/${p.id}/foto`)); } catch { /* se queda la miniatura */ }
+      };
+    } catch { caja.remove(); }
+  };
+  observador ? observador.observe(caja) : caja._cargar();
+  return caja;
+}
 
 export async function render(ctx) {
   const rol = ctx.usuario.rol, esResidente = rol === "Residente", esPersonal = !esResidente;
@@ -46,7 +69,7 @@ export async function render(ctx) {
           if (!(await confirmar("¿Anular este registro?", "Úsalo solo si lo registraste por error (por ejemplo, apartamento equivocado). Queda en la auditoría.", "Sí, anular", true))) return;
           try { await api(`/paquetes/${p.id}/anular`, { metodo: "PATCH" }); toast("Registro anulado"); await recargar(); } catch (e) { toast(e.message, "error"); }
         } }, "Anular"));
-      return h("div", { class: `item ${p.estado === "Anulado" ? "apagado" : ""}` }, h("div", { class: `ico-caja ${pendiente ? "laton" : ""}` }, icono("caja")),
+      return h("div", { class: `item ${p.estado === "Anulado" ? "apagado" : ""}` }, p.tiene_foto ? fotoPaquete(p) : h("div", { class: `ico-caja ${pendiente ? "laton" : ""}` }, icono("caja")),
         h("div", { class: "cuerpo" }, h("b", {}, [p.tipo, p.remitente].filter(Boolean).join(" · ")),
           h("span", { style: "display:block" }, [esPersonal ? `${p.destinatario_nombre}${p.apartamento ? ` · ${p.apartamento}` : ""}` : null, p.descripcion].filter(Boolean).join(" · ") || null),
           h("span", { style: "display:block" }, `Llegó ${fmtFechaHora(llegada)} (${hace(llegada)})${p.recibido_por && esPersonal ? ` · lo recibió ${p.recibido_por}` : ""}`),
@@ -69,12 +92,18 @@ export async function render(ctx) {
       r.nombre_completo, h("small", {}, r.apartamento ?? "Sin apartamento"))) : [h("p", { class: "small muted", style: "padding:.6rem" }, "No hay residentes con ese nombre o apartamento.")]));
     const buscarRes = async () => { try { residentes = await api("/paquetes/destinatarios", { params: buscar.value.trim() ? { q: buscar.value.trim() } : undefined }); pintarSel(); } catch (e) { toast(e.message, "error"); } };
     let t; buscar.addEventListener("input", () => { clearTimeout(t); t = setTimeout(buscarRes, 250); });
+    const foto = selectorFoto({ titulo: "Foto del paquete (opcional)", ayuda: "Sirve de evidencia de cómo llegó" });
     const enviar = h("button", { class: "btn block", type: "submit" }, icono("mas", 18), "Registrar llegada");
     panel = h("form", { class: "card sticky", novalidate: true, onsubmit: async (e) => {
       e.preventDefault();
       if (!elegido) return toast("Elige a quién va dirigido.", "error");
       try {
         const nuevo = await conCarga(enviar, () => api("/paquetes/", { metodo: "POST", json: { destinatario_id: elegido.id, tipo, remitente: remitente.value.trim() || null, descripcion: desc.value.trim() || null } }));
+        if (foto.archivo()) {            // el paquete ya quedó registrado; la foto va aparte para que un fallo de red no pierda el registro
+          try { const fd = new FormData(); fd.append("archivo", foto.archivo()); await api(`/paquetes/${nuevo.id}/foto`, { metodo: "POST", cuerpo: fd }); }
+          catch (errFoto) { toast(`Paquete registrado, pero la foto no se subió: ${errFoto.message}`, "error"); }
+        }
+        foto.limpiar();
         toast(`Registrado para ${nuevo.destinatario_nombre}`); remitente.value = ""; desc.value = ""; elegido = null; pintarSel(); filtro = "En porteria"; await recargar();
       } catch (err) { toast(err.message, "error"); }
     } },
@@ -83,7 +112,7 @@ export async function render(ctx) {
       h("div", { class: "field" }, buscar, h("label", { for: "pq-buscar" }, "Buscar residente o apartamento")), selector,
       h("div", { class: "field" }, remitente, h("label", { for: "pq-rem" }, "Empresa o mensajero (opcional)")),
       h("div", { class: "field" }, desc, h("label", { for: "pq-desc" }, "Descripción (opcional)"), h("div", { class: "ayuda" }, "Ej. «Caja mediana, frágil»")),
-      enviar);
+      foto.el, enviar);
     pintarTipos(); await buscarRes();
   }
 

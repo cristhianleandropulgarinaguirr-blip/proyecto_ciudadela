@@ -5,7 +5,7 @@ import os
 import uuid
 
 from fastapi import HTTPException, UploadFile, status
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.almacen import almacen
 from app.config import MAX_PDF_MB, MAX_UPLOAD_MB, UPLOAD_DIR
@@ -15,7 +15,32 @@ FORMATOS_PERMITIDOS = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp"}
 TIPOS_MIME_PERMITIDOS = {"image/jpeg", "image/png", "image/webp"}
 
 
-async def guardar_imagen_validada(archivo: UploadFile) -> str:
+LADO_MAX = 1600          # px: suficiente para ver un daño con detalle; las fotos de celular traen 3000-4000 px
+LADO_MINIATURA = 640     # px: tarjetas de las listas
+PREFIJO_MINIATURA = "m_"
+
+
+def _reducir(contenido: bytes, formato: str, lado: int) -> bytes:
+    """Re-codifica la imagen: corrige la rotación, la reduce a `lado` px y descarta los metadatos EXIF (incluida la ubicación GPS del celular).
+    Si algo falla devuelve el original: optimizar nunca debe impedir que la foto se guarde."""
+    try:
+        with Image.open(io.BytesIO(contenido)) as im:
+            im = ImageOps.exif_transpose(im)
+            if max(im.size) > lado:
+                im.thumbnail((lado, lado), Image.Resampling.LANCZOS)
+            salida = io.BytesIO()
+            if formato == "JPEG":
+                im.convert("RGB").save(salida, "JPEG", quality=82, optimize=True, progressive=True)
+            elif formato == "PNG":
+                im.save(salida, "PNG", optimize=True)
+            else:
+                im.save(salida, "WEBP", quality=82, method=4)
+            return salida.getvalue()
+    except Exception:  # noqa: BLE001 - cualquier fallo de Pillow: se conserva el original ya validado
+        return contenido
+
+
+async def guardar_imagen_validada(archivo: UploadFile, con_miniatura: bool = False) -> str:
     """Valida que el archivo sea una imagen real y la guarda con un nombre aleatorio.
 
     Se revisa: tipo MIME declarado, tamaño máximo y el contenido real del archivo
@@ -47,16 +72,20 @@ async def guardar_imagen_validada(archivo: UploadFile) -> str:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Formato de imagen no permitido.")
 
     nombre = f"{uuid.uuid4().hex}{FORMATOS_PERMITIDOS[formato]}"  # nombre aleatorio: evita sobrescribir y path traversal
-    almacen().guardar("", nombre, contenido)
+    almacen().guardar("", nombre, _reducir(contenido, formato, LADO_MAX))
+    if con_miniatura:
+        almacen().guardar("", PREFIJO_MINIATURA + nombre, _reducir(contenido, formato, LADO_MINIATURA))
     return nombre
 
 
 TIPOS_POR_EXTENSION = {".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}
 
 
-def leer_imagen(nombre: str):
-    """(bytes, tipo MIME) de una imagen guardada, o None si no existe."""
-    datos = almacen().leer("", nombre)
+def leer_imagen(nombre: str, miniatura: bool = False):
+    """(bytes, tipo MIME) de una imagen guardada, o None si no existe. Con `miniatura` usa la versión pequeña si existe (si no, la original)."""
+    datos = almacen().leer("", PREFIJO_MINIATURA + nombre) if miniatura else None
+    if datos is None:
+        datos = almacen().leer("", nombre)
     if datos is None:
         return None
     return datos, TIPOS_POR_EXTENSION.get(os.path.splitext(nombre)[1].lower(), "application/octet-stream")
@@ -64,6 +93,7 @@ def leer_imagen(nombre: str):
 
 def borrar_imagen(nombre: str) -> None:
     almacen().borrar("", nombre)
+    almacen().borrar("", PREFIJO_MINIATURA + nombre)
 
 
 def leer_documento(nombre: str) -> bytes | None:

@@ -2,47 +2,29 @@
 import { api, sesion, cuandoExpire } from "./api.js";
 import { h, icono, logo, toast, iniciales, vaciar, esqueleto, estadoVacio, botonTema } from "./ui.js";
 import { vistaLogin } from "./vistas/login.js";
-import * as resumen from "./vistas/resumen.js";
-import * as reservas from "./vistas/reservas.js";
-import * as anuncios from "./vistas/anuncios.js";
-import * as mantenimiento from "./vistas/mantenimiento.js";
-import * as cartera from "./vistas/cartera.js";
-import * as porteria from "./vistas/porteria.js";
-import * as residentes from "./vistas/residentes.js";
-import * as visitas from "./vistas/visitas.js";
-import * as mas from "./vistas/mas.js";
-import { modalPolitica } from "./vistas/politica.js";
-import * as paquetes from "./vistas/paquetes.js";
-import * as emergencias from "./vistas/emergencias.js";
-import * as pqrs from "./vistas/pqrs.js";
-import * as documentos from "./vistas/documentos.js";
 import { crearCampana, detenerCampana } from "./campana.js";
-import * as auditoria from "./vistas/auditoria.js";
-import { modalCambiarClave } from "./vistas/clave.js";
-import * as comercio from "./vistas/comercio.js";
-import * as configuracion from "./vistas/configuracion.js";
 import { registrarServiceWorker } from "./instalar.js";
 
 const A = "Administrador", R = "Residente", G = "Guardia";
 // Cada ruta declara qué roles la ven: el menú se arma solo con lo permitido (la API igual valida con 403).
 // `texto` puede variar por rol: el residente ve palabras de todos los días y el administrador, los nombres de oficina.
 const RUTAS = [
-  { id: "resumen", texto: "Inicio", icono: "grid", roles: [A, R, G], vista: resumen },
-  { id: "reservas", texto: "Reservas", icono: "calendario", roles: [A, R, G], vista: reservas },
-  { id: "paquetes", texto: { [R]: "Mis paquetes", otro: "Paquetes" }, icono: "caja", roles: [A, R, G], vista: paquetes },
-  { id: "cartera", texto: { [R]: "Mis pagos", otro: "Cartera" }, icono: "tarjeta", roles: [A, R], vista: cartera },
-  { id: "visitas", texto: { [R]: "Mis visitas", otro: "Visitas" }, icono: "identificacion", roles: [A, R], vista: visitas },
-  { id: "porteria", texto: "Portería", icono: "carro", roles: [A, G], vista: porteria },
-  { id: "mantenimiento", texto: { [R]: "Reportar un daño", otro: "Daños" }, icono: "llave", roles: [A, R], vista: mantenimiento },
-  { id: "pqrs", texto: { [R]: "Quejas y sugerencias", otro: "PQRS" }, icono: "mensaje", roles: [A, R], vista: pqrs },
-  { id: "anuncios", texto: "Cartelera", icono: "megafono", roles: [A, R, G], vista: anuncios },
-  { id: "comercio", texto: "Comercio", icono: "tienda", roles: [A, R], vista: comercio },
-  { id: "documentos", texto: "Documentos", icono: "archivo", roles: [A, R, G], vista: documentos },
-  { id: "emergencias", texto: "Emergencias", icono: "telefono", roles: [A, R, G], vista: emergencias },
-  { id: "auditoria", texto: "Auditoría", icono: "escudo", roles: [A], vista: auditoria },
-  { id: "residentes", texto: "Usuarios", icono: "usuarios", roles: [A], vista: residentes },
-  { id: "configuracion", texto: "Ajustes", icono: "ajustes", roles: [A, R, G], vista: configuracion, menu: false },   // se abre desde el avatar
-  { id: "mas", texto: "Más", icono: "mas", roles: [A, R, G], vista: mas, menu: false },                                  // pantalla de todas las opciones
+  { id: "resumen", texto: "Inicio", icono: "grid", roles: [A, R, G], cargar: () => import("./vistas/resumen.js") },
+  { id: "reservas", texto: "Reservas", icono: "calendario", roles: [A, R, G], cargar: () => import("./vistas/reservas.js") },
+  { id: "paquetes", texto: { [R]: "Mis paquetes", otro: "Paquetes" }, icono: "caja", roles: [A, R, G], cargar: () => import("./vistas/paquetes.js") },
+  { id: "cartera", texto: { [R]: "Mis pagos", otro: "Cartera" }, icono: "tarjeta", roles: [A, R], cargar: () => import("./vistas/cartera.js") },
+  { id: "visitas", texto: { [R]: "Mis visitas", otro: "Visitas" }, icono: "identificacion", roles: [A, R], cargar: () => import("./vistas/visitas.js") },
+  { id: "porteria", texto: "Portería", icono: "carro", roles: [A, G], cargar: () => import("./vistas/porteria.js") },
+  { id: "mantenimiento", texto: { [R]: "Reportar un daño", otro: "Daños" }, icono: "llave", roles: [A, R], cargar: () => import("./vistas/mantenimiento.js") },
+  { id: "pqrs", texto: { [R]: "Quejas y sugerencias", otro: "PQRS" }, icono: "mensaje", roles: [A, R], cargar: () => import("./vistas/pqrs.js") },
+  { id: "anuncios", texto: "Cartelera", icono: "megafono", roles: [A, R, G], cargar: () => import("./vistas/anuncios.js") },
+  { id: "comercio", texto: "Comercio", icono: "tienda", roles: [A, R], cargar: () => import("./vistas/comercio.js") },
+  { id: "documentos", texto: "Documentos", icono: "archivo", roles: [A, R, G], cargar: () => import("./vistas/documentos.js") },
+  { id: "emergencias", texto: "Emergencias", icono: "telefono", roles: [A, R, G], cargar: () => import("./vistas/emergencias.js") },
+  { id: "auditoria", texto: "Auditoría", icono: "escudo", roles: [A], cargar: () => import("./vistas/auditoria.js") },
+  { id: "residentes", texto: "Usuarios", icono: "usuarios", roles: [A], cargar: () => import("./vistas/residentes.js") },
+  { id: "configuracion", texto: "Ajustes", icono: "ajustes", roles: [A, R, G], cargar: () => import("./vistas/configuracion.js"), menu: false },   // se abre desde el avatar
+  { id: "mas", texto: "Más", icono: "mas", roles: [A, R, G], cargar: () => import("./vistas/mas.js"), menu: false },                                  // pantalla de todas las opciones
 ];
 const etiqueta = (r, rol) => (typeof r.texto === "string" ? r.texto : r.texto[rol] ?? r.texto.otro);
 
@@ -61,6 +43,7 @@ let turno = 0;
 
 function mostrarLogin() {
   usuario = null;
+  window.CiudadelaTema?.establecerRol("");       // el login siempre usa la identidad base (azul)
   detenerCampana();
   raiz.replaceChildren(vistaLogin(iniciar));
 }
@@ -73,13 +56,25 @@ async function iniciar() {
     sesion.cerrar();
     return mostrarLogin();
   }
+  window.CiudadelaTema?.establecerRol(usuario.rol);   // color del rol (admin azul · residente verde · guardia cobre)
   construirShell();
   navegar();
+  precargarVistas();
   // Orden: primero la clave (si el administrador la restableció) y después la política de datos (solo la primera vez).
-  const pedirPolitica = () => { if (!usuario.politica_aceptada) modalPolitica({ alAceptar: () => { usuario.politica_aceptada = true; } }); };
+  const pedirPolitica = async () => { if (!usuario.politica_aceptada) { const { modalPolitica } = await import("./vistas/politica.js"); modalPolitica({ alAceptar: () => { usuario.politica_aceptada = true; } }); } };
   if (usuario.debe_cambiar_password) {
+    const { modalCambiarClave } = await import("./vistas/clave.js");
     modalCambiarClave({ obligatorio: true, alCambiar: async () => { usuario = await api("/usuarios/me"); pedirPolitica(); } });
   } else pedirPolitica();
+}
+
+// Cuando el navegador está libre, baja en segundo plano las pantallas de la barra inferior: al tocarlas abren al instante.
+function precargarVistas() {
+  const libre = window.requestIdleCallback ?? ((f) => setTimeout(f, 1200));
+  libre(() => {
+    const ids = new Set(BARRA[usuario?.rol] ?? []);
+    RUTAS.filter((r) => ids.has(r.id) && r.roles.includes(usuario?.rol)).forEach((r) => r.cargar().catch(() => {}));
+  });
 }
 
 function cerrarSesion() { sesion.cerrar(); location.hash = ""; mostrarLogin(); }
@@ -100,7 +95,7 @@ function construirShell() {
       h("header", { class: "topbar" }, logo(false),
         h("div", { class: "topbar-acciones" }, crearCampana((ruta) => { location.hash = `#/${ruta}`; }), botonTema(),
         h("div", { class: "usuario-chip" },
-          h("div", { class: "datos" }, h("b", {}, usuario.nombre_completo), h("span", {}, usuario.rol)),
+          h("div", { class: "datos" }, h("b", {}, usuario.nombre_completo), h("span", { class: "rol-insignia" }, usuario.rol)),
           h("a", { class: "avatar avatar-enlace", href: "#/configuracion", title: "Configuración", "aria-label": "Abrir configuración" }, iniciales(usuario.nombre_completo)), salir))),
       h("main", { id: "contenido", tabindex: "-1" }))));
 }
@@ -125,7 +120,9 @@ async function navegar() {
     const ctx = { usuario, ir: (r) => { location.hash = `#/${r}`; }, recargar: navegar, salir: cerrarSesion,
       rutas: permitidas.filter((r) => r.id !== "resumen" && r.id !== "mas").map((r) => ({ id: r.id, icono: r.icono, texto: etiqueta(r, usuario.rol) })),
       actualizarUsuario: async () => { usuario = await api("/usuarios/me"); return usuario; } };
-    const nodo = await ruta.vista.render(ctx);
+    const modulo = await ruta.cargar();
+    if (mio !== turno) return;
+    const nodo = await modulo.render(ctx);
     if (mio !== turno) return;           // el usuario ya navegó a otra pantalla
     nodo.classList.add("vista");
     vaciar(cont).append(nodo);

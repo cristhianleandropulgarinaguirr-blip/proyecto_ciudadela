@@ -1,10 +1,13 @@
 # app/main.py
+import hashlib
+import json
 import logging
 
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.routers import (
@@ -53,7 +56,7 @@ TAGS = [
 
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="2.9.0", openapi_tags=TAGS)
+              version="3.0.0", openapi_tags=TAGS)
 
 app.include_router(auth.router)
 app.include_router(usuarios.router)
@@ -74,7 +77,61 @@ app.include_router(auditoria.router)
 
 # Frontend (HTML/CSS/JS) servido por la misma API: así comparten origen y no hace falta configurar CORS.
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+# Lo que el service worker guarda en el celular al INSTALAR (el «núcleo» para que la interfaz abra sin pedir nada más).
+# Lo demás (fondos, iconos de la app, lector jsQR) se guarda sola la primera vez que se usa.
+_EXT_NUCLEO = {".html", ".js", ".css", ".webmanifest"}
+_IMG_NUCLEO = {"icono.png", "icono-crema.png", "logo-crema.png", "favicon.png"}
+
+
+def _archivos_de_la_app() -> list[Path]:
+    return sorted(p for p in FRONTEND_DIR.rglob("*") if p.is_file() and p.name != "sw.js" and "vendor" not in p.parts
+                  and (p.suffix in _EXT_NUCLEO or (p.parent.name == "img" and p.name in _IMG_NUCLEO)))
+
+
+def _service_worker() -> str:
+    """sw.js con la lista de archivos y un código de versión que cambia SOLO cuando cambia algún archivo del frontend.
+    Así nadie tiene que acordarse de subir un número a mano: cada despliegue con cambios renueva la caché de todos."""
+    huella = hashlib.sha256()
+    for p in sorted(q for q in FRONTEND_DIR.rglob("*") if q.is_file()):      # TODOS los archivos: si cambia cualquiera, cambia la versión
+        huella.update(p.relative_to(FRONTEND_DIR).as_posix().encode())
+        huella.update(p.read_bytes())
+    rutas = ["./"]
+    for p in _archivos_de_la_app():
+        rel = p.relative_to(FRONTEND_DIR).as_posix()
+        rutas.append("./" if rel == "index.html" else rel)
+    plantilla = (FRONTEND_DIR / "sw.js").read_text(encoding="utf-8")
+    return plantilla.replace("__VERSION__", huella.hexdigest()[:12]).replace("__ARCHIVOS__", json.dumps(sorted(set(rutas))))
+
+
+_sw_cache: dict[str, str] = {}
+
+
+@app.get("/app/sw.js", include_in_schema=False)
+def service_worker():
+    # Se calcula una vez por arranque del servidor (los archivos no cambian mientras corre).
+    if "sw" not in _sw_cache:
+        _sw_cache["sw"] = _service_worker()
+    return Response(_sw_cache["sw"], media_type="application/javascript", headers={"Service-Worker-Allowed": "/app/"})
+
+
 app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+
+
+class GZipSelectivo:
+    """Comprime texto (HTML, JS, CSS, JSON) y deja pasar tal cual lo que ya viene comprimido (imágenes, PDF): comprimirlo otra vez solo gasta CPU."""
+    _SIN_COMPRIMIR = (".png", ".jpg", ".jpeg", ".webp", ".pdf", ".ico", ".woff2")
+
+    def __init__(self, app):
+        self.app = app
+        self.gzip = GZipMiddleware(app, minimum_size=700, compresslevel=6)
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            ruta = scope["path"].lower()
+            if ruta.endswith(self._SIN_COMPRIMIR) or ruta.endswith(("/foto", "/imagen")):
+                return await self.app(scope, receive, send)
+        await self.gzip(scope, receive, send)
 
 
 @app.middleware("http")
@@ -89,8 +146,16 @@ async def cabeceras_de_seguridad(request: Request, call_next):
         respuesta.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     # Toda la app (html, js, css) se revalida en cada carga: si no cambió responde 304 (rápido); si cambió, llega la versión nueva.
     if request.url.path.startswith("/app"):
-        respuesta.headers["Cache-Control"] = "no-cache"
+        # Imágenes de la interfaz (logos, fondos, iconos): casi nunca cambian → una semana en caché. El resto se revalida.
+        if request.url.path.startswith("/app/img/"):
+            respuesta.headers["Cache-Control"] = "public, max-age=604800"
+        else:
+            respuesta.headers["Cache-Control"] = "no-cache"
     return respuesta
+
+
+# Se agrega al final para quedar como capa más externa (comprime también lo que añaden los demás middlewares).
+app.add_middleware(GZipSelectivo)
 
 
 @app.get("/", include_in_schema=False)

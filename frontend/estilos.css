@@ -46,6 +46,8 @@
   --tinta-fija: #10202B;          /* texto sobre latón (placas, avatar) */
   --esq-a: #E4EBEE; --esq-b: #F1F5F7;
   --ciudad-op: .55;
+  --acento-rol: var(--laton);     /* indicador del menú, avatar: cambia por rol */
+  --rol-rgb: 5, 53, 80;           /* color del rol en RGB para sombras y resaltes */
   --verde: #10A677; --verde-ink: #0B7A57; --verde-100: #D6F1E6;
 }
 
@@ -59,12 +61,46 @@
   --menu: #06122B; --primario: #8EC7E6; --sobre-primario: #06122B; --sobre-arcilla: #2A100A;
   --esq-a: #12254C; --esq-b: #1B3263;
   --ciudad-op: .6;
+  --rol-rgb: 142, 199, 230;
   --sombra: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px -12px rgba(0, 0, 0, .5);
   --sombra-alta: 0 2px 4px rgba(0, 0, 0, .35), 0 18px 40px -16px rgba(0, 0, 0, .7);
   --verde: #3FD39A; --verde-ink: #6FE3B5; --verde-100: #0E3A3A;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
+
+/* ==========================================================================
+   COLOR POR ROL  (<html data-rol="…"> lo pone app.js / tema.js)
+   Administrador = azul marino (base de arriba). Residente = verde esmeralda. Guardia = cobre/ámbar.
+   Solo se redefinen las variables del color principal: los componentes no se tocan.
+   ========================================================================== */
+:root[data-rol="Residente"] {
+  --bosque: #0A5C45; --bosque-2: #1B8566; --bosque-100: #D8F0E6;
+  --menu: #063D30; --primario: #0A5C45; --sobre-primario: #F2FAF6;
+  --rol-rgb: 10, 92, 69;
+}
+:root[data-rol="Residente"][data-tema="oscuro"] {
+  --bosque: #7FD6B4; --bosque-2: #4FB68F; --bosque-100: #0F3A33;
+  --menu: #04241D; --primario: #7FD6B4; --sobre-primario: #04241D;
+  --rol-rgb: 127, 214, 180;
+}
+:root[data-rol="Guardia"] {
+  --bosque: #8A4B0F; --bosque-2: #B2691F; --bosque-100: #F6E5D0;
+  --menu: #4A2A0B; --primario: #8A4B0F; --sobre-primario: #FFF7EC;
+  --acento-rol: #FFD18A;
+  --rol-rgb: 138, 75, 15;
+}
+:root[data-rol="Guardia"][data-tema="oscuro"] {
+  --bosque: #F2B766; --bosque-2: #D99A45; --bosque-100: #3A2A12;
+  --menu: #231405; --primario: #F2B766; --sobre-primario: #231405;
+  --acento-rol: #FFD18A;
+  --rol-rgb: 242, 183, 102;
+}
+/* Insignia del rol junto al nombre */
+.rol-insignia { display: inline-block; margin-top: 2px; padding: .06rem .55rem; border-radius: 999px; font-size: .72rem !important; font-weight: 600; letter-spacing: .02em;
+  background: var(--bosque-100); color: var(--bosque) !important; }
+:root[data-tema="oscuro"] .rol-insignia { color: var(--bosque) !important; }
+
 html { -webkit-text-size-adjust: 100%; scroll-padding-top: 80px; }
 /* Sin zoom con los dedos ni doble toque: solo se permite desplazar */
 html, body { touch-action: pan-x pan-y; }
@@ -115,7 +151,7 @@ a { color: inherit; }
   transition: transform .2s var(--ease), box-shadow .2s var(--ease), background .2s;
   position: relative;
 }
-.btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px -8px rgba(20, 56, 47, .55); }
+.btn:hover { transform: translateY(-1px); box-shadow: 0 8px 18px -8px rgba(var(--rol-rgb), .45); }
 .btn:active { transform: translateY(0) scale(.97); box-shadow: none; }
 .btn[disabled] { opacity: .5; pointer-events: none; }
 .btn.arcilla { --bg: var(--arcilla); --fg: var(--sobre-arcilla); }
@@ -149,7 +185,7 @@ a { color: inherit; }
   position: absolute; left: .95rem; top: .95rem; color: var(--tinta-3); pointer-events: none;
   transform-origin: left top; transition: transform .2s var(--ease), color .2s;
 }
-.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--bosque); box-shadow: 0 0 0 4px rgba(20, 56, 47, .1); }
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--bosque); box-shadow: 0 0 0 4px rgba(var(--rol-rgb), .14); }
 .field input:focus + label, .field input:not(:placeholder-shown) + label,
 .field textarea:focus + label, .field textarea:not(:placeholder-shown) + label,
 .field select + label { transform: translateY(-.62rem) scale(.78); color: var(--tinta-2); }
@@ -239,7 +275,7 @@ a { color: inherit; }
 .nav a:hover { color: var(--crema); }
 .nav a[aria-current="page"] { color: var(--crema); }
 .nav a[aria-current="page"] svg { transform: translateY(-2px); }
-.nav a[aria-current="page"]::after { content: ""; position: absolute; top: 0; width: 28px; height: 3px; border-radius: 0 0 3px 3px; background: var(--laton); }
+.nav a[aria-current="page"]::after { content: ""; position: absolute; top: 0; width: 28px; height: 3px; border-radius: 0 0 3px 3px; background: var(--acento-rol); }
 
 .main { padding: calc(.9rem + var(--safe-t)) 1rem calc(var(--nav-h) + var(--safe-b) + 1.5rem); max-width: 1240px; margin: 0 auto; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; margin-bottom: 1.25rem; }
@@ -248,7 +284,7 @@ a { color: inherit; }
 .usuario-chip { display: flex; align-items: center; gap: .6rem; min-width: 0; }
 .avatar {
   flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
-  background: var(--laton); color: var(--tinta-fija); font-weight: 700; font-size: .85rem; letter-spacing: .02em;
+  background: var(--acento-rol); color: var(--tinta-fija); font-weight: 700; font-size: .85rem; letter-spacing: .02em;
 }
 .usuario-chip .datos { display: none; line-height: 1.2; min-width: 0; }
 .usuario-chip .datos b { display: block; font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -350,6 +386,21 @@ a { color: inherit; }
 .drop { display: grid; place-items: center; gap: .3rem; text-align: center; padding: 1.2rem; border: 1.5px dashed var(--tinta-3); border-radius: var(--r); background: var(--papel); color: var(--tinta-2); transition: all .2s; cursor: pointer; margin-bottom: 1rem; min-height: 120px; }
 .drop:hover, .drop.sobre { border-color: var(--bosque); background: var(--bosque-100); color: var(--bosque); }
 .drop svg { width: 26px; height: 26px; }
+
+/* Miniatura de foto de paquete (reemplaza el ícono de la caja) */
+.paq-foto { width: 52px; height: 52px; flex: none; border: 0; padding: 0; border-radius: 12px; overflow: hidden; display: grid; place-items: center; background: var(--bosque-100); color: var(--bosque); cursor: pointer; }
+.paq-foto img { width: 100%; height: 100%; object-fit: cover; }
+
+/* Selector de foto (cámara + galería) */
+.foto-sel { margin-bottom: 1rem; }
+.foto-zona { display: grid; place-items: center; gap: .55rem; text-align: center; padding: 1rem; border: 1.5px dashed var(--tinta-3); border-radius: var(--r); background: var(--papel); color: var(--tinta-2); transition: border-color .2s, background .2s; min-height: 120px; }
+.foto-zona.sobre { border-color: var(--bosque); background: var(--bosque-100); }
+.foto-zona.procesando { opacity: .6; pointer-events: none; }
+.foto-zona b { color: var(--tinta); }
+.foto-zona img, .foto-video { width: 100%; max-height: 260px; border-radius: 10px; object-fit: cover; background: #000; }
+.foto-acciones { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: center; width: 100%; }
+.foto-acciones .btn { flex: 1 1 130px; }
+.foto-acciones .btn svg { width: 18px; height: 18px; }
 .drop img { max-height: 160px; border-radius: 10px; object-fit: cover; }
 .danios { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
 .danio { overflow: hidden; padding: 0; display: flex; flex-direction: column; transition: transform .25s var(--ease), box-shadow .25s; }
@@ -457,7 +508,7 @@ button.paso:not(:disabled):hover i { transform: scale(1.3); }
   .tabla tr { display: table-row; padding: 0; }
   .tabla td { display: table-cell; padding: .8rem .75rem; vertical-align: middle; border-bottom: 1px solid var(--linea); }
   .tabla td[data-et]::before { display: none; }
-  .tabla tbody tr:hover { background: rgba(20, 56, 47, .03); }
+  .tabla tbody tr:hover { background: rgba(var(--rol-rgb), .04); }
   .tabla td.der, .tabla th.der { text-align: right; }
 }
 
@@ -472,7 +523,7 @@ button.paso:not(:disabled):hover i { transform: scale(1.3); }
   .nav a:hover { background: rgba(245, 241, 232, .07); }
   .nav a:hover svg { transform: translateX(2px); }
   .nav a[aria-current="page"] { background: rgba(245, 241, 232, .12); }
-  .nav a[aria-current="page"] svg { transform: none; color: var(--laton); }
+  .nav a[aria-current="page"] svg { transform: none; color: var(--acento-rol); }
   .nav a[aria-current="page"]::after { top: 12px; bottom: 12px; left: -1rem; width: 4px; height: auto; border-radius: 0 4px 4px 0; }
   .topbar .logo { display: none; }
   .topbar { justify-content: flex-end; }

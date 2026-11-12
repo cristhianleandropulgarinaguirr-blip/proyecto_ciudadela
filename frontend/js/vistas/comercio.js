@@ -5,14 +5,24 @@
 import { api, apiBlob } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, confirmar, dinero, kpi, deUtc, hace, fmtFechaCorta } from "../ui.js";
 import { cabecera, filtros } from "./comun.js";
+import { selectorFoto } from "../foto.js";
 
 const CATEGORIAS = [["Comida", "Comida"], ["Belleza", "Belleza"], ["Hogar", "Hogar"], ["Servicios", "Servicios"], ["Mascotas", "Mascotas"], ["Educacion", "Educación"], ["Otros", "Otros"]];
 const etiquetaCat = (c) => CATEGORIAS.find(([k]) => k === c)?.[1] ?? c;
-const TIPOS_IMG = ["image/jpeg", "image/png", "image/webp"], MAX_MB = 5;
+
+
+// Miniatura (~30 KB) y solo cuando la tarjeta está por verse: una cartelera con muchos anuncios ya no baja todas las fotos de golpe.
+const observadorImg = "IntersectionObserver" in window
+  ? new IntersectionObserver((items) => items.forEach((it) => { if (it.isIntersecting) { observadorImg.unobserve(it.target); it.target._cargar?.(); } }), { rootMargin: "200px" })
+  : null;
 
 function imagenAnuncio(a) {
   const caja = h("div", { class: "com-img" }, icono("tienda"));
-  if (a.tiene_imagen) apiBlob(`/comercio/${a.id}/imagen`).then((b) => caja.replaceChildren(h("img", { src: URL.createObjectURL(b), alt: a.nombre_negocio, loading: "lazy" }))).catch(() => {});
+  if (a.tiene_imagen) {
+    caja._cargar = () => apiBlob(`/comercio/${a.id}/imagen`, { params: { miniatura: true } })
+      .then((b) => caja.replaceChildren(h("img", { src: URL.createObjectURL(b), alt: a.nombre_negocio }))).catch(() => {});
+    observadorImg ? observadorImg.observe(caja) : caja._cargar();
+  }
   return caja;
 }
 
@@ -58,16 +68,7 @@ async function formularioNuevo(alGuardar) {
   const wa = h("input", { id: "c-wa", placeholder: " ", inputmode: "numeric", maxlength: "10", autocomplete: "off" });
   wa.addEventListener("input", () => { wa.value = wa.value.replace(/\D/g, ""); });
 
-  let archivo = null;
-  const entrada = h("input", { type: "file", accept: TIPOS_IMG.join(","), class: "sr-only", id: "c-img" });
-  const vacioDrop = () => [icono("subir"), h("b", {}, "Agregar foto (opcional)"), h("span", { class: "small" }, "JPG, PNG o WEBP · máx. 5 MB")];
-  const drop = h("label", { class: "drop", for: "c-img" }, ...vacioDrop());
-  entrada.addEventListener("change", () => {
-    const f = entrada.files[0]; if (!f) return;
-    if (!TIPOS_IMG.includes(f.type)) return toast("La foto debe ser JPG, PNG o WEBP.", "error");
-    if (f.size > MAX_MB * 1024 * 1024) return toast(`La foto supera los ${MAX_MB} MB.`, "error");
-    archivo = f; drop.replaceChildren(h("img", { src: URL.createObjectURL(f), alt: "Vista previa" }), h("span", { class: "small" }, `${f.name} · toca para cambiar`));
-  });
+  const foto = selectorFoto({ titulo: "Foto de tu negocio (opcional)", ayuda: "Toma una foto o elígela de tu galería" });
 
   let plan = "Mensual";
   const opciones = h("div", { class: "planes", role: "radiogroup", "aria-label": "Plan" }, planes.map((p) =>
@@ -85,7 +86,7 @@ async function formularioNuevo(alGuardar) {
     fd.append("nombre_negocio", negocio.value.trim()); fd.append("categoria", cat.value); fd.append("titulo", titulo.value.trim());
     fd.append("descripcion", desc.value.trim()); fd.append("whatsapp", wa.value); fd.append("plan", plan);
     if (precio.value.trim()) fd.append("precio_texto", precio.value.trim());
-    if (archivo) fd.append("imagen", archivo);
+    if (foto.archivo()) fd.append("imagen", foto.archivo());
     try { await conCarga(ok, () => api("/comercio/", { metodo: "POST", cuerpo: fd })); m.cerrar(); toast("Anuncio creado. Falta el pago para activarlo."); alGuardar(); }
     catch (err) { toast(err.message, "error"); }
   } },
@@ -93,7 +94,7 @@ async function formularioNuevo(alGuardar) {
     h("div", { class: "fila-campos" }, c("c-cat", "Categoría", cat), c("c-precio", "Precio (opcional)", precio, "Ej. Desde $6.000")),
     c("c-tit", "Título del anuncio", titulo), c("c-desc", "Descripción", desc),
     c("c-wa", "WhatsApp de contacto", wa, "Celular de 10 dígitos, sin +57"),
-    drop, entrada, h("div", { class: "etiqueta-seccion" }, "Elige tu plan"), opciones,
+    foto.el, h("div", { class: "etiqueta-seccion" }, "Elige tu plan"), opciones,
     h("p", { class: "small muted", style: "margin-top:.8rem" }, instrucciones_pago)),
     { pie: [h("button", { class: "btn suave", onclick: () => m.cerrar() }, "Cancelar"), ok] });
 }

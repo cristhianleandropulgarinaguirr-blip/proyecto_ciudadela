@@ -5,20 +5,32 @@
 import { api, apiBlob } from "../api.js";
 import { botonResidente, tomarBorrador } from "../asistente.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, deUtc, hace } from "../ui.js";
+import { selectorFoto } from "../foto.js";
 import { cabecera, filtros, mapaUsuarios, nombreDe } from "./comun.js";
 
 const PASOS = [["Abierto", "Reportado"], ["En Revision", "En revisión"], ["En Reparacion", "En reparación"], ["Solucionado", "Solucionado"]];
-const TIPOS = ["image/jpeg", "image/png", "image/webp"];
-const MAX = 5 * 1024 * 1024;
 
-async function cargarFoto(reporte, destino) {
+// La foto se pide solo cuando la tarjeta está por verse (IntersectionObserver) y primero en miniatura (~30 KB); la completa se baja al ampliar.
+const observador = "IntersectionObserver" in window
+  ? new IntersectionObserver((items) => items.forEach((it) => { if (it.isIntersecting) { observador.unobserve(it.target); it.target._cargar?.(); } }), { rootMargin: "200px" })
+  : null;
+
+function cargarFoto(reporte, destino) {
   if (!reporte.foto_url || reporte.foto_url === "sin_foto.jpg") return;
-  try {
-    const url = URL.createObjectURL(await apiBlob(`/mantenimiento/danios/${reporte.id}/foto`));
-    destino.replaceChildren(h("img", { src: url, alt: `Foto del reporte: ${reporte.titulo}`, loading: "lazy" }));
-    destino.onclick = () => modal(reporte.titulo, h("img", { class: "visor", src: url, alt: reporte.titulo }));
-    destino.disabled = false; destino.setAttribute("aria-label", "Ampliar foto");
-  } catch { /* si falla, se queda el ícono */ }
+  const ruta = `/mantenimiento/danios/${reporte.id}/foto`;
+  destino._cargar = async () => {
+    try {
+      const url = URL.createObjectURL(await apiBlob(ruta, { params: { miniatura: true } }));
+      destino.replaceChildren(h("img", { src: url, alt: `Foto del reporte: ${reporte.titulo}` }));
+      destino.onclick = async () => {
+        const grande = h("img", { class: "visor", src: url, alt: reporte.titulo });      // se muestra ya la miniatura y se reemplaza por la completa al llegar
+        modal(reporte.titulo, grande);
+        try { grande.src = URL.createObjectURL(await apiBlob(ruta)); } catch { /* se queda la miniatura */ }
+      };
+      destino.disabled = false; destino.setAttribute("aria-label", "Ampliar foto");
+    } catch { /* si falla, se queda el ícono */ }
+  };
+  observador ? observador.observe(destino) : destino._cargar();
 }
 
 export async function render(ctx) {
@@ -26,7 +38,7 @@ export async function render(ctx) {
   const esAdmin = usuario.rol === "Administrador";
   const [reportes, usuarios] = await Promise.all([api("/mantenimiento/listar-danios"), esAdmin ? api("/usuarios/") : Promise.resolve([])]);
   const mapa = mapaUsuarios(usuarios);
-  let datos = reportes, filtro = "todos", archivo = null;
+  let datos = reportes, filtro = "todos";
   const rejilla = h("div", { class: "danios" });
   let chips = h("div");
 
@@ -61,19 +73,7 @@ export async function render(ctx) {
   // ----- Formulario -----
   const titulo = h("input", { id: "titulo", placeholder: " ", maxlength: "100", required: true });
   const desc = h("textarea", { id: "desc", placeholder: " ", maxlength: "1000", required: true });
-  const entrada = h("input", { type: "file", accept: TIPOS.join(","), class: "sr-only", id: "foto-input" });
-  const drop = h("label", { class: "drop", for: "foto-input" }, icono("subir"), h("b", {}, "Agregar foto"), h("span", { class: "small" }, "JPG, PNG o WEBP · máx. 5 MB"));
-  function elegir(f) {
-    if (!f) return;
-    if (!TIPOS.includes(f.type)) return toast("La foto debe ser JPG, PNG o WEBP.", "error");
-    if (f.size > MAX) return toast("La foto supera los 5 MB.", "error");
-    archivo = f;
-    drop.replaceChildren(h("img", { src: URL.createObjectURL(f), alt: "Vista previa" }), h("span", { class: "small" }, `${f.name} · toca para cambiar`));
-  }
-  entrada.addEventListener("change", () => elegir(entrada.files[0]));
-  ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("sobre"); }));
-  ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("sobre"); }));
-  drop.addEventListener("drop", (e) => elegir(e.dataTransfer.files[0]));
+  const foto = selectorFoto({ titulo: "Agregar foto del daño (opcional)", ayuda: "Toma la foto con la cámara o elígela de tu galería" });
   const usarBorrador = (b) => { titulo.value = b.titulo; desc.value = b.descripcion; desc.focus(); };
   const enviar = h("button", { class: "btn block", type: "submit" }, "Enviar reporte");
   const form = h("form", { class: "card sticky", novalidate: true, onsubmit: async (e) => {
@@ -81,18 +81,18 @@ export async function render(ctx) {
     if (titulo.value.trim().length < 5) return toast("El título debe tener al menos 5 caracteres.", "error");
     if (desc.value.trim().length < 10) return toast("Describe el daño con al menos 10 caracteres.", "error");
     const fd = new FormData(); fd.append("titulo", titulo.value.trim()); fd.append("descripcion", desc.value.trim());
-    if (archivo) fd.append("archivo_foto", archivo);
+    if (foto.archivo()) fd.append("archivo_foto", foto.archivo());
     try {
       await conCarga(enviar, () => api("/mantenimiento/reportar-danio", { metodo: "POST", cuerpo: fd }));
       toast("Reporte enviado. ¡Gracias por avisar!");
-      form.reset(); archivo = null; drop.replaceChildren(icono("subir"), h("b", {}, "Agregar foto"), h("span", { class: "small" }, "JPG, PNG o WEBP · máx. 5 MB"));
+      form.reset(); foto.limpiar();
       datos = await api("/mantenimiento/listar-danios"); pintar();
     } catch (err) { toast(err.message, "error"); }
   } },
     h("div", { class: "card-titulo" }, h("h2", {}, "Reportar un daño")), botonResidente("danio", usarBorrador),
     h("div", { class: "field" }, titulo, h("label", { for: "titulo" }, "¿Qué pasó?")),
     h("div", { class: "field" }, desc, h("label", { for: "desc" }, "Cuéntanos los detalles")),
-    drop, entrada, enviar);
+    foto.el, enviar);
 
   const llegado = tomarBorrador("danio");      // el asistente lo trajo desde otra pantalla
   if (llegado) { usarBorrador(llegado); toast("Borrador cargado. Revísalo, agrega una foto si quieres y envíalo."); }

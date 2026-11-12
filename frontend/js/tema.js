@@ -14,18 +14,27 @@
     return { fondo: p.fondo === "off" ? "off" : "on", anim: p.anim === "off" ? "off" : "on",
              texto: p.texto === "grande" || p.texto === "enorme" ? "grande" : "normal" };
   }
+  // Color por rol: el último rol de la sesión se recuerda para pintar bien desde el primer cuadro (sin parpadeo al recargar).
+  var ROLES = { Administrador: ["#07304A", "#06122B"], Residente: ["#063D30", "#04241D"], Guardia: ["#4A2A0B", "#231405"] };
+  function rolGuardado() { try { var r = sessionStorage.getItem("ciudadela.rol"); return ROLES[r] ? r : ""; } catch (e) { return ""; } }
   function aplicar() {
     var oscuro = guardada() === "oscuro";
-    var h = document.documentElement, p = prefs();
+    var h = document.documentElement, p = prefs(), rol = rolGuardado();
     h.dataset.tema = oscuro ? "oscuro" : "claro";
     h.dataset.fondo = p.fondo; h.dataset.anim = p.anim; h.dataset.texto = p.texto;
+    if (rol) h.dataset.rol = rol; else delete h.dataset.rol;
+    var col = ROLES[rol] || ROLES.Administrador;
     var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", oscuro ? "#06122B" : "#07304A");
+    if (meta) meta.setAttribute("content", oscuro ? col[1] : col[0]);
   }
   window.CiudadelaTema = {
     obtener: guardada,
     establecer: function (pref) { escribir(CLAVE, pref === "oscuro" ? "oscuro" : null); aplicar(); },
     prefs: prefs,
+    establecerRol: function (rol) {
+      try { if (rol) sessionStorage.setItem("ciudadela.rol", rol); else sessionStorage.removeItem("ciudadela.rol"); } catch (e) {}
+      aplicar();
+    },
     establecerPref: function (clave, valor) {
       var p = prefs(); p[clave] = valor; escribir(CLAVE_PREFS, JSON.stringify(p)); aplicar();
     },

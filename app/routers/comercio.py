@@ -139,7 +139,7 @@ async def crear(nombre_negocio: str = Form(..., min_length=2, max_length=60, exa
                 Publicidad.estado.in_([E.PENDIENTE_PAGO.value, E.EN_REVISION.value, E.ACTIVA.value])).scalar())
     if abiertos >= MAX_ABIERTOS:
         raise HTTPException(status_code=400, detail=f"Ya tienes {MAX_ABIERTOS} anuncios en curso. Espera a que venzan o elimina alguno.")
-    nombre_img = await guardar_imagen_validada(imagen) if imagen and imagen.filename else None
+    nombre_img = await guardar_imagen_validada(imagen, con_miniatura=True) if imagen and imagen.filename else None
     _, valor = PLANES_PUBLICIDAD[plan]
     a = Publicidad(propietario_id=usuario.id, nombre_negocio=nombre_negocio.strip(), categoria=categoria.value,
                    titulo=titulo.strip(), descripcion=descripcion.strip(), precio_texto=(precio_texto or "").strip() or None,
@@ -247,11 +247,11 @@ def contacto(anuncio_id: int, db: Session = Depends(get_db), usuario: Usuario = 
 @router.get("/{anuncio_id}/imagen", summary="Ver la imagen de un anuncio",
             description="Cualquier usuario si el anuncio está activo; si no, solo el dueño o el administrador.",
             responses={404: {"description": "Sin imagen"}, 403: {"description": "Sin permiso"}})
-def imagen(anuncio_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+def imagen(anuncio_id: int, miniatura: bool = False, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
     a = _obtener(db, anuncio_id)
     if a.estado != E.ACTIVA.value and a.propietario_id != usuario.id and usuario.rol != ADMIN.value:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver esta imagen.")
-    datos = leer_imagen(a.imagen) if a.imagen else None
+    datos = leer_imagen(a.imagen, miniatura=miniatura) if a.imagen else None
     if datos is None:
         raise HTTPException(status_code=404, detail="Este anuncio no tiene imagen.")
     return Response(content=datos[0], media_type=datos[1], headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=3600"})

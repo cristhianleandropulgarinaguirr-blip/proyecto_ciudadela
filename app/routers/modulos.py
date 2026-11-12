@@ -184,7 +184,7 @@ async def crear_reporte_danio(
     db: Session = Depends(get_db),
     usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN)),
 ):
-    nombre_foto = await guardar_imagen_validada(archivo_foto) if archivo_foto and archivo_foto.filename else None
+    nombre_foto = await guardar_imagen_validada(archivo_foto, con_miniatura=True) if archivo_foto and archivo_foto.filename else None
 
     nuevo = ReporteDanio(usuario_id=usuario.id, titulo=titulo, descripcion=descripcion,
                          foto_url=nombre_foto or "sin_foto.jpg", estado=EstadoDanio.ABIERTO.value)
@@ -209,13 +209,13 @@ def listar_danios(db: Session = Depends(get_db), usuario: Usuario = Depends(get_
 @router.get("/mantenimiento/danios/{reporte_id}/foto", tags=[TAG_DANIOS], summary="Descargar la foto de un reporte",
             description="Solo el dueño del reporte o un **Administrador**. Las fotos NO son públicas.",
             responses={404: {"description": "Reporte o foto no encontrados"}, 403: {"description": "No es tu reporte"}})
-def ver_foto_danio(reporte_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+def ver_foto_danio(reporte_id: int, miniatura: bool = False, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
     reporte = db.get(ReporteDanio, reporte_id)
     if reporte is None:
         raise HTTPException(status_code=404, detail="Reporte no encontrado.")
     if reporte.usuario_id != usuario.id and usuario.rol != ADMIN.value:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver esta foto.")
-    imagen = leer_imagen(reporte.foto_url) if reporte.foto_url and reporte.foto_url != "sin_foto.jpg" else None
+    imagen = leer_imagen(reporte.foto_url, miniatura=miniatura) if reporte.foto_url and reporte.foto_url != "sin_foto.jpg" else None
     if imagen is None:
         raise HTTPException(status_code=404, detail="Este reporte no tiene foto.")
     return Response(content=imagen[0], media_type=imagen[1], headers={"X-Content-Type-Options": "nosniff", "Cache-Control": "private, max-age=3600"})

@@ -173,6 +173,27 @@ La IA **redacta borradores**; nunca radica, publica ni envía nada por su cuenta
 - La clave vive solo en el servidor y viaja en un encabezado (no en la URL). Topes diarios por persona y globales. La auditoría registra *que* se usó el asistente, nunca el texto.
 - **Privacidad:** en el plan gratuito de Google, lo que se envía puede usarse para mejorar sus productos. Para demostraciones usa datos ficticios; para operar con residentes reales usa un plan de pago o un proveedor con garantías de privacidad, y ajusta la política de datos.
 
+## Versión 3.0: color por rol, cámara en las fotos y más velocidad — recuerda `alembic upgrade head` (migraciones 0011 y 0012)
+
+**Color por rol.** Cada rol tiene su identidad: Administrador = azul marino, Residente = verde esmeralda, Guardia = cobre/ámbar (modo claro y oscuro).
+Todo vive en variables CSS al final de las variables de `frontend/estilos.css` (`:root[data-rol="…"]`); `js/tema.js` pone el atributo `data-rol` según el usuario.
+Para cambiar un color basta con editar esas variables.
+
+**Cámara.** `frontend/js/foto.js` es un selector reutilizable («Tomar foto» + «Galería»). En celular abre la cámara nativa; en computador, la webcam (necesita HTTPS o `localhost`).
+La foto se reduce y comprime en el navegador antes de subir. Está en Daños y en la imagen de Comercio; para usarlo en otra pantalla: `selectorFoto({...})`, agregar `.el` al formulario y leer `.archivo()`.
+
+**Foto en Paquetes (opcional).** Al registrar la llegada, portería puede tomar o elegir una foto como evidencia. Se sube justo después de crear el paquete (`POST /paquetes/{id}/foto`, solo Guardia/Administrador y solo mientras está en portería); la ven el destinatario, el guardia y el administrador (`GET /paquetes/{id}/foto`, con `?miniatura=true` para la versión liviana). Migración `0012` (`paquetes.foto_url`).
+
+**Rendimiento.**
+- Las pantallas se cargan solo cuando se abren (`import()` en `app.js`); las de la barra inferior se precargan en segundo plano.
+- `GET /app/sw.js` se genera en el servidor con una versión calculada de los archivos: la caché del celular se renueva sola en cada despliegue con cambios (no hay número que subir a mano).
+- Compresión GZip del texto y caché de una semana para `/app/img/`.
+- Las fotos subidas se reducen a 1600 px, se enderezan y se les quitan los metadatos EXIF (incluido el GPS). Daños y Comercio guardan además una miniatura (`m_<nombre>`); `?miniatura=true` la pide.
+- Migración `0011`: índices en reservas y reportes de daños. Pool de conexiones ajustado para PostgreSQL.
+- Caché corta (12 s) de lecturas en el navegador, que se vacía con cualquier escritura.
+
+**Nota sobre Render (plan gratis):** el servicio se duerme tras 15 minutos sin uso y tarda cerca de un minuto en despertar; eso pesa más que cualquier optimización de código.
+
 ## Cómo probar la seguridad en Swagger
 1. Pulsa **Authorize** 🔒 e ingresa el correo y la contraseña del administrador.
 2. Swagger enviará el token en cada petición. Prueba las rutas protegidas.

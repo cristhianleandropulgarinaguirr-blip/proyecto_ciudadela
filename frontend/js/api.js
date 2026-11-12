@@ -4,7 +4,7 @@ const CLAVE = "ciudadela.token";
 export const sesion = {
   get token() { return sessionStorage.getItem(CLAVE); },
   guardar(t) { sessionStorage.setItem(CLAVE, t); },
-  cerrar() { sessionStorage.removeItem(CLAVE); },
+  cerrar() { sessionStorage.removeItem(CLAVE); lecturas.clear(); },
 };
 
 let alExpirar = () => {};
@@ -49,5 +49,28 @@ async function pedir(ruta, { metodo = "GET", params, json, form, cuerpo } = {}) 
   return res;
 }
 
-export const api = async (ruta, opc) => (await pedir(ruta, opc)).json();
+// Caché corta en memoria para lecturas (GET): evita pedir lo mismo dos veces seguidas al navegar entre pantallas
+// (por ejemplo, la cartelera en Inicio y luego en Cartelera). Cualquier escritura (POST/PUT/PATCH/DELETE) la vacía,
+// y lo que cambia sin parar (notificaciones, portería, sesión) nunca se guarda.
+const TTL_MS = 12000;
+const NO_CACHEAR = [/^\/notificaciones/, /^\/porteria/, /^\/usuarios\/me/, /^\/auth/, /^\/visitantes-autorizados\/dentro/];
+const lecturas = new Map();            // clave → { t, promesa }
+export const vaciarCache = () => lecturas.clear();
+
+export async function api(ruta, opc = {}) {
+  const metodo = (opc.metodo ?? "GET").toUpperCase();
+  if (metodo !== "GET") {
+    const r = await pedir(ruta, opc).then((x) => x.json());
+    lecturas.clear();
+    return r;
+  }
+  if (NO_CACHEAR.some((re) => re.test(ruta))) return (await pedir(ruta, opc)).json();
+  const clave = `${sesion.token}|${ruta}?${opc.params ? new URLSearchParams(opc.params) : ""}`;
+  const previa = lecturas.get(clave);
+  if (previa && Date.now() - previa.t < TTL_MS) return structuredClone(await previa.promesa);
+  const promesa = pedir(ruta, opc).then((x) => x.json());
+  lecturas.set(clave, { t: Date.now(), promesa });
+  promesa.catch(() => lecturas.delete(clave));     // un error no se guarda
+  return structuredClone(await promesa);
+}
 export const apiBlob = async (ruta, opc) => (await pedir(ruta, opc)).blob();

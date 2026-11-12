@@ -131,6 +131,7 @@ class PaqueteResponse(BaseModel):
     entregado_a: Optional[str] = None
     entregado_por: Optional[str] = None
     fecha_entrega: Optional[datetime] = None
+    tiene_foto: bool = False
 
 
 class DestinatarioResponse(BaseModel):

@@ -70,10 +70,10 @@ class Reserva(Base):
     __tablename__ = "reservas"
 
     id = Column(Integer, primary_key=True, index=True)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
     zona_comun = Column(String, nullable=False)
-    fecha_reserva = Column(DateTime, nullable=False)
-    estado = Column(String, default="Pendiente")  # Pendiente | Aprobada | Cancelada
+    fecha_reserva = Column(DateTime, nullable=False, index=True)
+    estado = Column(String, default="Pendiente", index=True)  # Pendiente | Aprobada | Cancelada
     fecha_creacion = Column(DateTime, default=ahora_utc)
 
 
@@ -84,12 +84,12 @@ class ReporteDanio(Base):
     __tablename__ = "reportes_danios"
 
     id = Column(Integer, primary_key=True, index=True)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
     titulo = Column(String, nullable=False)
     descripcion = Column(String, nullable=False)
     # Nombre del archivo guardado en la carpeta de uploads (nombre aleatorio, no el original)
     foto_url = Column(String, nullable=True, default="sin_foto.jpg")
-    estado = Column(String, default="Abierto")  # Abierto | En Revision | En Reparacion | Solucionado
+    estado = Column(String, default="Abierto", index=True)  # Abierto | En Revision | En Reparacion | Solucionado
     fecha_creacion = Column(DateTime, default=ahora_utc)
 
 
@@ -270,6 +270,7 @@ class Paquete(Base):
     entregado_a = Column(String, nullable=True)               # nombre de quien lo recogió
     entregado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)   # quién lo entregó
     fecha_entrega = Column(DateTime, nullable=True)
+    foto_url = Column(String, nullable=True)                  # nombre del archivo de la foto del paquete (opcional, como evidencia)
 
 
 class ContactoEmergencia(Base):
