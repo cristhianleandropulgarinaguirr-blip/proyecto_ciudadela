@@ -77,7 +77,7 @@ function tarjeta(v, esAdmin, recargar) {
     const max = Math.max(...v.opciones.map((o) => o.votos ?? 0));
     return [...v.opciones.map((o) => h("div", { class: `resultado-op ${max > 0 && o.votos === max ? "gana" : ""}` },
       h("div", { class: "fila" }, h("b", {}, o.texto), h("span", {}, `${o.votos} · ${o.porcentaje}%`)),
-      h("div", { class: "barra" }, h("i", { style: `width:${o.porcentaje}%` })))),
+      h("div", { class: "barra-progreso" }, h("i", { style: `width:${o.porcentaje}%` })))),
     h("p", { class: "small muted" }, `${v.total_votos} voto(s) en total.`)];
   };
 
@@ -116,7 +116,7 @@ function tarjeta(v, esAdmin, recargar) {
     h("p", { class: "small muted" }, abierta ? `Cierra ${fmtFechaHora(cierre)} (${faltan(cierre)})` : v.estado === "Anulada" ? "Votación anulada" : `Cerró ${fmtFechaHora(cierre)}`,
       ` · ${v.un_voto_por === "apartamento" ? "un voto por apartamento" : "un voto por persona"}${v.exige_al_dia ? " · solo residentes al día" : ""}`),
     cuerpo,
-    h("div", { class: "participacion" }, h("div", { class: "barra" }, h("i", { style: `width:${pct}%` })), h("span", { class: "small muted" }, `Han votado ${v.participacion} de ${v.elegibles}`)),
+    h("div", { class: "participacion" }, h("div", { class: "barra-progreso" }, h("i", { style: `width:${pct}%` })), h("span", { class: "small muted" }, `Han votado ${v.participacion} de ${v.elegibles}`)),
     h("div", { class: "acciones-fila" }, v.puede_votar ? votar : null, esAdmin ? h("button", { class: "btn suave sm", onclick: () => verParticipacion(v) }, icono("usuarios", 16), "Quién votó") : null, ...admin));
 }
 

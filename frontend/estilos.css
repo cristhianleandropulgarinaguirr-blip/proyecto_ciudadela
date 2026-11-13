@@ -956,9 +956,9 @@ html[data-texto="grande"] { font-size: 112.5%; }
 .resultado-op { display: grid; gap: .3rem; }
 .resultado-op .fila { display: flex; justify-content: space-between; gap: 1rem; font-size: .95rem; }
 .resultado-op .fila span { color: var(--tinta-2); font-variant-numeric: tabular-nums; }
-.barra { height: 8px; border-radius: 99px; background: var(--linea); overflow: hidden; }
-.barra i { display: block; height: 100%; background: var(--bosque-2); border-radius: 99px; transition: width .5s var(--ease, ease); }
-.resultado-op.gana .barra i { background: var(--primario); }
+.barra-progreso { height: 8px; border-radius: 99px; background: var(--linea); overflow: hidden; }
+.barra-progreso i { display: block; height: 100%; background: var(--bosque-2); border-radius: 99px; transition: width .5s var(--ease, ease); }
+.resultado-op.gana .barra-progreso i { background: var(--primario); }
 .participacion { display: grid; gap: .3rem; margin: .6rem 0 .2rem; }
 .acciones-fila { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .8rem; }
 .check { display: flex; gap: .7rem; align-items: flex-start; margin-top: .8rem; cursor: pointer; }
