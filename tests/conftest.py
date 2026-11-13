@@ -8,6 +8,7 @@ _TMP = tempfile.mkdtemp(prefix="pruebas_conjunto_")
 os.environ["SECRET_KEY"] = "clave-de-pruebas-solo-para-tests-0123456789abcdef"
 os.environ["DATABASE_URL"] = f"sqlite:///{_TMP}/pruebas.db"
 os.environ["UPLOAD_DIR"] = f"{_TMP}/uploads"
+os.environ.setdefault("BCRYPT_ROUNDS", "4")   # bcrypt rápido solo en pruebas (en producción son 12 rondas)
 
 import pytest
 from fastapi.testclient import TestClient

@@ -2,6 +2,8 @@
 # "Middleware" de seguridad por inyección de dependencias:
 #   1. get_current_user  -> valida el JWT y devuelve al usuario (401 si falla)
 #   2. requiere_roles    -> valida el rol del usuario (403 si no tiene permiso)
+from typing import Optional
+
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -10,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.constantes import RolNombre
 from app.database import get_db
 from app.models import Usuario
+from app import sesiones
 from app.security import decodificar_token
 
 # tokenUrl hace que Swagger muestre el botón "Authorize" y pida usuario/clave.
@@ -27,8 +30,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except jwt.PyJWTError:
         raise error_401
 
-    usuario_id = payload.get("usuario_id")
-    if not isinstance(usuario_id, int):
+    usuario_id, sid = payload.get("usuario_id"), payload.get("sid")
+    if not isinstance(usuario_id, int) or not isinstance(sid, str):
         raise error_401
 
     # Se consulta el usuario en la BD: así el rol siempre está actualizado
@@ -36,7 +39,18 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     usuario = db.get(Usuario, usuario_id)
     if usuario is None or not usuario.esta_activo:
         raise error_401
+    # La sesión pudo cerrarse desde el servidor (cerrar sesión, cambio de clave, desactivación): el token deja de servir al instante.
+    if not sesiones.sesion_valida(db, sid, usuario_id):
+        raise error_401
     return usuario
+
+
+def sid_actual(token: str = Depends(oauth2_scheme)) -> Optional[str]:
+    """Id de la sesión del token (para marcar «este dispositivo» y no cerrarlo por accidente)."""
+    try:
+        return decodificar_token(token).get("sid")
+    except jwt.PyJWTError:
+        return None
 
 
 def requiere_roles(*roles_permitidos: RolNombre):

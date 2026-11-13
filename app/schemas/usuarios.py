@@ -1,5 +1,6 @@
 # app/schemas/usuarios.py
 # Schemas = reglas de validación de lo que entra y sale por la API (no tocan la BD).
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -65,6 +66,7 @@ class TokenResponse(BaseModel):
     rol: str
     nombre_completo: str
     debe_cambiar_password: bool = False
+    expira_en: int = Field(default=900, description="Segundos de vida del access_token: pide uno nuevo con /auth/refresh antes de que venza")
 
     model_config = ConfigDict(json_schema_extra={"example": {
         "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -88,3 +90,12 @@ class CambioPassword(BaseModel):
 class PasswordTemporalResponse(BaseModel):
     password_temporal: str
     mensaje: str
+
+
+class SesionResponse(BaseModel):
+    id: str
+    dispositivo: Optional[str] = None
+    ip: Optional[str] = None
+    creada: datetime
+    ultimo_uso: datetime
+    actual: bool = False

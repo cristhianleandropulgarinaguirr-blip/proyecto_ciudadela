@@ -3,6 +3,7 @@
 // Endpoints: POST /qr/escanear · GET /qr/escaneos
 import { api } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, deUtc, hace, placa } from "../ui.js";
+import { red } from "../red.js";
 
 let jsqrPromesa = null;
 const cargarJsQR = () => (jsqrPromesa ??= new Promise((ok, mal) => {
@@ -24,12 +25,18 @@ function tarjetaResultado(r) {
     h("p", {}, r.mensaje), detalle.length ? h("div", { class: "detalle" }, detalle) : null);
 }
 
+function tarjetaSinConexion() {
+  return h("div", { class: "resultado-qr mal", role: "alert" },
+    h("div", { class: "titulo" }, icono("alerta", 22), h("b", {}, "Sin conexión")),
+    h("p", {}, "El QR no se puede validar sin internet (el servidor es quien sabe si el pase sigue vigente o ya se usó). Verifica la identidad de la persona y registra el ingreso en las pestañas «Vehículos» o «Visitantes a pie»: se guarda y se envía solo al volver la conexión."));
+}
+
 export function vistaEscaner() {
   const resultado = h("div", { class: "resultado-hueco", "aria-live": "assertive" });
   const bitacora = h("div", { class: "lista" });
   const video = h("video", { class: "visor-video", playsinline: true, muted: true, autoplay: true });
   const visor = h("div", { class: "visor", hidden: true }, video, h("div", { class: "marco" }, h("i"), h("i"), h("i"), h("i")));
-  let stream = null, activo = false, ocupado = false, ultimo = "", ultimoT = 0;
+  let stream = null, activo = false, ocupado = false, ultimo = "", ultimoT = 0, quiereCamara = false, linterna = false;
 
   async function enviar(texto) {
     const t = texto.trim();
@@ -41,20 +48,47 @@ export function vistaEscaner() {
       resultado.replaceChildren(tarjetaResultado(r));
       navigator.vibrate?.(r.ok ? 80 : [120, 60, 120]);
       cargarBitacora();
-    } catch (e) { toast(e.message, "error"); }
+    } catch (e) {
+      if (e.status === 0) { resultado.replaceChildren(tarjetaSinConexion()); navigator.vibrate?.([120, 60, 120]); ultimo = ""; }   // se podrá reintentar el mismo código
+      else toast(e.message, "error");
+    }
     finally { ocupado = false; }
   }
 
-  async function detener() {
-    activo = false; stream?.getTracks().forEach((t) => t.stop()); stream = null; video.srcObject = null;
-    visor.hidden = true; btnCamara.replaceChildren(icono("camara", 18), "Activar cámara"); btnCamara.dataset.on = "";
+  // `soltar` libera la cámara (batería y privacidad); `detener` además cancela la intención de volver a prenderla.
+  function soltar() {
+    activo = false; stream?.getTracks().forEach((t) => t.stop()); stream = null; video.srcObject = null; linterna = false;
+    visor.hidden = true; btnLinterna.hidden = true; btnCamara.replaceChildren(icono("camara", 18), "Activar cámara"); btnCamara.dataset.on = "";
+  }
+  function detener() { quiereCamara = false; soltar(); }
+
+  // Si la pestaña pasa a segundo plano (otra app, bloqueo de pantalla) se libera la cámara y se vuelve a prender al regresar.
+  const alOcultar = () => {
+    if (!visor.isConnected) return document.removeEventListener("visibilitychange", alOcultar);
+    if (document.hidden && activo) soltar();
+    else if (!document.hidden && quiereCamara && !activo) activar();
+  };
+  document.addEventListener("visibilitychange", alOcultar);
+
+  async function alternarLinterna() {
+    const pista = stream?.getVideoTracks()[0];
+    try { linterna = !linterna; await pista.applyConstraints({ advanced: [{ torch: linterna }] }); btnLinterna.dataset.on = linterna ? "1" : ""; }
+    catch { linterna = false; toast("Este celular no permite encender la linterna desde la app.", "error"); }
   }
 
   async function activar() {
     if (!window.isSecureContext) return toast("La cámara solo funciona con HTTPS (o en localhost). Usa el campo de abajo para escribir el código.", "error");
-    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }); }
-    catch { return toast("No se pudo abrir la cámara. Revisa el permiso del navegador.", "error"); }
+    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 } }, audio: false }); }
+    catch (e) {
+      quiereCamara = false;
+      return toast(e?.name === "NotAllowedError" ? "La cámara está bloqueada. Permítela en el navegador (candado de la barra de direcciones)."
+        : e?.name === "NotFoundError" ? "Este equipo no tiene cámara. Escribe el código en el campo de abajo."
+        : e?.name === "NotReadableError" ? "Otra app está usando la cámara. Ciérrala e inténtalo de nuevo." : "No se pudo abrir la cámara.", "error");
+    }
+    quiereCamara = true;
     video.srcObject = stream; await video.play().catch(() => {});
+    stream.getVideoTracks()[0]?.addEventListener("ended", soltar);                       // el sistema quitó la cámara (llamada, otra app)
+    btnLinterna.hidden = !stream.getVideoTracks()[0]?.getCapabilities?.().torch;
     visor.hidden = false; activo = true; btnCamara.replaceChildren(icono("x", 18), "Apagar cámara"); btnCamara.dataset.on = "1";
 
     let leer;
@@ -75,13 +109,14 @@ export function vistaEscaner() {
     const ciclo = async () => {
       if (!activo) return;
       if (!video.isConnected) return detener();                 // el guardia cambió de pantalla: se libera la cámara
-      try { const v = await leer(); if (v) await enviar(v); } catch { /* cuadro sin QR */ }
-      setTimeout(ciclo, 200);
+      if (!document.hidden) { try { const v = await leer(); if (v) await enviar(v); } catch { /* cuadro sin QR */ } }
+      setTimeout(ciclo, ocupado ? 400 : 200);
     };
     ciclo();
   }
 
   const btnCamara = h("button", { class: "btn", type: "button", onclick: () => (activo ? detener() : activar()) }, icono("camara", 18), "Activar cámara");
+  const btnLinterna = h("button", { class: "btn suave", type: "button", hidden: true, style: "margin-left:.5rem", onclick: alternarLinterna }, "Linterna");
 
   const entrada = h("input", { id: "codigo-manual", placeholder: " ", autocomplete: "off", spellcheck: "false", autocapitalize: "off" });
   const form = h("form", { novalidate: true, onsubmit: async (e) => {
@@ -99,12 +134,13 @@ export function vistaEscaner() {
         h("div", { class: "cuerpo" }, h("b", {}, f.resultado), h("span", {}, [f.detalle, f.titular].filter(Boolean).join(" · ") || "—")),
         h("div", { class: "acciones" }, h("span", { class: "small muted" }, `${hace(deUtc(f.fecha))} · ${f.escaneado_por}`))))
         : [estadoVacio("Sin escaneos todavía", "Aquí verás los últimos códigos leídos.")]));
-    } catch { /* la bitácora es secundaria */ }
+    } catch { /* la bitácora es secundaria: sin conexión se deja como esté */ }
   }
   cargarBitacora();
+  red.alCambiar((en) => { if (en && bitacora.isConnected) cargarBitacora(); });
 
   return h("div", { class: "grid lados" },
-    h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Escanear QR")), visor, btnCamara,
+    h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Escanear QR")), visor, btnCamara, btnLinterna,
       h("div", { style: "margin-top:1rem" }, form), resultado),
     h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Últimos escaneos")), bitacora));
 }

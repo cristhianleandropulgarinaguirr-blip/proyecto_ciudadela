@@ -29,6 +29,12 @@ services:
         sync: false
       - key: SUPABASE_BUCKET
         value: ciudadela-archivos
+      - key: VAPID_PUBLIC_KEY      # avisos push: genera el par con  python -m app.generar_vapid
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT          # p. ej. mailto:tu_correo@ejemplo.com
+        sync: false
       - key: PAGOS_SIMULADOS
         value: "0"              # en producción NO hay pagos de mentira
       - key: PAGOS_INSTRUCCIONES

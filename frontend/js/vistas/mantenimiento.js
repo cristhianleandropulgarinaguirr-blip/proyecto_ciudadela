@@ -75,7 +75,7 @@ export async function render(ctx) {
   const titulo = h("input", { id: "titulo", placeholder: " ", maxlength: "100", required: true });
   const desc = h("textarea", { id: "desc", placeholder: " ", maxlength: "1000", required: true });
   let auto = null;      // autoguardado del formulario (se crea abajo, cuando ya existen todos los campos)
-  const foto = selectorFoto({ titulo: "Agregar foto del daño (opcional)", ayuda: "Toma la foto con la cámara o elígela de tu galería",
+  const foto = selectorFoto({ titulo: "Agregar foto del daño (opcional)", ayuda: "Toma la foto con la cámara o elígela de tu galería", clave: `danio-${ctx.usuario.id}`,
     antesDeAbrir: () => auto?.foto(true), alCambiar: (f) => auto?.foto(!!f) });
   const usarBorrador = (b) => { titulo.value = b.titulo; desc.value = b.descripcion; desc.focus(); };
   auto = autoguardar({ usuarioId: ctx.usuario.id, nombre: "danio", campos: { titulo, desc } });

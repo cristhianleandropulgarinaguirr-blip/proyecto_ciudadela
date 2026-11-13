@@ -46,11 +46,13 @@ async function admin(ctx) {
 
 // ---------- Residente ----------
 async function residente(ctx) {
-  const [cuenta, mias, danios, avisos, paq] = await Promise.all([api(`/administracion/estado-cuenta/${ctx.usuario.id}`), api("/reservas/mis-reservas"), api("/mantenimiento/listar-danios"), api("/anuncios/"), api("/paquetes/", { params: { estado: "En porteria" } })]);
+  const [cuenta, mias, danios, avisos, paq, votos] = await Promise.all([api(`/administracion/estado-cuenta/${ctx.usuario.id}`), api("/reservas/mis-reservas"), api("/mantenimiento/listar-danios"), api("/anuncios/"), api("/paquetes/", { params: { estado: "En porteria" } }), api("/votaciones/pendientes").catch(() => ({ pendientes: 0 }))]);
   const proximas = mias.filter((r) => r.estado !== "Cancelada" && deLocal(r.fecha_reserva) >= hoy0()).sort((a, b) => deLocal(a.fecha_reserva) - deLocal(b.fecha_reserva)).slice(0, 3);
   const alDia = cuenta.saldo_pendiente === 0;
   return h("div", {},
     cabecera(`Hola, ${primerNombre(ctx.usuario.nombre_completo)}`, cuenta.apartamento ? `Bienvenido a ${cuenta.apartamento}.` : "Bienvenido a tu conjunto.", { saludo: hoyLargo() }),
+    votos.pendientes ? h("a", { class: "aviso-votacion escalona", href: "#/votaciones" }, icono("urna", 22),
+      h("span", {}, h("b", {}, `Tienes ${votos.pendientes} votación(es) por responder`), h("small", {}, "Tu voto es secreto y toma un minuto.")), icono("flecha", 18)) : null,
     h("div", { class: "grid dos escalona" },
       h("section", { class: "cuenta" }, h("div", { class: "et" }, "Saldo de administración"), h("div", { class: "monto" }, dinero(cuenta.saldo_pendiente)),
         h("div", { class: "datos" }, alDia ? h("span", { class: "badge" }, "Estás al día") : h("span", { class: "badge laton" }, "En mora · reservas bloqueadas"),

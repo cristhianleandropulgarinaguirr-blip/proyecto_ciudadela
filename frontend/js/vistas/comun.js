@@ -1,5 +1,5 @@
 // Piezas compartidas entre vistas.
-import { h } from "../ui.js";
+import { h, toast } from "../ui.js";
 
 export function cabecera(titulo, texto, { saludo } = {}) {
   return h("div", { class: "pagina-cab" },
@@ -22,4 +22,18 @@ export function filtros(opciones, inicial, alCambiar) {
 // Fecha en formato "bloque" (día grande + mes) usada en reservas.
 export function bloqueFecha(d) {
   return h("div", { class: "fecha" }, h("b", {}, d.getDate()), h("span", {}, d.toLocaleDateString("es-CO", { month: "short" }).replace(".", "")));
+}
+
+/** Avisa el resultado de un registro de portería (ver offline.registrar). Devuelve true si NO fue rechazado. */
+export function avisarRegistro(r, textoOk) {
+  if (r.estado === "rechazada") { toast(r.mensaje || "No se pudo completar el registro.", "error"); return false; }
+  if (r.estado === "pendiente") toast("Sin conexión: quedó guardado en este equipo y se enviará solo al volver internet.", "aviso");
+  else toast(textoOk);
+  return true;
+}
+
+/** Ejecuta `fn` cada vez que se sincroniza lo guardado sin internet, mientras `nodo` siga en pantalla. */
+export function alSincronizar(nodo, fn) {
+  const f = () => { if (!nodo.isConnected) return removeEventListener("ciudadela:sincronizado", f); fn(); };
+  addEventListener("ciudadela:sincronizado", f);
 }

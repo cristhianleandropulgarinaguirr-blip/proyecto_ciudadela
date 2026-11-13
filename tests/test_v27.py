@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta, timezone
 import jwt
 
 from app.config import GUARDIA_TOKEN_HORAS
-from app.models import VisitanteAutorizado
+from app.models import Sesion, Usuario, VisitanteAutorizado, ahora_utc
 from app.security import decodificar_token
 
 ANA, LUIS, CEL, ADM = "ana@conjunto.com", "luis@conjunto.com", "celador@conjunto.com", "admin@conjunto.com"
@@ -16,14 +16,23 @@ def vida_del_token(client, email):
     return (datetime.fromtimestamp(decodificar_token(t)["exp"], timezone.utc) - datetime.now(timezone.utc)).total_seconds() / 3600
 
 
+def vida_de_la_sesion(client, db, email):
+    """Cuánto dura la SESIÓN (cookie de renovación), no el token de acceso."""
+    client.post("/auth/login", data={"username": email, "password": CLAVE})
+    ultima = db.query(Sesion).join(Usuario, Usuario.id == Sesion.usuario_id).filter(Usuario.email == email).order_by(Sesion.creada.desc()).first()
+    return (ultima.expira - ahora_utc()).total_seconds() / 3600
+
+
 def id_de(client, auth, email):
     return next(u["id"] for u in client.get("/usuarios/", headers=auth(ADM)).json() if u["email"] == email)
 
 
 # ------------------------------------------------------------ sesión larga solo para portería
-def test_la_sesion_del_guarda_dura_un_turno_y_la_de_los_demas_no(client):
-    assert GUARDIA_TOKEN_HORAS - 0.1 < vida_del_token(client, CEL) <= GUARDIA_TOKEN_HORAS
-    assert vida_del_token(client, ANA) < 1.01 and vida_del_token(client, ADM) < 1.01
+def test_la_sesion_del_guarda_dura_un_turno_y_la_de_los_demas_no(client, db):
+    # El token de acceso es corto para todos (se renueva solo); lo que dura un turno es la sesión de la portería.
+    assert vida_del_token(client, CEL) < 0.3 and vida_del_token(client, ANA) < 0.3 and vida_del_token(client, ADM) < 0.3
+    assert GUARDIA_TOKEN_HORAS - 0.1 < vida_de_la_sesion(client, db, CEL) <= GUARDIA_TOKEN_HORAS
+    assert vida_de_la_sesion(client, db, ADM) > 24 * 6 and vida_de_la_sesion(client, db, ANA) > 24 * 13
 
 
 # ------------------------------------------------------------ visita de un solo día

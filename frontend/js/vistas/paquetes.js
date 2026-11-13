@@ -5,7 +5,8 @@ import { api, apiBlob } from "../api.js";
 import { selectorFoto } from "../foto.js";
 import { autoguardar } from "../autoguardado.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, confirmar, deUtc, hace, fmtFechaHora, kpi } from "../ui.js";
-import { cabecera, filtros } from "./comun.js";
+import { cabecera, filtros, avisarRegistro, alSincronizar } from "./comun.js";
+import { leer, leerCopia, registrar, pendientes, superponerPaquetes, normal } from "../offline.js";
 import { descargar, hoyArchivo } from "../descargas.js";
 
 const TIPOS = ["Paquete", "Correspondencia", "Domicilio"];
@@ -34,20 +35,27 @@ function fotoPaquete(p) {
 
 export async function render(ctx) {
   const rol = ctx.usuario.rol, esResidente = rol === "Residente", esPersonal = !esResidente;
-  const cargar = () => api("/paquetes/", { params: { limite: 200 } });
-  let datos = await cargar(), filtro = "En porteria", texto = "";
+  const cargar = () => leer("paquetes", () => api("/paquetes/", { params: { limite: 200 } }));
+  let base = await cargar(), filtro = "En porteria", texto = "";
+  let datos = superponerPaquetes(base, await pendientes());       // lo registrado sin internet aparece de inmediato, marcado «Pendiente»
   const lista = h("div", { class: "lista" }), resumen = h("div", { class: "kpis" });
   let chips = h("div");
 
-  async function recargar() { datos = await cargar(); pintar(); }
+  async function recargar() {
+    try { base = await cargar(); } catch { /* sin conexión: se deja lo que había */ }
+    datos = superponerPaquetes(base, await pendientes()); pintar();
+  }
 
   function entregar(p) {
     const quien = h("input", { id: "pq-quien", placeholder: " ", maxlength: "60", autocomplete: "off" });
     const ok = h("button", { class: "btn", type: "submit", form: "f-entrega" }, icono("ok", 16), "Confirmar entrega");
     const m = modal("Entregar paquete", h("form", { id: "f-entrega", novalidate: true, onsubmit: async (e) => {
       e.preventDefault();
-      try { await conCarga(ok, () => api(`/paquetes/${p.id}/entregar`, { metodo: "PATCH", json: { entregado_a: quien.value.trim() || null } })); m.cerrar(); toast("Entrega registrada"); await recargar(); }
-      catch (err) { toast(err.message, "error"); }
+      try {
+        const entregado_a = quien.value.trim() || null;
+        const r = await conCarga(ok, () => registrar("paquete_entrega", p.pendiente ? { ref: p.uuid, entregado_a } : { paquete_id: p.id, entregado_a }, { vista: { resumen: `Entrega de paquete para ${p.destinatario_nombre}` } }));
+        if (avisarRegistro(r, "Entrega registrada")) { m.cerrar(); await recargar(); }
+      } catch (err) { toast(err.message, "error"); }
     } },
       h("p", { class: "muted", style: "margin-bottom:1rem" }, `${p.tipo} para ${p.destinatario_nombre}${p.apartamento ? ` · ${p.apartamento}` : ""}.`),
       h("div", { class: "field" }, quien, h("label", { for: "pq-quien" }, "¿Quién lo recoge?"), h("div", { class: "ayuda" }, `Déjalo vacío si lo recoge ${p.destinatario_nombre}. Si es otra persona, escribe su nombre.`))),
@@ -63,10 +71,10 @@ export async function render(ctx) {
     const v = datos.filter((p) => (filtro === "todos" || p.estado === filtro) && (!q || [p.destinatario_nombre, p.apartamento, p.remitente, p.descripcion].some((x) => (x ?? "").toLowerCase().includes(q))));
     lista.replaceChildren(...(v.length ? v.map((p) => {
       const llegada = deUtc(p.fecha_recepcion), pendiente = p.estado === "En porteria";
-      const acc = [badge(p.estado)];
-      if (esPersonal && pendiente) acc.push(
+      const acc = [p.pendiente || p.entregaPendiente ? badge("Pendiente", "Guardado en este equipo; se enviará al volver el internet") : badge(p.estado)];
+      if (esPersonal && pendiente && !p.entregaPendiente) acc.push(
         h("button", { class: "btn sm", onclick: () => entregar(p) }, icono("ok", 16), "Entregar"),
-        h("button", { class: "btn peligro sm", onclick: async () => {
+        p.pendiente ? null : h("button", { class: "btn peligro sm", onclick: async () => {
           if (!(await confirmar("¿Anular este registro?", "Úsalo solo si lo registraste por error (por ejemplo, apartamento equivocado). Queda en la auditoría.", "Sí, anular", true))) return;
           try { await api(`/paquetes/${p.id}/anular`, { metodo: "PATCH" }); toast("Registro anulado"); await recargar(); } catch (e) { toast(e.message, "error"); }
         } }, "Anular"));
@@ -91,9 +99,19 @@ export async function render(ctx) {
     const pintarTipos = () => tipos.replaceChildren(...TIPOS.map((t) => h("button", { class: "chip", type: "button", "aria-pressed": String(t === tipo), onclick: () => { tipo = t; pintarTipos(); auto?.programar(); } }, t)));
     const pintarSel = () => selector.replaceChildren(...(residentes.length ? residentes.map((r) => h("button", { type: "button", role: "radio", "aria-checked": String(elegido?.id === r.id), onclick: () => { elegido = r; pintarSel(); auto?.programar(); } },
       r.nombre_completo, h("small", {}, r.apartamento ?? "Sin apartamento"))) : [h("p", { class: "small muted", style: "padding:.6rem" }, "No hay residentes con ese nombre o apartamento.")]));
-    const buscarRes = async () => { try { residentes = await api("/paquetes/destinatarios", { params: buscar.value.trim() ? { q: buscar.value.trim() } : undefined }); pintarSel(); } catch (e) { toast(e.message, "error"); } };
+    // Sin internet se busca en la última lista de residentes guardada en este equipo.
+    const buscarRes = async () => {
+      const q = buscar.value.trim();
+      try { residentes = q ? await api("/paquetes/destinatarios", { params: { q } }) : await leer("destinatarios", () => api("/paquetes/destinatarios")); }
+      catch (e) {
+        if (e.status !== 0 || !q) return toast(e.message, "error");
+        const c = await leerCopia("destinatarios"), t = normal(q);
+        residentes = (c?.datos ?? []).filter((r) => normal(r.nombre_completo).includes(t) || normal(r.apartamento).includes(t));
+      }
+      pintarSel();
+    };
     let t; buscar.addEventListener("input", () => { clearTimeout(t); t = setTimeout(buscarRes, 250); });
-    const foto = selectorFoto({ titulo: "Foto del paquete (opcional)", ayuda: "Sirve de evidencia de cómo llegó",
+    const foto = selectorFoto({ titulo: "Foto del paquete (opcional)", ayuda: "Sirve de evidencia de cómo llegó", clave: `paquete-${ctx.usuario.id}`,
       antesDeAbrir: () => auto?.foto(true), alCambiar: (f) => auto?.foto(!!f) });
     auto = autoguardar({ usuarioId: ctx.usuario.id, nombre: "paquete", campos: { buscar, remitente, desc },
       extra: () => ({ tipo, elegido: elegido ? { id: elegido.id, nombre_completo: elegido.nombre_completo, apartamento: elegido.apartamento ?? null } : null }),
@@ -103,13 +121,12 @@ export async function render(ctx) {
       e.preventDefault();
       if (!elegido) return toast("Elige a quién va dirigido.", "error");
       try {
-        const nuevo = await conCarga(enviar, () => api("/paquetes/", { metodo: "POST", json: { destinatario_id: elegido.id, tipo, remitente: remitente.value.trim() || null, descripcion: desc.value.trim() || null } }));
-        if (foto.archivo()) {            // el paquete ya quedó registrado; la foto va aparte para que un fallo de red no pierda el registro
-          try { const fd = new FormData(); fd.append("archivo", foto.archivo()); await api(`/paquetes/${nuevo.id}/foto`, { metodo: "POST", cuerpo: fd }); }
-          catch (errFoto) { toast(`Paquete registrado, pero la foto no se subió: ${errFoto.message}`, "error"); }
-        }
-        foto.limpiar();
-        toast(`Registrado para ${nuevo.destinatario_nombre}`); remitente.value = ""; desc.value = ""; elegido = null; auto.reiniciar(); pintarSel(); filtro = "En porteria"; await recargar();
+        const dest = elegido;
+        const r = await conCarga(enviar, () => registrar("paquete_registro", { destinatario_id: dest.id, tipo, remitente: remitente.value.trim() || null, descripcion: desc.value.trim() || null },
+          { vista: { destinatario_nombre: dest.nombre_completo, apartamento: dest.apartamento ?? null, resumen: `Paquete para ${dest.nombre_completo}` }, foto: foto.archivo() }));
+        if (!avisarRegistro(r, `Registrado para ${dest.nombre_completo}`)) return;      // si el servidor lo rechaza se conserva el formulario
+        foto.limpiar();                  // la foto ya viaja con el registro (se sube sola, también si no hay internet)
+        remitente.value = ""; desc.value = ""; elegido = null; auto.reiniciar(); pintarSel(); filtro = "En porteria"; await recargar();
       } catch (err) { toast(err.message, "error"); }
     } },
       h("div", { class: "card-titulo" }, h("h2", {}, "Registrar llegada")),
@@ -125,6 +142,7 @@ export async function render(ctx) {
   }
 
   pintar();
+  alSincronizar(lista, recargar);
   const buscador = h("input", { type: "search", placeholder: esResidente ? "Buscar por remitente" : "Buscar residente, apartamento o remitente", "aria-label": "Buscar", oninput: (e) => { texto = e.target.value; pintar(); } });
   return h("div", {},
     cabecera(esResidente ? "Mis paquetes" : "Paquetes", esResidente ? "Mira si tienes algo esperándote en portería y cuándo lo recogiste." : "Registra lo que llega a portería y entrégalo dejando constancia."),

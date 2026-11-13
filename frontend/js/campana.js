@@ -4,8 +4,11 @@ import { api } from "./api.js";
 import { h, icono, modal, toast, deUtc, hace, estadoVacio } from "./ui.js";
 
 let reloj = null;
+let refrescarExterno = null;
+/** La app lo llama cuando llega un aviso push mientras está abierta. */
+export const actualizarCampana = () => refrescarExterno?.();
 
-export function detenerCampana() { clearInterval(reloj); reloj = null; }
+export function detenerCampana() { clearInterval(reloj); reloj = null; try { navigator.clearAppBadge?.(); } catch { /* nada */ } }
 
 export function crearCampana(ir) {
   const burbuja = h("span", { class: "burbuja", hidden: true });
@@ -14,6 +17,7 @@ export function crearCampana(ir) {
   const pintarConteo = (n) => {
     burbuja.hidden = n === 0; burbuja.textContent = n > 9 ? "9+" : String(n);
     boton.setAttribute("aria-label", n ? `Notificaciones: ${n} sin leer` : "Notificaciones");
+    try { n ? navigator.setAppBadge?.(n) : navigator.clearAppBadge?.(); } catch { /* el navegador no soporta insignias */ }
   };
   const refrescar = async () => { try { pintarConteo((await api("/notificaciones/conteo")).no_leidas); } catch { /* sin red: se reintenta en el siguiente ciclo */ } };
 
@@ -35,6 +39,7 @@ export function crearCampana(ir) {
   };
 
   detenerCampana();
+  refrescarExterno = refrescar;
   refrescar();
   reloj = setInterval(() => { if (!document.hidden) refrescar(); }, 60000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden && reloj) refrescar(); });

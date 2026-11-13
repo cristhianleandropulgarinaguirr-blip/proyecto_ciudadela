@@ -3,16 +3,29 @@
 import { api } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, deUtc, hace, fmtHora, fmtFechaHora, kpi } from "../ui.js";
 import { etiquetaTipo } from "./visitantes.js";
+import { avisarRegistro, alSincronizar } from "./comun.js";
+import { leer, registrar, pendientes, superponerVisitantesDentro, superponerBusqueda, buscarVisitantesLocal } from "../offline.js";
 import { descargar, hoyArchivo } from "../descargas.js";
 
 export async function vistaVisitantesPorteria(esAdmin = false) {
-  let dentro = await api("/visitantes-autorizados/dentro"), recientes = await api("/visitantes-autorizados/accesos", { params: { limite: 15 } });
+  const cargarDentro = () => leer("visitantes-dentro", () => api("/visitantes-autorizados/dentro"));
+  const cargarRecientes = () => leer("visitantes-recientes", () => api("/visitantes-autorizados/accesos", { params: { limite: 15 } }));
+  let baseDentro = await cargarDentro(), recientes = await cargarRecientes();
+  let dentro = superponerVisitantesDentro(baseDentro, await pendientes());
   let resultados = null, termino = "";
   const kpis = h("div", { class: "kpis" }), cajaDentro = h("div", { class: "lista" }), cajaRes = h("div", { class: "resultado-busqueda" }), cajaHist = h("div", { class: "lista" });
 
+  // Con internet busca en el servidor; sin internet, en la copia guardada en este equipo (solo autorizaciones vigentes).
+  async function buscarVisitante(q) {
+    const ops = await pendientes();
+    try { return superponerBusqueda(await api("/visitantes-autorizados/buscar", { params: { q } }), ops); }
+    catch (e) { if (e.status === 0) return buscarVisitantesLocal(q, ops); throw e; }
+  }
+
   async function refrescar() {
-    [dentro, recientes] = await Promise.all([api("/visitantes-autorizados/dentro"), api("/visitantes-autorizados/accesos", { params: { limite: 15 } })]);
-    if (termino.length >= 3) resultados = await api("/visitantes-autorizados/buscar", { params: { q: termino } });
+    try { [baseDentro, recientes] = await Promise.all([cargarDentro(), cargarRecientes()]); } catch { /* se deja lo que había */ }
+    dentro = superponerVisitantesDentro(baseDentro, await pendientes());
+    if (termino.length >= 3) { try { resultados = await buscarVisitante(termino); } catch { /* se deja lo que había */ } }
     pintar();
   }
 
@@ -21,19 +34,24 @@ export async function vistaVisitantesPorteria(esAdmin = false) {
     cajaDentro.replaceChildren(...(dentro.length ? dentro.map((a) => {
       const ing = deUtc(a.fecha_ingreso);
       const salir = h("button", { class: "btn suave sm", onclick: async () => {
-        try { await conCarga(salir, () => api(`/visitantes-autorizados/accesos/${a.id}/salida`, { metodo: "PATCH" })); toast(`Salida registrada: ${a.nombre}`); await refrescar(); }
-        catch (e) { toast(e.message, "error"); }
+        try {
+          const r = await conCarga(salir, () => registrar("visitante_salida", a.pendiente ? { ref: a.uuid, visitante_id: a.visitante_id } : { acceso_id: a.id, visitante_id: a.visitante_id }, { vista: { resumen: `Salida de ${a.nombre}` } }));
+          if (avisarRegistro(r, `Salida registrada: ${a.nombre}`)) await refrescar();
+        } catch (e) { toast(e.message, "error"); }
       } }, "Registrar salida");
       return h("div", { class: "item" }, h("div", { class: "ico-caja" }, icono("identificacion")),
-        h("div", { class: "cuerpo" }, h("b", {}, a.nombre), h("span", {}, `Visita a ${a.apartamento ?? a.anfitrion_nombre} · ingresó ${fmtHora(ing)} (${hace(ing)})`)),
+        h("div", { class: "cuerpo" }, h("b", {}, a.nombre), a.pendiente ? badge("Pendiente", "Guardado en este equipo; se enviará al volver el internet") : null, h("span", {}, `Visita a ${a.apartamento ?? a.anfitrion_nombre} · ingresó ${fmtHora(ing)} (${hace(ing)})`)),
         h("div", { class: "acciones" }, salir));
     }) : [estadoVacio("Nadie dentro", "No hay visitantes a pie en el conjunto.")]));
 
     cajaRes.replaceChildren(...(resultados === null ? [] : resultados.length ? resultados.map((v) => {
       const puede = v.vigente && !v.dentro;
       const entrar = h("button", { class: "btn sm", disabled: !puede, onclick: async () => {
-        try { await conCarga(entrar, () => api(`/visitantes-autorizados/${v.id}/ingreso`, { metodo: "POST" })); toast(`Ingreso registrado: ${v.nombre}`); await refrescar(); }
-        catch (e) { toast(e.message, "error"); }
+        try {
+          const vista = { nombre: v.nombre, documento: v.documento, tipo: v.tipo, anfitrion_nombre: v.anfitrion_nombre, apartamento: v.apartamento, resumen: `Ingreso de ${v.nombre}` };
+          const r = await conCarga(entrar, () => registrar("visitante_ingreso", { visitante_id: v.id }, { vista }));
+          if (avisarRegistro(r, `Ingreso registrado: ${v.nombre}`)) await refrescar();
+        } catch (e) { toast(e.message, "error"); }
       } }, icono("ok", 16), "Registrar ingreso");
       return h("div", { class: `item ${v.vigente ? "" : "apagado"}` }, h("div", { class: "ico-caja laton" }, icono("identificacion")),
         h("div", { class: "cuerpo" }, h("b", {}, v.nombre), h("span", {}, `${etiquetaTipo(v.tipo)} · CC ${v.documento}`),
@@ -54,11 +72,12 @@ export async function vistaVisitantesPorteria(esAdmin = false) {
     t = setTimeout(async () => {
       const mio = ++turno;
       if (termino.length < 3) { resultados = null; return pintar(); }
-      try { const r = await api("/visitantes-autorizados/buscar", { params: { q: termino } }); if (mio === turno) { resultados = r; pintar(); } }
+      try { const r = await buscarVisitante(termino); if (mio === turno) { resultados = r; pintar(); } }
       catch (err) { toast(err.message, "error"); }
     }, 300);
   } });
   pintar();
+  alSincronizar(cajaDentro, refrescar);
   return h("div", { class: "grid lados escalona" },
     h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Verificar visitante")),
       h("div", { class: "field" }, buscar, h("label", { for: "vp-q" }, "Nombre o documento"), h("div", { class: "ayuda" }, "Escribe al menos 3 caracteres. Si no aparece, nadie lo autorizó.")), cajaRes),

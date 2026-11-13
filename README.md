@@ -194,6 +194,37 @@ La foto se reduce y comprime en el navegador antes de subir. Está en Daños y e
 
 **Nota sobre Render (plan gratis):** el servicio se duerme tras 15 minutos sin uso y tarda cerca de un minuto en despertar; eso pesa más que cualquier optimización de código.
 
+## Versión 3.1: sesión segura, avisos push, votaciones y portería sin internet — recuerda `pip install -r requirements.txt` y `alembic upgrade head` (migración 0013)
+
+**Arreglo de la cámara (guardia).** Al tomar la foto de un paquete el celular puede cerrar la página para liberar memoria. Antes, al volver, la app
+tomaba *cualquier* fallo (internet un instante dormido, servidor de Render despertando) como «sesión cerrada» y mandaba al login. Ahora solo el
+servidor decide si la sesión terminó (401 al renovar); un fallo de red muestra «Esperando conexión» y reintenta solo. Además la foto tomada se
+guarda en el equipo hasta enviarla (si la página se recarga, reaparece), la cámara web se apaga sola al salir y el escáner QR libera la cámara
+cuando la app pasa a segundo plano.
+
+**Sesión segura.** Token de acceso de 15 min (solo en la pestaña, ya no en `localStorage`) + cookie de renovación `HttpOnly`, `SameSite=Strict`,
+rotativa y guardada como *hash* en la tabla `sesiones`. Si alguien reutiliza un token viejo (robo) se revoca toda la sesión. `POST /auth/logout`
+revoca al instante; cambiar la contraseña, desactivar o restablecer a un usuario cierran sus sesiones; `GET /auth/sesiones` lista los dispositivos
+(se ven y cierran en Configuración). La app también envía una política de contenido (CSP) que solo deja ejecutar JavaScript propio.
+
+**Avisos push.** Cada notificación de la campana (paquetes, reservas, PQRS, anuncios, votaciones…) también llega al celular si la persona los activó
+en Configuración. Requiere el par de claves VAPID: `python -m app.generar_vapid` y pegar las 3 variables `VAPID_*` en `.env` y en Render. Sin ellas
+todo sigue funcionando con la campana. En iPhone solo con la app instalada en la pantalla de inicio (iOS 16.4+).
+
+**Votaciones** (`/votaciones`). Voto secreto por diseño (quién votó y cuántos votos tiene cada opción se guardan por separado), un voto por
+apartamento o por persona, resultados al cerrar (o en vivo si se pide), opción de exigir estar al día, cierre automático por fecha, cierre/anulación
+manual y lista de quién ya votó (nunca qué votó) para el quórum.
+
+**Portería sin internet.** Ingreso/salida de vehículos, ingreso/salida de visitantes a pie, paquetes (con foto) y entregas se guardan primero en el
+equipo con un identificador único y la hora real, y se envían a `POST /porteria/sincronizar` (idempotente: reenviar nunca duplica). Con internet
+pasa en un instante; sin internet queda en cola, se ve marcado «Pendiente» y sale solo al volver la conexión. Se guardan copias de lectura
+(vehículos dentro, paquetes, visitantes vigentes) para buscar sin conexión. **El QR no se valida sin internet** (solo el servidor sabe si el pase
+sigue vigente o ya se usó): la app lo dice y orienta a registrar a mano.
+
+**Velocidad.** Índices nuevos (campana, paquetes por residente, vehículos dentro), copias de lectura, reintentos automáticos de lecturas, `bcrypt`
+configurable (`BCRYPT_ROUNDS`; las pruebas pasan de ~6 min a ~40 s), icono «+» corregido y un trabajo opcional de GitHub (`mantener-activo.yml`)
+que visita `/salud` cada 10 min para que Render gratis no se duerma (define la variable `APP_URL`).
+
 ## Cómo probar la seguridad en Swagger
 1. Pulsa **Authorize** 🔒 e ingresa el correo y la contraseña del administrador.
 2. Swagger enviará el token en cada petición. Prueba las rutas protegidas.

@@ -1,7 +1,7 @@
 # app/models.py
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -357,3 +357,112 @@ class UsoAsistente(Base):
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
     funcion = Column(String, nullable=False)           # residente | anuncio
     fecha = Column(DateTime, default=ahora_utc, index=True)
+
+
+# ==========================================
+#   VERSIÓN 3.1: SESIONES SEGURAS
+# ==========================================
+class Sesion(Base):
+    """Una fila por dispositivo con la sesión abierta. Guarda solo el HASH del token de renovación (refresh), nunca el token.
+    Se rota en cada uso; si alguien reutiliza uno viejo (robo), toda la sesión se revoca. Revocar = cerrar sesión desde el servidor."""
+    __tablename__ = "sesiones"
+
+    id = Column(String(32), primary_key=True)                 # uuid hex; también va dentro del JWT como «sid»
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    token_anterior_hash = Column(String(64), nullable=True, index=True)   # el inmediatamente anterior (detecta reutilización)
+    rotado_en = Column(DateTime, nullable=True)
+    creada = Column(DateTime, default=ahora_utc)
+    ultimo_uso = Column(DateTime, default=ahora_utc)
+    expira = Column(DateTime, nullable=False)                 # vencimiento «deslizante»: se corre con el uso
+    maxima = Column(DateTime, nullable=False)                 # vencimiento absoluto: no se corre nunca
+    revocada = Column(DateTime, nullable=True)
+    dispositivo = Column(String(120), nullable=True)
+    ip = Column(String(45), nullable=True)
+
+
+# ==========================================
+#   VERSIÓN 3.1: AVISOS PUSH
+# ==========================================
+class SuscripcionPush(Base):
+    """Un navegador/celular que aceptó recibir avisos aunque la app esté cerrada."""
+    __tablename__ = "suscripciones_push"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    endpoint = Column(String, unique=True, nullable=False, index=True)
+    p256dh = Column(String, nullable=False)
+    auth = Column(String, nullable=False)
+    dispositivo = Column(String(120), nullable=True)
+    creada = Column(DateTime, default=ahora_utc)
+    ultimo_exito = Column(DateTime, nullable=True)
+    fallos = Column(Integer, nullable=False, default=0)
+
+
+# ==========================================
+#   VERSIÓN 3.1: VOTACIONES
+# ==========================================
+class Votacion(Base):
+    """Consulta o votación del conjunto. Voto SECRETO: quién votó (Participacion) y qué se votó (conteo de cada opción) se guardan
+    por separado y no hay forma de unirlos."""
+    __tablename__ = "votaciones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    autor_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    titulo = Column(String, nullable=False)
+    descripcion = Column(String, nullable=True)
+    estado = Column(String, nullable=False, default="Abierta", index=True)    # Abierta | Cerrada | Anulada (vence sola con fecha_cierre)
+    fecha_inicio = Column(DateTime, default=ahora_utc)
+    fecha_cierre = Column(DateTime, nullable=False)           # UTC
+    un_voto_por = Column(String, nullable=False, default="apartamento")      # apartamento | persona
+    resultados_en_vivo = Column(Boolean, nullable=False, default=False)
+    exige_al_dia = Column(Boolean, nullable=False, default=False)             # solo vota quien está al día con la administración
+    cerrada_en = Column(DateTime, nullable=True)
+    fecha_creacion = Column(DateTime, default=ahora_utc)
+
+
+class VotacionOpcion(Base):
+    __tablename__ = "votacion_opciones"
+
+    id = Column(Integer, primary_key=True)
+    votacion_id = Column(Integer, ForeignKey("votaciones.id"), nullable=False, index=True)
+    texto = Column(String, nullable=False)
+    orden = Column(Integer, nullable=False, default=0)
+    conteo = Column(Integer, nullable=False, default=0)
+
+
+class VotacionParticipacion(Base):
+    """Quién ya votó (no qué votó). La restricción única impide votar dos veces aunque lleguen dos peticiones a la vez."""
+    __tablename__ = "votacion_participaciones"
+    __table_args__ = (UniqueConstraint("votacion_id", "clave", name="uq_participacion_votacion_clave"),)
+
+    id = Column(Integer, primary_key=True)
+    votacion_id = Column(Integer, ForeignKey("votaciones.id"), nullable=False, index=True)
+    clave = Column(String, nullable=False)                    # «apto:torre 1 apt 101» o «usr:15»
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    fecha = Column(DateTime, default=ahora_utc)
+
+
+# ==========================================
+#   VERSIÓN 3.1: PORTERÍA SIN INTERNET
+# ==========================================
+class OperacionOffline(Base):
+    """Registro de cada operación que la portería hizo sin conexión y luego sincronizó. El `uuid` lo genera el celular:
+    si la sincronización se repite (se cortó la red a mitad), la operación NO se duplica."""
+    __tablename__ = "operaciones_offline"
+    __table_args__ = (UniqueConstraint("usuario_id", "uuid", name="uq_operacion_usuario_uuid"),)
+
+    id = Column(Integer, primary_key=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    uuid = Column(String(64), nullable=False)
+    tipo = Column(String, nullable=False)
+    ok = Column(Boolean, nullable=False, default=True)
+    resultado = Column(String, nullable=True)                 # JSON con el id creado, o el motivo del rechazo
+    fecha = Column(DateTime, default=ahora_utc, index=True)
+
+
+# Índices compuestos para las consultas más frecuentes (la campana, la lista de paquetes y «vehículos dentro»).
+Index("ix_notificaciones_usuario_leida", Notificacion.usuario_id, Notificacion.leida)
+Index("ix_paquetes_destinatario_estado", Paquete.destinatario_id, Paquete.estado)
+Index("ix_vehiculos_estado", VehiculoVisitante.estado)
+Index("ix_accesos_visitantes_salida", AccesoVisitante.fecha_salida)

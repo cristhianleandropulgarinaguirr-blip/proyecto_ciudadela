@@ -1,8 +1,9 @@
 // Portería: control de vehículos visitantes.
 // Endpoints: POST /porteria/vehiculo-ingreso?placa=&apartamento= · PATCH /porteria/vehiculo-salida/{id} · GET /porteria/vehiculos-dentro
 import { api } from "../api.js";
-import { h, icono, placa, estadoVacio, toast, conCarga, deUtc, hace, fmtHora, kpi } from "../ui.js";
-import { cabecera } from "./comun.js";
+import { h, icono, badge, placa, estadoVacio, toast, conCarga, deUtc, hace, fmtHora, kpi } from "../ui.js";
+import { cabecera, avisarRegistro, alSincronizar } from "./comun.js";
+import { leer, registrar, pendientes, superponerVehiculos } from "../offline.js";
 import { vistaHistorial } from "./historial.js";
 import { vistaEscaner } from "./escaner.js";
 import { vistaVisitantesPorteria } from "./visitantes-porteria.js";
@@ -10,8 +11,14 @@ import { vistaVisitantesPorteria } from "./visitantes-porteria.js";
 const PLACA = /^[A-Za-z]{3}[0-9]{2}[A-Za-z0-9]$/;   // misma regla que la API: ABC123 (carro) · ABC12D (moto)
 
 async function panelActual() {
-  let dentro = await api("/porteria/vehiculos-dentro");
+  const cargarBase = () => leer("vehiculos-dentro", () => api("/porteria/vehiculos-dentro"));
+  let base = await cargarBase();
+  let dentro = superponerVehiculos(base, await pendientes());      // lo registrado sin internet aparece de inmediato, marcado «Pendiente»
   let texto = "";
+  async function recargar() {
+    try { base = await cargarBase(); } catch { /* se deja lo que había */ }
+    dentro = superponerVehiculos(base, await pendientes()); pintar();
+  }
   const lista = h("div", { class: "lista" }), resumen = h("div", { class: "kpis" });
 
   function pintar() {
@@ -21,11 +28,14 @@ async function panelActual() {
     lista.replaceChildren(...(v.length ? v.map((x) => {
       const ingreso = deUtc(x.fecha_ingreso);
       const salir = h("button", { class: "btn suave sm", onclick: async () => {
-        try { await conCarga(salir, () => api(`/porteria/vehiculo-salida/${x.id}`, { metodo: "PATCH" })); toast(`Salida registrada: ${x.placa}`); dentro = dentro.filter((d) => d.id !== x.id); pintar(); }
-        catch (e) { toast(e.message, "error"); }
+        try {
+          const r = await conCarga(salir, () => registrar("vehiculo_salida", x.pendiente ? { ref: x.uuid, placa: x.placa } : { vehiculo_id: x.id, placa: x.placa }, { vista: { resumen: `Salida de ${x.placa}` } }));
+          if (avisarRegistro(r, `Salida registrada: ${x.placa}`)) await recargar();
+        } catch (e) { toast(e.message, "error"); }
       } }, "Registrar salida");
       return h("div", { class: "vehiculo" }, placa(x.placa),
-        h("div", { class: "cuerpo" }, h("b", {}, x.apartamento_destino), h("div", { class: "small muted", "data-ingreso": ingreso.toISOString() }, `Ingresó ${fmtHora(ingreso)} · ${hace(ingreso)}`)),
+        h("div", { class: "cuerpo" }, h("b", {}, x.apartamento_destino), x.pendiente ? badge("Pendiente", "Guardado en este equipo; se enviará al volver el internet") : null,
+          h("div", { class: "small muted", "data-ingreso": ingreso.toISOString() }, `Ingresó ${fmtHora(ingreso)} · ${hace(ingreso)}`)),
         h("div", { class: "acciones" }, salir));
     }) : [estadoVacio(dentro.length ? "Sin coincidencias" : "Portería despejada", dentro.length ? "Prueba con otra placa o apartamento." : "No hay visitantes dentro del conjunto.")]));
   }
@@ -54,9 +64,10 @@ async function panelActual() {
     if (!PLACA.test(inPlaca.value)) return toast("La placa no tiene un formato válido.", "error");
     if (!apto.value.trim()) return toast("Indica el apartamento de destino.", "error");
     try {
-      const nuevo = await conCarga(enviar, () => api("/porteria/vehiculo-ingreso", { metodo: "POST", params: { placa: inPlaca.value, apartamento: apto.value.trim() } }));
-      dentro = [...dentro, nuevo]; toast(`Ingreso registrado: ${nuevo.placa}`);
-      form.reset(); vista.replaceChildren(placa("")); pintar(); inPlaca.focus();
+      const placaNueva = inPlaca.value;
+      const r = await conCarga(enviar, () => registrar("vehiculo_ingreso", { placa: placaNueva, apartamento: apto.value.trim() }, { vista: { resumen: `Ingreso de ${placaNueva}` } }));
+      if (!avisarRegistro(r, `Ingreso registrado: ${placaNueva}`)) return;      // si el servidor lo rechaza (p. ej. ya estaba dentro) se conserva el formulario
+      form.reset(); vista.replaceChildren(placa("")); await recargar(); inPlaca.focus();
     } catch (err) { toast(err.message, "error"); }
   } },
     h("div", { class: "card-titulo" }, h("h2", {}, "Registrar ingreso")), vista, campoPlaca,
@@ -64,6 +75,7 @@ async function panelActual() {
 
   const buscar = h("input", { type: "search", placeholder: "Buscar placa o apartamento", "aria-label": "Buscar", oninput: (e) => { texto = e.target.value; pintar(); } });
   pintar();
+  alSincronizar(lista, recargar);
   return h("div", {},
     h("div", { class: "grid lados escalona" }, form,
       h("div", {}, resumen, h("div", { class: "card" },

@@ -29,6 +29,9 @@ const ICONOS = {
   salir: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>',
   mas: '<path d="M12 5v14M5 12h14"/>',
   ok: '<path d="M20 6 9 17l-5-5"/>',
+  urna: '<rect x="3" y="12" width="18" height="9" rx="2"/><path d="M8 12V9M16 12V9M12 3v8M9 8l3 3 3-3"/>',
+  sinred: '<path d="M2 2l20 20M8.5 16.4a5 5 0 0 1 7 0M2 8.8a15 15 0 0 1 4.2-2.6M10.7 5.1A15 15 0 0 1 22 8.8M5 12.9a10 10 0 0 1 5.2-2.7M16.8 11a10 10 0 0 1 2.2 1.9M12 20h.01"/>',
+  movil: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
   ojo: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   ojoNo: '<path d="M9.9 4.2A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.2 3.2M6.6 6.6A17 17 0 0 0 2 12s3.5 7 10 7a10 10 0 0 0 5.4-1.6M2 2l20 20"/>',
@@ -61,7 +64,7 @@ const ICONOS = {
   campana: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
   archivo: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
   mensaje: '<path d="M4 4h16v12H8l-4 4z"/><path d="M8 9h8M8 12h5"/>',
-  mas: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  apps: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   vacio: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
 };
 export function icono(nombre, tam) {
@@ -133,6 +136,7 @@ const COLOR_ESTADO = {
   Revocado: "arcilla", Vencido: "laton", Usado: "borde",
   "En porteria": "laton", Anulado: "borde",
   Radicada: "laton", "En tramite": "borde", Resuelta: "bosque", Cerrada: "borde",
+  Pendiente: "laton", Abierta: "bosque", Anulada: "borde",
 };
 const ETIQUETA = { "En Revision": "En revisión", "En Reparacion": "En reparación", "En porteria": "En portería", "En tramite": "En trámite" };
 export const badge = (estado, texto) => h("span", { class: `badge ${COLOR_ESTADO[estado] ?? ""}` }, texto ?? ETIQUETA[estado] ?? estado);

@@ -11,7 +11,8 @@ from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.routers import (
-    anuncios, asistente, auditoria, auth, comercio, documentos, emergencias, modulos, notificaciones, paquetes, pqrs, qr, reportes, usuarios, visitantes,
+    anuncios, asistente, auditoria, auth, comercio, documentos, emergencias, modulos, notificaciones, paquetes, pqrs, push, qr, reportes,
+    sincronizacion, usuarios, visitantes, votaciones,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -34,7 +35,7 @@ Errores de seguridad: **401** = no has iniciado sesión o el token expiró · **
 """
 
 TAGS = [
-    {"name": "Autenticación", "description": "Inicio de sesión (JWT). Las cuentas las crea el administrador."},
+    {"name": "Autenticación", "description": "Inicio de sesión: token de acceso corto (JWT) + cookie de renovación HttpOnly rotativa. Las cuentas las crea el administrador."},
     {"name": "Usuarios (Administración)", "description": "Gestión de usuarios y roles. Solo administrador."},
     {"name": "Reservas de Áreas Comunes", "description": "Solicitud y aprobación de zonas comunes."},
     {"name": "Gestión de Incidencias y Daños", "description": "Reportes de daños con foto."},
@@ -51,12 +52,13 @@ TAGS = [
     {"name": "Notificaciones", "description": "La campana de la app: avisos de paquetes, PQRS, reservas, anuncios y documentos."},
     {"name": "Reportes", "description": "Excel para el administrador y PDF del estado de cuenta."},
     {"name": "Auditoría", "description": "Bitácora de quién hizo qué y cuándo (solo administrador)."},
-    {"name": "Control de Parqueaderos", "description": "Portería: ingreso, salida e historial de vehículos visitantes."},
+    {"name": "Control de Parqueaderos", "description": "Portería: ingreso, salida e historial de vehículos visitantes, y sincronización de lo registrado sin internet."},
+    {"name": "Votaciones", "description": "Consultas y votaciones del conjunto: voto secreto, un voto por apartamento, resultados al cerrar."},
 ]
 
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="3.0.0", openapi_tags=TAGS)
+              version="3.1.0", openapi_tags=TAGS)
 
 app.include_router(auth.router)
 app.include_router(usuarios.router)
@@ -73,6 +75,9 @@ app.include_router(documentos.router)
 app.include_router(notificaciones.router)
 app.include_router(reportes.router)
 app.include_router(auditoria.router)
+app.include_router(votaciones.router)
+app.include_router(push.router)
+app.include_router(sincronizacion.router)
 
 
 # Frontend (HTML/CSS/JS) servido por la misma API: así comparten origen y no hace falta configurar CORS.
@@ -134,6 +139,11 @@ class GZipSelectivo:
         await self.gzip(scope, receive, send)
 
 
+CSP_APP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+           "font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; "
+           "worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
+
+
 @app.middleware("http")
 async def cabeceras_de_seguridad(request: Request, call_next):
     """Cabeceras básicas en todas las respuestas. El service worker y el manifest no se guardan en caché para que las actualizaciones lleguen."""
@@ -144,6 +154,9 @@ async def cabeceras_de_seguridad(request: Request, call_next):
     respuesta.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")   # la cámara la usa el escáner QR
     if request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         respuesta.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
+    if request.url.path.startswith("/app"):
+        # Política de contenido: solo se ejecuta JavaScript propio. Si alguna vez se colara código ajeno en la página, el navegador lo bloquea.
+        respuesta.headers.setdefault("Content-Security-Policy", CSP_APP)
     # Toda la app (html, js, css) se revalida en cada carga: si no cambió responde 304 (rápido); si cambió, llega la versión nueva.
     if request.url.path.startswith("/app"):
         # Imágenes de la interfaz (logos, fondos, iconos): casi nunca cambian → una semana en caché. El resto se revalida.

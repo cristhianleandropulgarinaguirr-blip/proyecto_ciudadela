@@ -70,7 +70,7 @@ async function formularioNuevo(alGuardar, usuarioId) {
   wa.addEventListener("input", () => { wa.value = wa.value.replace(/\D/g, ""); });
 
   let auto = null;      // autoguardado: si el sistema cierra la app al abrir la cámara, el formulario se reabre con lo escrito
-  const foto = selectorFoto({ titulo: "Foto de tu negocio (opcional)", ayuda: "Toma una foto o elígela de tu galería",
+  const foto = selectorFoto({ titulo: "Foto de tu negocio (opcional)", ayuda: "Toma una foto o elígela de tu galería", clave: `comercio-${usuarioId}`,
     antesDeAbrir: () => auto?.foto(true), alCambiar: (f) => auto?.foto(!!f) });
 
   let plan = "Mensual";

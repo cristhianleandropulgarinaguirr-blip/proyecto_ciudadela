@@ -22,7 +22,7 @@ export function vistaLogin(alIngresar) {
     try {
       await conCarga(boton, async () => {
         const r = await api("/auth/login", { metodo: "POST", form: { username: email.value.trim(), password: clave.value } });
-        sesion.guardar(r.access_token);
+        sesion.guardar(r);          // token corto en esta pestaña; la renovación va en una cookie HttpOnly
       });
       alIngresar();
     } catch (err) { fallar(err.message); }

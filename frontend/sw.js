@@ -1,4 +1,4 @@
-// Service worker de Ciudadela Digital (versión 3.0).
+// Service worker de Ciudadela Digital (versión 3.1).
 // Objetivo: que la app abra al instante y siga siendo segura con los datos.
 //  - Archivos de la app (/app/…): se guardan TODOS al instalar y se sirven desde el celular (cache-first) → abre en milisegundos, incluso sin internet.
 //    El servidor entrega este archivo con un código de versión calculado a partir de los archivos: si algo cambia, la versión cambia
@@ -51,4 +51,39 @@ self.addEventListener("fetch", (e) => {
       return res;
     } catch { return req.mode === "navigate" ? (await c.match("./")) || Response.error() : Response.error(); }
   })());
+});
+
+// ---------------------------------------------------------------- Avisos push (versión 3.1)
+// El servidor envía {titulo, mensaje, enlace, etiqueta}. Si la app está abierta y a la vista, el aviso ya se ve en la campana: no se duplica.
+self.addEventListener("push", (e) => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch { d = { titulo: "Ciudadela Digital", mensaje: e.data ? e.data.text() : "" }; }
+  e.waitUntil((async () => {
+    const abiertas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    if (abiertas.some((c) => c.visibilityState === "visible")) {
+      abiertas.forEach((c) => c.postMessage({ tipo: "push", enlace: d.enlace }));     // la app refresca la campana
+      return;
+    }
+    await self.registration.showNotification(d.titulo || "Ciudadela Digital", {
+      body: d.mensaje || "", icon: "img/pwa-192.png", badge: "img/favicon.png", tag: d.etiqueta || "ciudadela",
+      renotify: true, data: { enlace: d.enlace || "#/" },
+    });
+  })());
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const enlace = (e.notification.data && e.notification.data.enlace) || "#/";
+  e.waitUntil((async () => {
+    const base = new URL("./", self.registration.scope).href;
+    const abiertas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const abierta = abiertas.find((c) => c.url.startsWith(base));
+    if (abierta) { await abierta.focus(); abierta.postMessage({ tipo: "ir", enlace }); return; }
+    await self.clients.openWindow(base + enlace);
+  })());
+});
+
+// El navegador renovó la suscripción: la app la vuelve a registrar al abrirse (ver push.js → reasociarPush).
+self.addEventListener("pushsubscriptionchange", (e) => {
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((cs) => cs.forEach((c) => c.postMessage({ tipo: "resuscribir" }))));
 });

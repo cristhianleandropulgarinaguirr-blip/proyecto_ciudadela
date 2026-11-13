@@ -13,5 +13,6 @@ openpyxl==3.1.5
 reportlab==5.0.1
 psycopg2-binary==2.9.13
 httpx==0.28.1            # cliente de Supabase Storage
+pywebpush==2.5.0         # avisos push al celular (Web Push + VAPID)
 # Solo para correr las pruebas automáticas
 pytest==9.2.0

@@ -4,6 +4,7 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app import sesiones
 from app.auditoria import auditar
 from app.constantes import RolNombre
 from app.database import get_db
@@ -81,6 +82,8 @@ def cambiar_activo(usuario_id: int, esta_activo: bool, db: Session = Depends(get
     if usuario.id == admin.id and not esta_activo:
         raise HTTPException(status_code=400, detail="No puedes desactivar tu propia cuenta.")
     usuario.esta_activo = esta_activo
+    if not esta_activo:
+        sesiones.revocar_todas(db, usuario.id)
     auditar(db, admin, "Activó usuario" if esta_activo else "Desactivó usuario", "Usuario", usuario.id, usuario.nombre_completo)
     db.commit()
     db.refresh(usuario)
@@ -102,6 +105,7 @@ def restablecer_password(usuario_id: int, db: Session = Depends(get_db), admin: 
     temporal = secrets.token_urlsafe(9)   # 12 caracteres al azar
     usuario.password_encriptada = encriptar_password(temporal)
     usuario.debe_cambiar_password = True
+    sesiones.revocar_todas(db, usuario.id)       # la clave anterior ya no vale, tampoco las sesiones abiertas con ella
     auditar(db, admin, "Restableció contraseña", "Seguridad", usuario.id, usuario.nombre_completo)
     db.commit()
     return {"password_temporal": temporal, "mensaje": f"Entrégale esta clave a {usuario.nombre_completo}. Deberá cambiarla al ingresar."}

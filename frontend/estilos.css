@@ -916,3 +916,48 @@ html[data-texto="grande"] { font-size: 112.5%; }
 .asistente-panel { border: 1px solid var(--linea); border-radius: var(--r); padding: 0 .9rem .8rem; margin-bottom: 1rem; background: var(--superficie); }
 .asistente-panel summary { display: flex; align-items: center; gap: .5rem; min-height: 48px; cursor: pointer; font-weight: 600; color: var(--bosque); }
 .asistente-panel[open] summary { margin-bottom: .25rem; }
+
+/* ============================================================
+   VERSIÓN 3.1 — sin conexión, votaciones y avisos
+   ============================================================ */
+.toast.aviso svg { color: var(--laton); }
+
+/* Franja de estado de la conexión (sobre la barra superior) */
+.banner-red { display: flex; align-items: center; justify-content: center; gap: .75rem; flex-wrap: wrap; padding: .5rem 1rem; background: var(--laton-100); color: var(--tinta); font-size: .88rem; border-bottom: 1px solid var(--linea); }
+.banner-red.sin-red { background: var(--tinta); color: var(--papel); }
+.banner-red .txt { display: inline-flex; align-items: center; gap: .45rem; }
+.banner-red .txt svg { width: 16px; height: 16px; flex: none; }
+.banner-red[hidden] { display: none; }
+.sin-conexion { text-align: center; max-width: 26rem; display: grid; gap: .9rem; justify-items: center; padding: 1.5rem; }
+.sin-conexion svg { color: var(--tinta-3); }
+
+/* Aviso de votaciones pendientes en el inicio */
+.aviso-votacion { display: flex; align-items: center; gap: .9rem; padding: .9rem 1.1rem; margin-bottom: 1rem; border-radius: var(--r); background: var(--laton-100); color: var(--tinta); text-decoration: none; border: 1px solid var(--laton); }
+.aviso-votacion span { flex: 1; display: grid; gap: .15rem; }
+.aviso-votacion small { color: var(--tinta-2); }
+.aviso-votacion:hover { filter: brightness(.98); }
+
+/* Votaciones */
+.lista-votaciones { display: grid; gap: 1rem; }
+.votacion.terminada { opacity: .92; }
+.votacion .card-titulo { align-items: flex-start; gap: .75rem; }
+.votacion .card-titulo h2 { font-size: 1.1rem; }
+.opciones-voto { display: grid; gap: .5rem; margin: .9rem 0; }
+.opcion-voto { text-align: left; padding: .8rem 1rem; border-radius: var(--r); border: 1.5px solid var(--linea); background: var(--superficie); color: var(--tinta); font: inherit; cursor: pointer; transition: border-color .15s, background .15s; }
+.opcion-voto:hover { border-color: var(--bosque); }
+.opcion-voto[aria-checked="true"] { border-color: var(--primario); background: var(--bosque-100); font-weight: 600; }
+.fila-opcion { display: flex; gap: .5rem; align-items: center; }
+.fila-opcion input { flex: 1; min-width: 0; }
+.resultado-op { display: grid; gap: .3rem; }
+.resultado-op .fila { display: flex; justify-content: space-between; gap: 1rem; font-size: .95rem; }
+.resultado-op .fila span { color: var(--tinta-2); font-variant-numeric: tabular-nums; }
+.barra { height: 8px; border-radius: 99px; background: var(--linea); overflow: hidden; }
+.barra i { display: block; height: 100%; background: var(--bosque-2); border-radius: 99px; transition: width .5s var(--ease, ease); }
+.resultado-op.gana .barra i { background: var(--primario); }
+.participacion { display: grid; gap: .3rem; margin: .6rem 0 .2rem; }
+.acciones-fila { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .8rem; }
+.check { display: flex; gap: .7rem; align-items: flex-start; margin-top: .8rem; cursor: pointer; }
+.check input { margin-top: .25rem; }
+.check span { display: grid; gap: .1rem; }
+.check small { color: var(--tinta-3); font-size: .82rem; }
+.lista-simple { margin: .4rem 0 0 1.1rem; padding: 0; display: grid; gap: .2rem; font-size: .92rem; }

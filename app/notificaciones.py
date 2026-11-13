@@ -11,7 +11,7 @@ from typing import Iterable, Optional
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
-from app import config
+from app import config, push
 from app.constantes import RolNombre
 from app.models import Notificacion, Rol, Usuario
 
@@ -55,14 +55,17 @@ def usuarios_activos(db: Session, roles: Optional[Iterable[RolNombre]] = None, e
 
 
 def notificar(db: Session, destinatarios: Iterable[Usuario], titulo: str, mensaje: Optional[str] = None,
-              enlace: Optional[str] = None, correo: bool = False) -> int:
-    """Crea un aviso por destinatario. Con correo=True y SMTP configurado, también envía un correo tras el commit."""
+              enlace: Optional[str] = None, correo: bool = False, avisar_push: bool = True) -> int:
+    """Crea un aviso por destinatario. Con correo=True y SMTP configurado, también envía un correo tras el commit.
+    Si el destinatario activó los avisos push, también le llega al celular (tras el commit, en segundo plano)."""
     cuantos = 0
     for u in destinatarios:
         if u is None or not u.esta_activo:
             continue
         db.add(Notificacion(usuario_id=u.id, titulo=titulo[:120], mensaje=(mensaje or None) and mensaje[:300], enlace=enlace))
         cuantos += 1
+        if avisar_push and push.push_activo():
+            db.info.setdefault("push", []).append((u.id, titulo[:120], (mensaje or None) and mensaje[:300], enlace))
         if correo and correo_activo() and u.email:
             db.info.setdefault("correos", []).append((u.email, titulo, mensaje or titulo))
     return cuantos
@@ -73,8 +76,12 @@ def _despachar_correos(sesion: Session) -> None:
     pendientes = sesion.info.pop("correos", None)
     if pendientes:
         enviar_correos(pendientes)
+    avisos = sesion.info.pop("push", None)
+    if avisos:
+        push.despachar(avisos)
 
 
 @event.listens_for(Session, "after_rollback")
 def _descartar_correos(sesion: Session) -> None:
     sesion.info.pop("correos", None)
+    sesion.info.pop("push", None)

@@ -1,6 +1,7 @@
 # app/routers/paquetes.py
 # Bloque 2 · Paquetes y correspondencia: el guardia registra lo que llega a portería, el residente ve en la app
 # que tiene algo esperándolo y el guardia registra la entrega (quién lo recogió y cuándo). Todo queda en la auditoría.
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -49,6 +50,32 @@ def _resumen(p: Paquete, destinatario: Optional[Usuario]) -> str:
     return f"{p.tipo} para {quien}" + (f" · {p.remitente}" if p.remitente else "")
 
 
+def crear_paquete(db: Session, personal: Usuario, datos: PaqueteCreate, cuando: Optional[datetime] = None) -> Paquete:
+    """Lógica de registro (sin commit), reutilizada por la sincronización de portería sin internet."""
+    dest = db.get(Usuario, datos.destinatario_id)
+    if dest is None or not dest.esta_activo or dest.rol != RESIDENTE.value:
+        raise HTTPException(status_code=400, detail="El destinatario debe ser un residente activo.")
+    p = Paquete(destinatario_id=dest.id, tipo=datos.tipo.value, remitente=datos.remitente, descripcion=datos.descripcion,
+                estado=EstadoPaquete.EN_PORTERIA.value, recibido_por=personal.id)
+    if cuando is not None:
+        p.fecha_recepcion = cuando
+    db.add(p)
+    db.flush()
+    auditar(db, personal, "Registró paquete", "Paquete", p.id, _resumen(p, dest))
+    notificar(db, [dest], "Tienes un paquete en portería", f"{p.tipo}" + (f" de {p.remitente}" if p.remitente else "") + ". Pasa a recogerlo cuando puedas.",
+              "#/paquetes", correo=True)
+    return p
+
+
+def entregar_paquete(db: Session, personal: Usuario, paquete_id: int, entregado_a: Optional[str], cuando: Optional[datetime] = None) -> Paquete:
+    p = _en_porteria(db, paquete_id)
+    dest = db.get(Usuario, p.destinatario_id)
+    p.estado, p.fecha_entrega, p.entregado_por = EstadoPaquete.ENTREGADO.value, cuando or ahora_utc(), personal.id
+    p.entregado_a = entregado_a or (dest.nombre_completo if dest else None)
+    auditar(db, personal, "Entregó paquete", "Paquete", p.id, f"{_resumen(p, dest)} · lo recibió {p.entregado_a}")
+    return p
+
+
 @router.get("/destinatarios", response_model=list[DestinatarioResponse], summary="Residentes que pueden recibir paquetes",
             description="Roles: **Guardia**, **Administrador**. Solo nombre y apartamento de los residentes activos, para elegir a quién va el paquete. Filtra con `q`.")
 def destinatarios(q: Optional[str] = Query(None, max_length=40), db: Session = Depends(get_db),
@@ -65,16 +92,7 @@ def destinatarios(q: Optional[str] = Query(None, max_length=40), db: Session = D
              description="Roles: **Guardia**, **Administrador**. Queda «En portería» hasta que se entregue. El destinatario debe ser un residente activo.",
              responses={400: {"description": "Destinatario inválido"}})
 def registrar(datos: PaqueteCreate, db: Session = Depends(get_db), personal: Usuario = Depends(requiere_roles(GUARDIA, ADMIN))):
-    dest = db.get(Usuario, datos.destinatario_id)
-    if dest is None or not dest.esta_activo or dest.rol != RESIDENTE.value:
-        raise HTTPException(status_code=400, detail="El destinatario debe ser un residente activo.")
-    p = Paquete(destinatario_id=dest.id, tipo=datos.tipo.value, remitente=datos.remitente, descripcion=datos.descripcion,
-                estado=EstadoPaquete.EN_PORTERIA.value, recibido_por=personal.id)
-    db.add(p)
-    db.flush()
-    auditar(db, personal, "Registró paquete", "Paquete", p.id, _resumen(p, dest))
-    notificar(db, [dest], "Tienes un paquete en portería", f"{p.tipo}" + (f" de {p.remitente}" if p.remitente else "") + ". Pasa a recogerlo cuando puedas.",
-              "#/paquetes", correo=True)
+    p = crear_paquete(db, personal, datos)
     db.commit()
     db.refresh(p)
     return _vistas(db, [p])[0]
@@ -129,11 +147,7 @@ def listar(estado: Optional[EstadoPaquete] = Query(None), limite: int = Query(10
               responses={400: {"description": "El paquete ya no está en portería"}, 404: {"description": "Paquete no encontrado"}})
 def entregar(paquete_id: int, datos: Optional[EntregaRequest] = None, db: Session = Depends(get_db),
              personal: Usuario = Depends(requiere_roles(GUARDIA, ADMIN))):
-    p = _en_porteria(db, paquete_id)
-    dest = db.get(Usuario, p.destinatario_id)
-    p.estado, p.fecha_entrega, p.entregado_por = EstadoPaquete.ENTREGADO.value, ahora_utc(), personal.id
-    p.entregado_a = (datos.entregado_a if datos else None) or (dest.nombre_completo if dest else None)
-    auditar(db, personal, "Entregó paquete", "Paquete", p.id, f"{_resumen(p, dest)} · lo recibió {p.entregado_a}")
+    p = entregar_paquete(db, personal, paquete_id, datos.entregado_a if datos else None)
     db.commit()
     db.refresh(p)
     return _vistas(db, [p])[0]

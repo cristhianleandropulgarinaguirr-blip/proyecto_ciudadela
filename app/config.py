@@ -17,11 +17,25 @@ def _normalizar_url_bd(url: str) -> str:
 
 
 DATABASE_URL = _normalizar_url_bd(os.getenv("DATABASE_URL", "sqlite:///./propiedad_horizontal.db"))
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
-# La portería trabaja turnos largos con el computador a la vista: su sesión dura un turno completo (por defecto 12 h)
-# para no pedirle la clave a cada rato. Las demás cuentas conservan la duración normal.
+# Versión 3.1 — sesión segura. El token de acceso (JWT) dura POCO (15 min) y vive solo en la pestaña; lo renueva una cookie
+# «refresh» HttpOnly (JavaScript no puede leerla) que se rota en cada uso y se puede revocar desde el servidor.
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+# Cuánto dura la sesión (se renueva sola mientras la persona use la app) antes de pedir la clave otra vez:
+#   - Guardia: un turno completo (12 h por defecto), con tope absoluto de 24 h.
+#   - Administrador: 7 días · Residente: 14 días. Tope absoluto para todos: SESION_MAXIMA_DIAS (60).
 GUARDIA_TOKEN_HORAS = int(os.getenv("GUARDIA_TOKEN_HORAS", "12"))
+SESION_DIAS_ADMIN = int(os.getenv("SESION_DIAS_ADMIN", "7"))
+SESION_DIAS = int(os.getenv("SESION_DIAS", "14"))
+SESION_MAXIMA_DIAS = int(os.getenv("SESION_MAXIMA_DIAS", "60"))
 ALGORITHM = "HS256"
+# Coste de bcrypt (12 = recomendado en producción). Las pruebas automáticas lo bajan para correr en segundos.
+BCRYPT_ROUNDS = max(4, min(15, int(os.getenv("BCRYPT_ROUNDS", "12"))))
+
+# Versión 3.1 — avisos push (Web Push). Sin las dos claves VAPID los avisos solo se ven dentro de la app (campana).
+# Genera el par con:  python -m app.generar_vapid
+VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "").strip()
+VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "").strip()
+VAPID_SUBJECT = os.getenv("VAPID_SUBJECT", "").strip() or "mailto:admin@ciudadela.local"
 
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
 MAX_UPLOAD_MB = 5

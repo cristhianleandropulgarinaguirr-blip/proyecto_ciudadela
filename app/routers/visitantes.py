@@ -6,6 +6,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, aliased
 
@@ -168,10 +169,8 @@ def buscar(q: str = Query(..., min_length=3, max_length=40), db: Session = Depen
     return _vistas(db, lista)
 
 
-@router.post("/{visitante_id}/ingreso", response_model=VisitanteAutorizadoResponse, summary="Registrar el ingreso de un visitante",
-             description="Roles: **Guardia**, **Administrador**. Se rechaza si la autorización venció, si quien la dio está desactivado o si la persona ya figura dentro.",
-             responses={400: {"description": "No puede ingresar"}, 404: {"description": "Visitante no encontrado"}})
-def registrar_ingreso(visitante_id: int, db: Session = Depends(get_db), personal: Usuario = Depends(requiere_roles(GUARDIA, ADMIN))):
+def ingresar_visitante(db: Session, personal: Usuario, visitante_id: int, cuando: Optional[datetime] = None) -> tuple[VisitanteAutorizado, AccesoVisitante]:
+    """Lógica de ingreso (sin commit), reutilizada por la sincronización de portería sin internet."""
     v = db.get(VisitanteAutorizado, visitante_id)
     if v is None or not v.activo:
         raise HTTPException(status_code=404, detail="Visitante no encontrado o sin autorización.")
@@ -182,7 +181,28 @@ def registrar_ingreso(visitante_id: int, db: Session = Depends(get_db), personal
         raise HTTPException(status_code=400, detail=f"La autorización de {v.nombre} venció. Pide al residente que la renueve.")
     if db.query(AccesoVisitante).filter(AccesoVisitante.visitante_id == v.id, AccesoVisitante.fecha_salida.is_(None)).first():
         raise HTTPException(status_code=400, detail=f"{v.nombre} ya figura dentro del conjunto.")
-    db.add(AccesoVisitante(visitante_id=v.id, ingreso_registrado_por=personal.id))
+    acceso = AccesoVisitante(visitante_id=v.id, ingreso_registrado_por=personal.id)
+    if cuando is not None:
+        acceso.fecha_ingreso = cuando
+    db.add(acceso)
+    db.flush()
+    return v, acceso
+
+
+def sacar_visitante(db: Session, personal: Usuario, acceso: Optional[AccesoVisitante], cuando: Optional[datetime] = None) -> AccesoVisitante:
+    if acceso is None:
+        raise HTTPException(status_code=404, detail="Registro de ingreso no encontrado.")
+    if acceso.fecha_salida is not None:
+        raise HTTPException(status_code=400, detail="La salida de esta persona ya estaba registrada.")
+    acceso.fecha_salida, acceso.salida_registrada_por = cuando or ahora_utc(), personal.id
+    return acceso
+
+
+@router.post("/{visitante_id}/ingreso", response_model=VisitanteAutorizadoResponse, summary="Registrar el ingreso de un visitante",
+             description="Roles: **Guardia**, **Administrador**. Se rechaza si la autorización venció, si quien la dio está desactivado o si la persona ya figura dentro.",
+             responses={400: {"description": "No puede ingresar"}, 404: {"description": "Visitante no encontrado"}})
+def registrar_ingreso(visitante_id: int, db: Session = Depends(get_db), personal: Usuario = Depends(requiere_roles(GUARDIA, ADMIN))):
+    v, _ = ingresar_visitante(db, personal, visitante_id)
     db.commit()
     return _vistas(db, [v])[0]
 
@@ -206,12 +226,7 @@ def _items_acceso(db: Session, *condiciones, orden=None, limite: Optional[int] =
               description="Roles: **Guardia**, **Administrador**.",
               responses={400: {"description": "La salida ya estaba registrada"}, 404: {"description": "Registro no encontrado"}})
 def registrar_salida(acceso_id: int, db: Session = Depends(get_db), personal: Usuario = Depends(requiere_roles(GUARDIA, ADMIN))):
-    a = db.get(AccesoVisitante, acceso_id)
-    if a is None:
-        raise HTTPException(status_code=404, detail="Registro de ingreso no encontrado.")
-    if a.fecha_salida is not None:
-        raise HTTPException(status_code=400, detail="La salida de esta persona ya estaba registrada.")
-    a.fecha_salida, a.salida_registrada_por = ahora_utc(), personal.id
+    a = sacar_visitante(db, personal, db.get(AccesoVisitante, acceso_id))
     db.commit()
     return _items_acceso(db, AccesoVisitante.id == a.id)[0]
 
@@ -226,3 +241,29 @@ def dentro(db: Session = Depends(get_db), _: Usuario = Depends(requiere_roles(GU
             description="Roles: **Guardia**, **Administrador**. Los últimos ingresos y salidas con el guardia que los registró.")
 def historial(limite: int = Query(30, ge=1, le=200), db: Session = Depends(get_db), _: Usuario = Depends(requiere_roles(GUARDIA, ADMIN))):
     return _items_acceso(db, orden=AccesoVisitante.id.desc(), limite=limite)
+
+
+class VisitanteSnapshot(BaseModel):
+    id: int
+    nombre: str
+    documento: Optional[str] = None
+    tipo: Optional[str] = None
+    anfitrion_nombre: str
+    apartamento: Optional[str] = None
+    vigente_hasta: Optional[datetime] = None
+    notas: Optional[str] = None
+    dentro: bool = False
+    acceso_id: Optional[int] = None
+
+
+@router.get("/sincronizacion", response_model=list[VisitanteSnapshot], summary="Lista liviana de visitantes vigentes (portería sin internet)",
+            description="Roles: **Guardia**, **Administrador**. La app la guarda en el equipo de portería para poder buscar y registrar visitantes aunque se caiga "
+                        "el internet. Solo incluye autorizaciones activas y vigentes, y se borra del equipo al cerrar sesión.")
+def instantanea(db: Session = Depends(get_db), _: Usuario = Depends(requiere_roles(GUARDIA, ADMIN))):
+    abiertos = dict((vid, aid) for vid, aid in db.query(AccesoVisitante.visitante_id, AccesoVisitante.id).filter(AccesoVisitante.fecha_salida.is_(None)).all())
+    filas = (db.query(VisitanteAutorizado, Usuario.nombre_completo, Usuario.apartamento)
+             .join(Usuario, Usuario.id == VisitanteAutorizado.usuario_id)
+             .filter(VisitanteAutorizado.activo.is_(True), Usuario.esta_activo.is_(True)).order_by(VisitanteAutorizado.nombre).limit(3000).all())
+    return [VisitanteSnapshot(id=v.id, nombre=v.nombre, documento=v.documento, tipo=getattr(v, "tipo", None), anfitrion_nombre=nom, apartamento=apto,
+                              vigente_hasta=v.vigente_hasta, notas=v.notas, dentro=v.id in abiertos, acceso_id=abiertos.get(v.id))
+            for v, nom, apto in filas if _vigente(v)]

@@ -360,6 +360,31 @@ TAG_PORTERIA = "Control de Parqueaderos"
 PLACA_REGEX = r"^[A-Za-z]{3}[0-9]{2}[A-Za-z0-9]$"  # Carro: ABC123 · Moto: ABC12D
 
 
+def ingresar_vehiculo(db: Session, personal: Usuario, placa: str, apartamento: str, cuando: Optional[datetime] = None) -> VehiculoVisitante:
+    """Lógica de ingreso (sin commit). La reutiliza la sincronización de portería sin internet, donde `cuando` es la hora real del ingreso."""
+    placa = placa.upper().strip()
+    ya_dentro = db.query(VehiculoVisitante).filter(VehiculoVisitante.placa == placa, VehiculoVisitante.estado == "Dentro").first()
+    if ya_dentro:
+        raise HTTPException(status_code=400, detail=f"El vehículo {placa} ya figura dentro del conjunto.")
+    vehiculo = VehiculoVisitante(placa=placa, apartamento_destino=apartamento, ingreso_registrado_por=personal.id)
+    if cuando is not None:
+        vehiculo.fecha_ingreso = cuando
+    db.add(vehiculo)
+    db.flush()
+    return vehiculo
+
+
+def sacar_vehiculo(db: Session, personal: Usuario, vehiculo: Optional[VehiculoVisitante], cuando: Optional[datetime] = None) -> VehiculoVisitante:
+    if vehiculo is None:
+        raise HTTPException(status_code=404, detail="Registro de vehículo no encontrado.")
+    if vehiculo.estado == "Salido":
+        raise HTTPException(status_code=400, detail="Este vehículo ya tiene registrada su salida.")
+    vehiculo.fecha_salida = cuando or ahora_utc()
+    vehiculo.estado = "Salido"
+    vehiculo.salida_registrada_por = personal.id
+    return vehiculo
+
+
 @router.post("/porteria/vehiculo-ingreso", response_model=VehiculoResponse, status_code=status.HTTP_201_CREATED,
              tags=[TAG_PORTERIA], summary="Registrar el ingreso de un vehículo visitante",
              description="Roles: **Guardia**, **Administrador**. Formato de placa: `ABC123` (carro) o `ABC12D` (moto).",
@@ -367,13 +392,7 @@ PLACA_REGEX = r"^[A-Za-z]{3}[0-9]{2}[A-Za-z0-9]$"  # Carro: ABC123 · Moto: ABC1
 def registrar_ingreso_vehiculo(placa: str = Query(..., pattern=PLACA_REGEX, examples=["XYZ123"]),
                                apartamento: str = Query(..., min_length=1, max_length=50, examples=["Torre 1 Apt 202"]),
                                db: Session = Depends(get_db), personal: Usuario = Depends(requiere_roles(GUARDIA, ADMIN))):
-    placa = placa.upper().strip()
-    ya_dentro = db.query(VehiculoVisitante).filter(VehiculoVisitante.placa == placa, VehiculoVisitante.estado == "Dentro").first()
-    if ya_dentro:
-        raise HTTPException(status_code=400, detail=f"El vehículo {placa} ya figura dentro del conjunto.")
-
-    vehiculo = VehiculoVisitante(placa=placa, apartamento_destino=apartamento, ingreso_registrado_por=personal.id)
-    db.add(vehiculo)
+    vehiculo = ingresar_vehiculo(db, personal, placa, apartamento)
     db.commit()
     db.refresh(vehiculo)
     return vehiculo
@@ -384,14 +403,7 @@ def registrar_ingreso_vehiculo(placa: str = Query(..., pattern=PLACA_REGEX, exam
               responses={404: {"description": "Registro no encontrado"}, 400: {"description": "El vehículo ya salió"}})
 def registrar_salida_vehiculo(vehiculo_id: int, db: Session = Depends(get_db),
                               personal: Usuario = Depends(requiere_roles(GUARDIA, ADMIN))):
-    vehiculo = db.get(VehiculoVisitante, vehiculo_id)
-    if vehiculo is None:
-        raise HTTPException(status_code=404, detail="Registro de vehículo no encontrado.")
-    if vehiculo.estado == "Salido":
-        raise HTTPException(status_code=400, detail="Este vehículo ya tiene registrada su salida.")
-    vehiculo.fecha_salida = ahora_utc()
-    vehiculo.estado = "Salido"
-    vehiculo.salida_registrada_por = personal.id
+    vehiculo = sacar_vehiculo(db, personal, db.get(VehiculoVisitante, vehiculo_id))
     db.commit()
     return {"mensaje": f"Salida confirmada para el vehículo {vehiculo.placa}."}
 

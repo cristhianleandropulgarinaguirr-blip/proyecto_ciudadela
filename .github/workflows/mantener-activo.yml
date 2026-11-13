@@ -1,0 +1,18 @@
+name: Mantener el servidor despierto
+# Render gratis «duerme» la app tras 15 min sin visitas y tarda ~1 min en despertar (justo lo que se nota al abrir la cámara o al
+# entrar). Este trabajo la visita cada 10 minutos para que casi siempre esté lista.
+# Actívalo así: Settings → Secrets and variables → Actions → pestaña «Variables» → New repository variable:
+#   APP_URL = https://TU-APP.onrender.com      (sin barra al final)
+# Si usas un plan de pago de Render, borra este archivo: ya no hace falta.
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  visitar:
+    runs-on: ubuntu-latest
+    if: ${{ vars.APP_URL != '' }}
+    steps:
+      - name: Visitar /salud
+        run: curl -fsS --retry 3 --retry-delay 10 --max-time 60 "${{ vars.APP_URL }}/salud" > /dev/null
