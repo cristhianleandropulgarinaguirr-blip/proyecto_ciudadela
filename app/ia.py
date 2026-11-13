@@ -70,7 +70,7 @@ def ocultar_datos_personales(texto: str) -> str:
 def limpiar_entrada(texto: str, maximo: int) -> str:
     """Texto del usuario listo para enviarse: sin caracteres de control, espacios normalizados y sin etiquetas de nuestro propio formato."""
     texto = _CONTROL.sub("", texto or "")
-    texto = re.sub(r"</?\s*(?:mensaje_residente|instruccion_administrador)\s*>", "", texto, flags=re.IGNORECASE)
+    texto = re.sub(r"</?\s*(?:mensaje_residente|instruccion_administrador|datos_del_conjunto|conversacion|pregunta_actual)\s*>", "", texto, flags=re.IGNORECASE)
     return re.sub(r"[ \t]+", " ", re.sub(r"\n{3,}", "\n\n", texto)).strip()[:maximo]
 
 

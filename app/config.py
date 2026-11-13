@@ -105,3 +105,6 @@ IA_PENSAMIENTO = os.getenv("IA_PENSAMIENTO", "low").strip().lower()
 # Topes para proteger la cuota gratuita y evitar abuso: por persona y para todo el conjunto, por día (hora de Colombia).
 IA_LIMITE_DIARIO_USUARIO = _entero("IA_LIMITE_DIARIO_USUARIO", 10)
 IA_LIMITE_DIARIO_GLOBAL = _entero("IA_LIMITE_DIARIO_GLOBAL", 100)
+# Chat (v3.2): tiene topes propios para que una conversación larga no gaste las consultas de los borradores.
+IA_LIMITE_CHAT_USUARIO = _entero("IA_LIMITE_CHAT_USUARIO", 30)
+IA_LIMITE_CHAT_GLOBAL = _entero("IA_LIMITE_CHAT_GLOBAL", 300)

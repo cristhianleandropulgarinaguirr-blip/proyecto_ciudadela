@@ -53,7 +53,16 @@ const guardarPerfil = (u) => { try { localStorage.setItem(PERFIL, JSON.stringify
 const leerPerfil = () => { try { return JSON.parse(localStorage.getItem(PERFIL) ?? "null"); } catch { return null; } };
 const borrarPerfil = () => { try { localStorage.removeItem(PERFIL); } catch { /* nada */ } };
 
+// Chat «Ciudabot» (v3.2): se descarga con la app ya abierta (en un momento libre) para no retrasar el arranque.
+let chatMod = null;
+function iniciarChat() {
+  if (!usuario || usuario.rol === "Guardia") return;          // el guardia no tiene asistente; la API tampoco se lo permite
+  const montar = () => import("./chat.js").then((m) => { chatMod = m; if (usuario) m.montarChat(usuario); }).catch(() => {});
+  (window.requestIdleCallback ?? ((f) => setTimeout(f, 600)))(montar);
+}
+
 function mostrarLogin() {
+  chatMod?.quitarChat();
   usuario = null;
   window.CiudadelaTema?.establecerRol("");       // el login siempre usa la identidad base (azul)
   detenerCampana();
@@ -105,6 +114,7 @@ async function iniciar() {
 async function abrirApp() {
   window.CiudadelaTema?.establecerRol(usuario.rol);   // color del rol (admin azul · residente teal · guardia ámbar)
   construirShell();
+  iniciarChat();
   navegar();
   precargarVistas();
   iniciarOffline(usuario);
@@ -155,6 +165,7 @@ async function cerrarSesion() {
   }
   await liberarPushAlSalir();
   await cerrarEnServidor();
+  chatMod?.quitarChat();                              // la conversación solo vive en memoria: se borra al salir
   borrarAutoTodos(); borrarPerfil(); await limpiarAlSalir(); sesion.cerrar();
   location.hash = ""; mostrarLogin();
 }

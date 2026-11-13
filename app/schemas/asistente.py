@@ -77,3 +77,55 @@ class SalidaAnuncio(BaseModel):
     tipo: Optional[str] = Field(None, max_length=40)
     fecha_evento: Optional[str] = Field(None, max_length=40)
     lugar: Optional[str] = Field(None, max_length=400)
+
+
+# ---------------------------------------------------------------- Chat (v3.2)
+class TurnoChat(BaseModel):
+    rol: Literal["usuario", "asistente"]
+    texto: str = Field(..., max_length=900)
+
+
+class MensajeChat(BaseModel):
+    mensaje: str = Field(..., min_length=2, max_length=400, examples=["¿Qué días suele estar más congestionado el BBQ?"])
+    historial: list[TurnoChat] = Field(default_factory=list, max_length=10)
+
+
+class DiaConteo(BaseModel):
+    dia: str                            # «lunes», «martes»…
+    total: int
+    destacado: bool = False             # el/los más concurridos
+
+
+class GraficoZona(BaseModel):
+    zona: str
+    total: int
+    dias: list[DiaConteo]
+
+
+class AccionChat(BaseModel):
+    texto: str
+    enlace: str                         # ruta de la app, p. ej. «#/reservas»
+
+
+class RespuestaChat(BaseModel):
+    respuesta: str
+    modo: Literal["ia", "basico"]       # «basico» = respondió el servidor con los datos, sin IA
+    grafico: Optional[GraficoZona] = None
+    accion: Optional[AccionChat] = None
+    solicitudes: list[SolicitudResumen] = []
+    sugerencias: list[str] = []
+    restantes: Optional[int] = None
+
+
+class EstadoChat(BaseModel):
+    ia: bool                            # True si hay IA conectada; si no, el chat responde igual con los datos de reservas
+    limite_diario: int
+    restantes: int
+
+
+class SalidaChat(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    respuesta: Optional[str] = Field(None, max_length=4000)
+    zona: Optional[str] = Field(None, max_length=80)
+    accion: Optional[str] = Field(None, max_length=30)
+    sugerencias: Optional[list[str]] = Field(None, max_length=8)

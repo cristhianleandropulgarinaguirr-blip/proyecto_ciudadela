@@ -355,7 +355,7 @@ class UsoAsistente(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
-    funcion = Column(String, nullable=False)           # residente | anuncio
+    funcion = Column(String, nullable=False)           # residente | anuncio | chat (v3.2)
     fecha = Column(DateTime, default=ahora_utc, index=True)
 
 
