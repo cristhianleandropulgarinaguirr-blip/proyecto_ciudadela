@@ -73,15 +73,25 @@ function tarjeta(v, esAdmin, recargar) {
   let elegida = null;
   const cuerpo = h("div", { class: "opciones-voto" });
 
+  const resultados = () => {
+    const max = Math.max(...v.opciones.map((o) => o.votos ?? 0));
+    return [...v.opciones.map((o) => h("div", { class: `resultado-op ${max > 0 && o.votos === max ? "gana" : ""}` },
+      h("div", { class: "fila" }, h("b", {}, o.texto), h("span", {}, `${o.votos} · ${o.porcentaje}%`)),
+      h("div", { class: "barra" }, h("i", { style: `width:${o.porcentaje}%` })))),
+    h("p", { class: "small muted" }, `${v.total_votos} voto(s) en total.`)];
+  };
+
   const pintar = () => {
-    if (v.resultados_visibles) {
-      const max = Math.max(...v.opciones.map((o) => o.votos ?? 0));
-      cuerpo.replaceChildren(...v.opciones.map((o) => h("div", { class: `resultado-op ${max > 0 && o.votos === max ? "gana" : ""}` },
-        h("div", { class: "fila" }, h("b", {}, o.texto), h("span", {}, `${o.votos} · ${o.porcentaje}%`)),
-        h("div", { class: "barra" }, h("i", { style: `width:${o.porcentaje}%` })))),
-      h("p", { class: "small muted" }, `${v.total_votos} voto(s) en total.`));
-    } else if (v.puede_votar) {
-      cuerpo.replaceChildren(...v.opciones.map((o) => h("button", { type: "button", role: "radio", class: "opcion-voto", "aria-checked": String(elegida === o.id), onclick: () => { elegida = o.id; pintar(); } }, o.texto)));
+    if (v.puede_votar) {
+      // Opciones para marcar (radio). Si la votación muestra resultados en vivo, se ven debajo sin quitar la posibilidad de votar.
+      const marcar = (id) => { elegida = id; pintar(); };
+      const opciones = v.opciones.map((o) => h("button", { type: "button", role: "radio", class: "opcion-voto", "aria-checked": String(elegida === o.id),
+        onclick: () => marcar(o.id), onkeydown: (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); marcar(o.id); } } },
+        h("span", { class: "marca", "aria-hidden": "true" }), h("span", { class: "texto" }, o.texto)));
+      cuerpo.replaceChildren(h("div", { class: "grupo-radio", role: "radiogroup", "aria-label": "Elige tu opción" }, opciones),
+        ...(v.resultados_visibles ? [h("div", { class: "etiqueta-seccion" }, "Resultados en vivo"), ...resultados()] : []));
+    } else if (v.resultados_visibles) {
+      cuerpo.replaceChildren(...resultados(), v.ya_vote ? h("p", { class: "small muted" }, "Tu voto quedó registrado.") : null);
     } else {
       cuerpo.replaceChildren(h("p", { class: "small muted" }, v.ya_vote ? "Tu voto quedó registrado. Los resultados se publican al cerrar." : v.motivo_no_puede ?? ""));
     }

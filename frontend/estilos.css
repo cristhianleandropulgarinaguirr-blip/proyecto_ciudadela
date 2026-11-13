@@ -943,8 +943,13 @@ html[data-texto="grande"] { font-size: 112.5%; }
 .votacion .card-titulo { align-items: flex-start; gap: .75rem; }
 .votacion .card-titulo h2 { font-size: 1.1rem; }
 .opciones-voto { display: grid; gap: .5rem; margin: .9rem 0; }
-.opcion-voto { text-align: left; padding: .8rem 1rem; border-radius: var(--r); border: 1.5px solid var(--linea); background: var(--superficie); color: var(--tinta); font: inherit; cursor: pointer; transition: border-color .15s, background .15s; }
+.grupo-radio { display: grid; gap: .5rem; }
+.opcion-voto { display: flex; align-items: center; gap: .75rem; min-height: 48px; width: 100%; -webkit-tap-highlight-color: transparent; text-align: left; padding: .8rem 1rem; border-radius: var(--r); border: 1.5px solid var(--linea); background: var(--superficie); color: var(--tinta); font: inherit; cursor: pointer; transition: border-color .15s, background .15s; }
 .opcion-voto:hover { border-color: var(--bosque); }
+.opcion-voto .marca { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--linea); background: var(--superficie); display: grid; place-items: center; transition: border-color .15s; }
+.opcion-voto[aria-checked="true"] .marca { border-color: var(--primario); }
+.opcion-voto[aria-checked="true"] .marca::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--primario); }
+.opcion-voto:focus-visible { outline: 2px solid var(--primario); outline-offset: 2px; }
 .opcion-voto[aria-checked="true"] { border-color: var(--primario); background: var(--bosque-100); font-weight: 600; }
 .fila-opcion { display: flex; gap: .5rem; align-items: center; }
 .fila-opcion input { flex: 1; min-width: 0; }

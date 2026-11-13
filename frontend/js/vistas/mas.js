@@ -5,7 +5,7 @@ import { cabecera } from "./comun.js";
 const GRUPOS = [
   ["Mi día a día", ["visitas", "reservas", "paquetes", "cartera"]],
   ["Trámites", ["mantenimiento", "pqrs", "documentos"]],
-  ["Comunidad", ["anuncios", "comercio", "emergencias"]],
+  ["Comunidad", ["votaciones", "anuncios", "comercio", "emergencias"]],
   ["Administración", ["porteria", "residentes", "auditoria"]],
   ["Mi cuenta", ["configuracion"]],
 ];
