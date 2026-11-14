@@ -15,7 +15,7 @@ from app import arrendamientos as reglas_arr, config
 from app.archivos import guardar_imagen_validada, leer_imagen
 from app.auditoria import auditar
 from app.notificaciones import notificar
-from app.constantes import EstadoDanio, EstadoReserva, RolNombre
+from app.constantes import Delegacion, EstadoDanio, EstadoReserva, RolNombre
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
 from app.models import Pago, ReporteDanio, Reserva, Usuario, VehiculoVisitante, ahora_utc
@@ -247,17 +247,18 @@ def cambiar_estado_danio(reporte_id: int, nuevo_estado: EstadoDanio, db: Session
 #                   MÓDULO DE RECAUDO DE ADMINISTRACIÓN
 # =========================================================================
 TAG_ADMIN = "Recaudo de Administración"
+MSG_CARTERA = "La cartera del apartamento la maneja el propietario. Si quieres verla y pagarla, pídele que lo active en «Mis inquilinos»."
 
 
 @router.get("/administracion/estado-cuenta/{usuario_id}", response_model=EstadoCuentaResponse, tags=[TAG_ADMIN],
             summary="Consultar estado de cuenta",
-            description="Un residente solo puede consultar el suyo; el **Administrador** puede consultar el de cualquiera.",
+            description="Un residente solo puede consultar el suyo; el **Administrador** puede consultar el de cualquiera. Un **Inquilino** solo la del apartamento donde vive, "
+            "y únicamente si su propietario le delegó el pago.",
             responses={403: {"description": "No es tu estado de cuenta"}, 404: {"description": "Usuario no encontrado"}})
 def consultar_estado_cuenta(usuario_id: int, db: Session = Depends(get_db), actual: Usuario = Depends(get_current_user)):
-    if actual.rol == INQUILINO.value:
-        raise HTTPException(status_code=403, detail="La cartera del apartamento la consulta el propietario.")
-    if usuario_id != actual.id and actual.rol != ADMIN.value:
-        raise HTTPException(status_code=403, detail="Solo puedes consultar tu propio estado de cuenta.")
+    titular = reglas_arr.titular_con_delegacion(db, actual, Delegacion.PAGAR, MSG_CARTERA)    # al inquilino sin delegación lo frena aquí (403)
+    if usuario_id != titular.id and actual.rol != ADMIN.value:
+        raise HTTPException(status_code=403, detail="Solo puedes consultar el estado de cuenta de tu apartamento.")
     usuario = db.get(Usuario, usuario_id)
     if usuario is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
@@ -307,24 +308,29 @@ def config_pagos(_: Usuario = Depends(get_current_user)):
 
 @router.post("/administracion/simular-pago-pasarela", response_model=PagoResponse, tags=[TAG_ADMIN],
              summary="Simular el pago de la administración (solo demostración)",
-             description="Roles: **Residente**, **Administrador** (paga su propio saldo). Simula una pasarela de pagos: "
+             description="Roles: **Residente**, **Administrador** (paga su propio saldo) e **Inquilino** (solo si su propietario se lo delegó: paga el saldo del apartamento). Simula una pasarela de pagos: "
              "el valor debe ser mayor a 0 y no puede superar el saldo pendiente. Al llegar a 0 el apartamento queda al día. "
              "**Solo funciona si `PAGOS_SIMULADOS=1`**; en producción responde 403 y el pago lo registra el administrador.",
              responses={400: {"description": "Valor inválido o sin saldo pendiente"}, 403: {"description": "Los pagos simulados están desactivados"}})
 def procesar_pago_pasarela(valor_pagado: int = Query(..., gt=0, examples=[150000]), db: Session = Depends(get_db),
-                           usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+                           usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
     if not config.PAGOS_SIMULADOS:
         raise HTTPException(status_code=403, detail="El pago en línea aún no está habilitado. Paga por transferencia y la administración registrará tu pago.")
-    pago = _aplicar_pago(db, usuario, valor_pagado, usuario, "Pagó administración")["pago"]
+    titular = reglas_arr.titular_con_delegacion(db, usuario, Delegacion.PAGAR, MSG_CARTERA)   # la deuda es del propietario aunque pague su inquilino
+    por_delegacion = titular.id != usuario.id
+    pago = _aplicar_pago(db, titular, valor_pagado, usuario, "Pagó administración por delegación del propietario" if por_delegacion else "Pagó administración",
+                         f" · pagó {usuario.nombre_completo}" if por_delegacion else "")["pago"]
+    if por_delegacion:
+        notificar(db, [titular], f"{usuario.nombre_completo} pagó la administración", f"${valor_pagado:,}".replace(",", ".") + " en nombre de tu apartamento. Su comprobante está en Mis pagos.", "#/cartera")
     db.commit()
-    db.refresh(usuario)
+    db.refresh(titular)
 
-    if usuario.esta_al_dia:
-        mensaje = f"Pago recibido. El apartamento {usuario.apartamento} está al día y habilitado para reservas."
+    if titular.esta_al_dia:
+        mensaje = f"Pago recibido. El apartamento {titular.apartamento} está al día y habilitado para reservas."
     else:
-        mensaje = f"Pago parcial recibido. Saldo restante: ${usuario.saldo_pendiente}"
-    return {"status": "Transacción Exitosa", "mensaje": mensaje, "saldo_pendiente": usuario.saldo_pendiente,
-            "esta_al_dia": usuario.esta_al_dia, "pago_id": pago.id}
+        mensaje = f"Pago parcial recibido. Saldo restante: ${titular.saldo_pendiente}"
+    return {"status": "Transacción Exitosa", "mensaje": mensaje, "saldo_pendiente": titular.saldo_pendiente,
+            "esta_al_dia": titular.esta_al_dia, "pago_id": pago.id}
 
 
 @router.post("/administracion/registrar-pago/{usuario_id}", response_model=PagoResponse, tags=[TAG_ADMIN],
@@ -352,11 +358,12 @@ def registrar_pago_recibido(usuario_id: int, valor_pagado: int = Query(..., gt=0
 
 @router.get("/administracion/mis-pagos", response_model=list[PagoRegistroResponse], tags=[TAG_ADMIN],
             summary="Ver mis pagos (con comprobante)",
-            description="Roles: **Residente**, **Administrador**. Los últimos pagos registrados; de cada uno se puede descargar el comprobante en PDF "
+            description="Roles: **Residente**, **Administrador** e **Inquilino** (solo con el pago delegado: ve los pagos del apartamento). Los últimos pagos registrados; de cada uno se puede descargar el comprobante en PDF "
                         "(`GET /reportes/recibo/{pago_id}.pdf`). El administrador puede ver los de otro usuario con `usuario_id`.")
 def mis_pagos(usuario_id: Optional[int] = Query(None), limite: int = Query(24, ge=1, le=100), db: Session = Depends(get_db),
-              usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
-    objetivo = usuario_id if (usuario_id and usuario.rol == ADMIN.value) else usuario.id
+              usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
+    titular = reglas_arr.titular_con_delegacion(db, usuario, Delegacion.PAGAR, MSG_CARTERA)
+    objetivo = usuario_id if (usuario_id and usuario.rol == ADMIN.value) else titular.id
     pagos = db.query(Pago).filter(Pago.usuario_id == objetivo).order_by(Pago.id.desc()).limit(limite).all()
     return [PagoRegistroResponse(id=p.id, comprobante=f"REC-{p.fecha.year}-{p.id:06d}", valor=p.valor, saldo_anterior=p.saldo_anterior,
                                  saldo_posterior=p.saldo_posterior, fecha=p.fecha) for p in pagos]

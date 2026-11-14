@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 
 from app import sesiones
 from app.auditoria import auditar
-from app.constantes import EstadoArrendamiento, EstadoQR, RolNombre, TipoQR
+from fastapi import HTTPException
+
+from app.constantes import Delegacion, EstadoArrendamiento, EstadoQR, RolNombre, TipoQR
 from app.models import Arrendamiento, CodigoQR, Usuario, VisitanteAutorizado, ahora_utc
 from app.notificaciones import notificar, usuarios_activos
 
@@ -78,6 +80,33 @@ def titular_de(db: Session, usuario: Usuario) -> Usuario:
         return usuario
     contrato = contrato_activo(db, usuario.id)
     return (db.get(Usuario, contrato.propietario_id) if contrato else None) or usuario
+
+
+def delegaciones(db: Session, usuario: Usuario) -> list[str]:
+    """Lo que el propietario le delegó a este usuario. Solo aplica a inquilinos con contrato activo; para los demás roles, nada."""
+    if usuario.rol != RolNombre.INQUILINO.value:
+        return []
+    c = contrato_activo(db, usuario.id)
+    if c is None:
+        return []
+    return [d.value for d, activa in ((Delegacion.PAGAR, c.puede_pagar), (Delegacion.VOTAR, c.puede_votar)) if activa]
+
+
+def titular_con_delegacion(db: Session, usuario: Usuario, permiso: Delegacion, mensaje: str) -> Usuario:
+    """Para las acciones que son del propietario (pagar, votar). Si `usuario` no es inquilino, devuelve al mismo usuario.
+    Si es inquilino: solo pasa con la delegación activa (y entonces actúa como el propietario); si no, responde 403."""
+    if usuario.rol != RolNombre.INQUILINO.value:
+        return usuario
+    if permiso.value not in delegaciones(db, usuario):
+        raise HTTPException(status_code=403, detail=mensaje)
+    return titular_de(db, usuario)
+
+
+def inquilinos_con_delegacion(db: Session, permiso: Delegacion) -> list[Usuario]:
+    """Inquilinos activos a quienes su propietario les delegó este permiso (para avisarles, p. ej., de una votación nueva)."""
+    columna = Arrendamiento.puede_votar if permiso == Delegacion.VOTAR else Arrendamiento.puede_pagar
+    return (db.query(Usuario).join(Arrendamiento, Arrendamiento.inquilino_id == Usuario.id)
+            .filter(Arrendamiento.estado == EstadoArrendamiento.ACTIVO.value, columna.is_(True), Usuario.esta_activo.is_(True)).all())
 
 
 def avisar_al_propietario(db: Session, inquilino: Usuario, titulo: str, mensaje: Optional[str] = None, enlace: Optional[str] = None) -> None:

@@ -7,6 +7,11 @@ import { cabecera, filtros } from "./comun.js";
 const hoyISO = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
 const fecha = (iso) => fmtFechaCorta(new Date(`${iso}T00:00:00`));   // fecha sin hora = día local
 
+const interruptor = (activo, alCambiar, etiqueta) => {
+  const i = h("input", { type: "checkbox", checked: activo, "aria-label": etiqueta, onchange: (e) => alCambiar(e.target.checked, e.target) });
+  return h("label", { class: "switch" }, i, h("i"));
+};
+
 function vigencia(c) {
   if (c.estado === "Activo") return c.dias_restantes <= 30 ? `Acceso hasta el ${fecha(c.fecha_fin)} · quedan ${c.dias_restantes} día(s)` : `Acceso hasta el ${fecha(c.fecha_fin)}`;
   if (c.estado === "Pendiente") return `Contrato del ${fecha(c.fecha_inicio)} al ${fecha(c.fecha_fin)} · espera aprobación`;
@@ -48,10 +53,25 @@ export async function render(ctx) {
     if (esAdmin && c.estado === "Pendiente") acciones.push(h("button", { class: "btn sm", onclick: (e) => aprobar(c, e.currentTarget) }, icono("ok", 16), "Aprobar"),
       h("button", { class: "btn suave sm", onclick: () => cerrar(c, true) }, "Rechazar"));
     else if (abiertos(c)) acciones.push(h("button", { class: "btn suave sm", onclick: () => cerrar(c) }, c.estado === "Pendiente" ? "Cancelar" : "Terminar"));
-    return h("div", { class: "item" }, h("div", { class: "avatar" }, iniciales(c.inquilino_nombre)),
+    return h("div", {}, h("div", { class: "item" }, h("div", { class: "avatar" }, iniciales(c.inquilino_nombre)),
       h("div", { class: "cuerpo" }, h("b", {}, c.inquilino_nombre), h("span", {}, c.inquilino_email),
         h("span", {}, esAdmin ? `${c.apartamento ?? "Sin apto."} · propietario: ${c.propietario_nombre}` : (c.apartamento ?? "")), h("span", {}, vigencia(c))),
-      h("div", { class: "acciones" }, badge(c.estado), ...acciones));
+      h("div", { class: "acciones" }, badge(c.estado), ...acciones)), (!esAdmin && abiertos(c)) ? delegaciones(c) : null);
+  }
+
+  // Lo que el propietario le deja hacer a su inquilino. Cada cambio se guarda al instante y rige ya (el inquilino ve el menú nuevo al reabrir la app).
+  function delegaciones(c) {
+    const guardar = async (campo, valor, input) => {
+      input.disabled = true;
+      try { Object.assign(c, await api(`/arrendamientos/${c.id}/permisos`, { metodo: "PATCH", json: { puede_pagar: c.puede_pagar, puede_votar: c.puede_votar, [campo]: valor } })); toast(valor ? "Permiso activado" : "Permiso quitado"); }
+      catch (e) { input.checked = !valor; toast(e.message, "error"); }
+      finally { input.disabled = false; }
+    };
+    const fila = (campo, titulo, texto) => h("div", { class: "opcion" }, h("div", { class: "t" }, h("b", {}, titulo), h("span", {}, texto)), interruptor(c[campo], (v, i) => guardar(campo, v, i), titulo));
+    return h("div", { style: "margin: .2rem 0 1rem 1rem; padding-left: .9rem; border-left: 3px solid var(--bosque)" },
+      h("p", { class: "small muted", style: "margin-bottom:.4rem" }, "Lo que le dejas hacer a tu inquilino (puedes quitarlo cuando quieras):"),
+      fila("puede_pagar", "Pagar la administración", "Ve la cartera del apartamento y paga en tu nombre."),
+      fila("puede_votar", "Votar en las asambleas", "Vota por el apartamento. Solo hay un voto: si vota él, ya no votas tú en esa consulta."));
   }
 
   function pintar() {

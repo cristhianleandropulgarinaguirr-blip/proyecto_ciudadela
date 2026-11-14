@@ -14,7 +14,7 @@ from app.database import get_db
 from app.dependencies import requiere_roles
 from app.models import Arrendamiento, Rol, Usuario
 from app.notificaciones import notificar
-from app.schemas.arrendamientos import AprobacionResponse, ArrendamientoCreate, ArrendamientoResponse, Motivo
+from app.schemas.arrendamientos import AprobacionResponse, ArrendamientoCreate, ArrendamientoResponse, Motivo, PermisosIn
 from app.security import encriptar_password
 
 TAG = "Arrendamientos (Inquilinos)"
@@ -34,7 +34,7 @@ def _vista(c: Arrendamiento) -> ArrendamientoResponse:
     return ArrendamientoResponse(
         id=c.id, estado=c.estado, apartamento=c.apartamento, propietario_id=c.propietario_id, propietario_nombre=c.propietario.nombre_completo,
         inquilino_id=c.inquilino_id, inquilino_nombre=c.inquilino.nombre_completo, inquilino_email=c.inquilino.email,
-        fecha_inicio=c.fecha_inicio.date(), fecha_fin=c.fecha_fin.date(), dias_restantes=restantes, motivo_cierre=c.motivo_cierre,
+        fecha_inicio=c.fecha_inicio.date(), fecha_fin=c.fecha_fin.date(), dias_restantes=restantes, puede_pagar=bool(c.puede_pagar), puede_votar=bool(c.puede_votar), motivo_cierre=c.motivo_cierre,
         fecha_creacion=c.fecha_creacion)
 
 
@@ -170,6 +170,30 @@ def finalizar(contrato_id: int, datos: Motivo | None = None, db: Session = Depen
     motivo = (datos.motivo if datos and datos.motivo else "").strip() or f"Cerrado por {quien}"
     pendiente = c.estado == EstadoArrendamiento.PENDIENTE.value
     reglas.finalizar(db, c, motivo, actor, EstadoArrendamiento.RECHAZADO if pendiente else EstadoArrendamiento.FINALIZADO)
+    db.commit()
+    db.refresh(c)
+    return _vista(c)
+
+
+@router.patch("/{contrato_id}/permisos", response_model=ArrendamientoResponse, summary="Delegar permisos a mi inquilino",
+              description="Solo el **propietario** del contrato. Decide si su inquilino puede **pagar** la administración (y ver la cartera) y **votar** en las asambleas "
+                          "en nombre del apartamento. Por defecto no puede ninguna. Se puede quitar en cualquier momento y el cambio rige al instante. "
+                          "Sigue habiendo un solo voto por apartamento: si el inquilino vota, el propietario ya no puede votar en esa consulta, y al revés.",
+              responses={400: {"description": "El contrato ya terminó"}, 403: {"description": "No es tu contrato"}, 404: {"description": "Arrendamiento no encontrado"}})
+def delegar_permisos(contrato_id: int, datos: PermisosIn, db: Session = Depends(get_db), propietario: Usuario = Depends(requiere_roles(RESIDENTE))):
+    c = _obtener(db, contrato_id)
+    if c.propietario_id != propietario.id:
+        raise HTTPException(status_code=403, detail="Solo puedes cambiar los permisos de los inquilinos de tu apartamento.")
+    if c.estado not in ABIERTOS:
+        raise HTTPException(status_code=400, detail="Este arrendamiento ya terminó.")
+    cambios = [f"{nombre} {'activado' if nuevo else 'quitado'}" for nombre, antes, nuevo in
+               (("pagar", bool(c.puede_pagar), datos.puede_pagar), ("votar", bool(c.puede_votar), datos.puede_votar)) if antes != nuevo]
+    if cambios:
+        c.puede_pagar, c.puede_votar = datos.puede_pagar, datos.puede_votar
+        auditar(db, propietario, "Cambió permisos de su inquilino", "Arrendamiento", c.id, f"{c.inquilino.nombre_completo}: " + ", ".join(cambios))
+        notificar(db, [c.inquilino], "Tu propietario cambió tus permisos",
+                  "Puedes " + (" y ".join(n for n, on in (("pagar la administración", c.puede_pagar), ("votar en las asambleas", c.puede_votar)) if on) or "usar la app sin pagos ni votaciones")
+                  + ". Cierra y abre la app para ver el cambio en tu menú.", "#/resumen")
     db.commit()
     db.refresh(c)
     return _vista(c)

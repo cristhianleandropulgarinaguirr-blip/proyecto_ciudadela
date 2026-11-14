@@ -259,3 +259,16 @@ def test_titular_de_un_inquilino_es_el_propietario(db, client, auth):
     inq = db.query(Usuario).filter(Usuario.email == MARTA).one()
     ana = db.query(Usuario).filter(Usuario.email == ANA).one()
     assert reglas.titular_de(db, inq).id == ana.id and reglas.titular_de(db, ana).id == ana.id
+
+
+def test_el_seed_crea_el_rol_inquilino_con_id_propio_si_falta(db):
+    """Regresión del despliegue en Render: el rol faltante se crea con un id nuevo sin chocar con los existentes."""
+    from app import seed
+    from app.models import Rol
+    db.query(Rol).filter(Rol.nombre == "Inquilino").delete()
+    db.commit()
+    seed.asegurar_roles(db)
+    seed.asegurar_roles(db)                                  # repetirlo no duplica nada
+    ids = [r.id for r in db.query(Rol).all()]
+    assert sorted(r.nombre for r in db.query(Rol).all()) == ["Administrador", "Guardia", "Inquilino", "Residente"]
+    assert len(ids) == len(set(ids))

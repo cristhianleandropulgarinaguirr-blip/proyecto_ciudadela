@@ -237,7 +237,7 @@ que visita `/salud` cada 10 min para que Render gratis no se duerma (define la v
 | **401** | No enviaste token, es falso, o expiró |
 | **403** | Tu token es válido pero tu rol no tiene permiso para esa acción |
 
-## Versión 3.3: rol Inquilino — recuerda `alembic upgrade head` (migración 0014)
+## Versión 3.3 y 3.4: rol Inquilino — recuerda `alembic upgrade head` (migraciones 0014 y 0015)
 
 Quien arrienda un apartamento entra con un rol propio, **distinto del propietario (Residente)**, vinculado a él por un contrato.
 
@@ -252,9 +252,10 @@ Quien arrienda un apartamento entra con un rol propio, **distinto del propietari
 | Paquetes (los suyos) · pases QR y visitantes autorizados | ✅ | ✅ (tope de 5 pases y 5 autorizados) |
 | Documentos | todos | solo *Reglamento* y *Circular* |
 | Comercio | publicar y ver | solo ver el directorio |
-| Cartera, pagos y comprobantes | ✅ | ❌ |
-| Votaciones | ✅ | ❌ |
+| Cartera, pagos y comprobantes | ✅ | ⚙️ solo si el propietario se lo delega (*Pagar*) |
+| Votaciones | ✅ | ⚙️ solo si el propietario se lo delega (*Votar*) |
 | Registrar / terminar inquilinos | ✅ | ❌ |
+| Delegar permisos al inquilino | ✅ | ❌ |
 
 **Reglas que lo hacen seguro.**
 - **Mora heredada:** el candado financiero es del apartamento; el inquilino usa el estado del propietario (`app/arrendamientos.py → titular_de`).
@@ -262,7 +263,12 @@ Quien arrienda un apartamento entra con un rol propio, **distinto del propietari
 - **Trazabilidad:** queda en auditoría quién registró, aprobó o cerró cada contrato; el propietario recibe aviso cuando su inquilino reserva o reporta un daño.
 - El administrador **no** crea inquilinos desde *Usuarios*: sin contrato no podrían entrar.
 
-Endpoints: `POST/GET /arrendamientos/` · `GET /arrendamientos/mio` · `POST /arrendamientos/{id}/aprobar|rechazar|finalizar`. Código: `app/arrendamientos.py`, `app/routers/arrendamientos.py`, `frontend/js/vistas/inquilinos.js`, pruebas en `tests/test_arrendamientos.py`.
+**Permisos delegables (v3.4).** En *Mis inquilinos* el propietario tiene dos interruptores por inquilino, apagados por defecto:
+- **Pagar la administración:** el inquilino ve la cartera del apartamento (la de su propietario, nunca la de otro), paga y descarga comprobantes. La deuda y el comprobante quedan a nombre del apartamento y el propietario recibe un aviso.
+- **Votar en las asambleas:** el inquilino vota **por el apartamento**, con la clave y el estado de cuenta del propietario. Sigue habiendo un solo voto: si vota uno, el otro ya no puede en esa consulta. El propietario recibe un aviso (nunca se revela qué votó). Si el propietario está en mora y la votación exige estar al día, tampoco puede votar el inquilino.
+Cada cambio rige al instante en el servidor (el menú del inquilino se actualiza al reabrir la app). Solo el propietario del contrato delega; ni el administrador ni el propio inquilino pueden. Queda en auditoría. Al terminar el contrato, todo se cierra.
+
+Endpoints: `POST/GET /arrendamientos/` · `GET /arrendamientos/mio` · `POST /arrendamientos/{id}/aprobar|rechazar|finalizar` · `PATCH /arrendamientos/{id}/permisos`. Código: `app/arrendamientos.py`, `app/routers/arrendamientos.py`, `frontend/js/vistas/inquilinos.js`, pruebas en `tests/test_arrendamientos.py`.
 
 ## Roles y permisos
 

@@ -4,7 +4,7 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app import sesiones
+from app import arrendamientos, sesiones
 from app.auditoria import auditar
 from app.constantes import RolNombre
 from app.database import get_db
@@ -20,8 +20,10 @@ solo_admin = requiere_roles(RolNombre.ADMINISTRADOR)
 
 @router.get("/me", response_model=UsuarioResponse, summary="Ver mi perfil",
             description="Devuelve los datos del usuario dueño del token. Cualquier rol.")
-def mi_perfil(usuario: Usuario = Depends(get_current_user)):
-    return usuario
+def mi_perfil(db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
+    perfil = UsuarioResponse.model_validate(usuario)
+    perfil.delegaciones = arrendamientos.delegaciones(db, usuario)     # el menú del inquilino se arma con esto
+    return perfil
 
 
 @router.get("/", response_model=list[UsuarioResponse], summary="Listar todos los usuarios",

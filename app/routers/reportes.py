@@ -19,7 +19,8 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from sqlalchemy.orm import Session, aliased
 
 from app.auditoria import auditar
-from app.constantes import RolNombre
+from app import arrendamientos as reglas_arr
+from app.constantes import Delegacion, RolNombre
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
 from app.models import AccesoVisitante, Auditoria, Pago, Paquete, PQRS, Rol, Usuario, VisitanteAutorizado
@@ -145,10 +146,9 @@ def auditoria(entidad: Optional[str] = Query(None, max_length=30), db: Session =
             description="El residente descarga el suyo; el **Administrador** el de cualquier residente. Si no hay saldo pendiente, el documento lo indica como «a paz y salvo».",
             responses={403: {"description": "No es tu estado de cuenta"}, 404: {"description": "Usuario no encontrado"}})
 def estado_cuenta_pdf(usuario_id: int, db: Session = Depends(get_db), actual: Usuario = Depends(get_current_user)):
-    if actual.rol == RolNombre.INQUILINO.value:
-        raise HTTPException(status_code=403, detail="La cartera del apartamento la consulta el propietario.")
-    if usuario_id != actual.id and actual.rol != ADMIN.value:
-        raise HTTPException(status_code=403, detail="Solo puedes descargar tu propio estado de cuenta.")
+    titular = reglas_arr.titular_con_delegacion(db, actual, Delegacion.PAGAR, "La cartera del apartamento la maneja el propietario.")
+    if usuario_id != titular.id and actual.rol != ADMIN.value:
+        raise HTTPException(status_code=403, detail="Solo puedes descargar el estado de cuenta de tu apartamento.")
     u = db.get(Usuario, usuario_id)
     if u is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
@@ -184,8 +184,9 @@ def recibo_pdf(pago_id: int, db: Session = Depends(get_db), actual: Usuario = De
     pago = db.get(Pago, pago_id)
     if pago is None:
         raise HTTPException(status_code=404, detail="Pago no encontrado.")
-    if pago.usuario_id != actual.id and actual.rol != ADMIN.value:
-        raise HTTPException(status_code=403, detail="Solo puedes descargar tus propios comprobantes.")
+    titular = reglas_arr.titular_con_delegacion(db, actual, Delegacion.PAGAR, "Los comprobantes del apartamento los maneja el propietario.")
+    if pago.usuario_id != titular.id and actual.rol != ADMIN.value:
+        raise HTTPException(status_code=403, detail="Solo puedes descargar los comprobantes de tu apartamento.")
     u = db.get(Usuario, pago.usuario_id)
     cop = lambda n: "$ " + f"{int(n or 0):,}".replace(",", ".")   # noqa: E731
     esc = lambda t: (t or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")   # noqa: E731

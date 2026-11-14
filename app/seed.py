@@ -13,22 +13,19 @@ from app.models import Rol, Usuario
 from app.security import encriptar_password
 
 
-def resincronizar_secuencia_roles(db) -> None:
-    """Alinea el contador de ids de 'roles' con el id más alto existente (solo PostgreSQL)."""
-    if db.bind.dialect.name != "postgresql":
-        return
-    db.execute(text(
-        "SELECT setval(pg_get_serial_sequence('roles', 'id'), "
-        "COALESCE((SELECT MAX(id) FROM roles), 0) + 1, false)"
-    ))
-    db.commit()
+def _alinear_secuencia_roles(db) -> None:
+    """PostgreSQL: la migración 0002 creó los roles con ids puestos a mano (1, 2, 3) y dejó el contador automático atrasado.
+    Se alinea con el id más alto para que un INSERT sin id no choque con un rol existente. En SQLite no hace falta."""
+    if db.get_bind().dialect.name == "postgresql":
+        db.execute(text("SELECT setval(pg_get_serial_sequence('roles', 'id'), (SELECT COALESCE(MAX(id), 1) FROM roles))"))
 
 
 def asegurar_roles(db) -> None:
-    resincronizar_secuencia_roles(db)
+    _alinear_secuencia_roles(db)
     for rol in RolNombre:
         if not db.query(Rol).filter(Rol.nombre == rol.value).first():
             db.add(Rol(nombre=rol.value, descripcion=DESCRIPCION_ROLES[rol]))
+            db.flush()              # cada rol recibe su id al momento, con el contador ya alineado
     db.commit()
 
 

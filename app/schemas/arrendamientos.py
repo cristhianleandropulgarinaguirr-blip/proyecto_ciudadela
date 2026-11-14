@@ -16,6 +16,13 @@ class ArrendamientoCreate(BaseModel):
         "nombre_completo": "Marta Rojas", "email": "marta.rojas@email.com", "fecha_inicio": "2026-12-01", "fecha_fin": "2027-11-30"}})
 
 
+class PermisosIn(BaseModel):
+    puede_pagar: bool = Field(..., description="Que el inquilino vea la cartera del apartamento y pague la administración en nombre del propietario")
+    puede_votar: bool = Field(..., description="Que el inquilino vote en las asambleas en nombre del apartamento")
+
+    model_config = ConfigDict(json_schema_extra={"example": {"puede_pagar": True, "puede_votar": False}})
+
+
 class Motivo(BaseModel):
     motivo: Optional[str] = Field(default=None, max_length=150, examples=["Documentos incompletos"])
 
@@ -32,6 +39,8 @@ class ArrendamientoResponse(BaseModel):
     fecha_inicio: date
     fecha_fin: date
     dias_restantes: Optional[int] = None
+    puede_pagar: bool = False
+    puede_votar: bool = False
     motivo_cierre: Optional[str] = None
     fecha_creacion: Optional[datetime] = None
 

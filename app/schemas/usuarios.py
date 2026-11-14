@@ -47,6 +47,7 @@ class UsuarioResponse(UsuarioBase):
     parqueadero_asignado: str
     debe_cambiar_password: bool = False
     politica_aceptada: bool = False   # ¿ya aceptó la política de tratamiento de datos?
+    delegaciones: list[str] = []      # solo inquilinos: lo que su propietario le dejó hacer ("pagar", "votar")
 
     model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": {
         "id": 1,

@@ -17,8 +17,8 @@ const RUTAS = [
   { id: "resumen", texto: "Inicio", icono: "grid", roles: [A, R, G, I], cargar: () => import("./vistas/resumen.js") },
   { id: "reservas", texto: "Reservas", icono: "calendario", roles: [A, R, G, I], cargar: () => import("./vistas/reservas.js") },
   { id: "paquetes", texto: { [R]: "Mis paquetes", [I]: "Mis paquetes", otro: "Paquetes" }, icono: "caja", roles: [A, R, G, I], cargar: () => import("./vistas/paquetes.js") },
-  { id: "cartera", texto: { [R]: "Mis pagos", otro: "Cartera" }, icono: "tarjeta", roles: [A, R], cargar: () => import("./vistas/cartera.js") },
-  { id: "votaciones", texto: "Votaciones", icono: "urna", roles: [A, R], cargar: () => import("./vistas/votaciones.js") },
+  { id: "cartera", texto: { [R]: "Mis pagos", [I]: "Pagos del apartamento", otro: "Cartera" }, icono: "tarjeta", roles: [A, R, I], delegado: "pagar", cargar: () => import("./vistas/cartera.js") },
+  { id: "votaciones", texto: "Votaciones", icono: "urna", roles: [A, R, I], delegado: "votar", cargar: () => import("./vistas/votaciones.js") },
   { id: "visitas", texto: { [R]: "Mis visitas", [I]: "Mis visitas", otro: "Visitas" }, icono: "identificacion", roles: [A, R, I], cargar: () => import("./vistas/visitas.js") },
   { id: "inquilinos", texto: { [A]: "Arrendamientos", otro: "Mis inquilinos" }, icono: "usuarios", roles: [A, R], cargar: () => import("./vistas/inquilinos.js") },
   { id: "porteria", texto: "Portería", icono: "carro", roles: [A, G], cargar: () => import("./vistas/porteria.js") },
@@ -36,6 +36,9 @@ const RUTAS = [
 const etiqueta = (r, rol) => (typeof r.texto === "string" ? r.texto : r.texto[rol] ?? r.texto.otro);
 
 // Barra inferior del celular: máximo 5 botones (4 + «Más»). Lo demás vive en «Más», con botones grandes.
+// ¿Esta ruta es para este usuario? Además del rol: al inquilino solo se le muestran Cartera y Votaciones si su propietario se las delegó.
+const permitida = (r, u) => r.roles.includes(u?.rol) && (u?.rol !== I || !r.delegado || (u.delegaciones ?? []).includes(r.delegado));
+
 const BARRA = {
   [R]: ["resumen", "reservas", "paquetes", "cartera"],
   [G]: ["resumen", "porteria", "paquetes", "emergencias"],
@@ -154,7 +157,7 @@ function precargarVistas() {
   const libre = window.requestIdleCallback ?? ((f) => setTimeout(f, 1200));
   libre(() => {
     const ids = new Set(BARRA[usuario?.rol] ?? []);
-    RUTAS.filter((r) => ids.has(r.id) && r.roles.includes(usuario?.rol)).forEach((r) => r.cargar().catch(() => {}));
+    RUTAS.filter((r) => ids.has(r.id) && permitida(r, usuario)).forEach((r) => r.cargar().catch(() => {}));
   });
 }
 
@@ -173,7 +176,7 @@ async function cerrarSesion() {
 }
 
 function construirShell() {
-  const permitidas = RUTAS.filter((r) => r.roles.includes(usuario.rol));
+  const permitidas = RUTAS.filter((r) => permitida(r, usuario));
   const enlace = (r) => h("a", { href: `#/${r.id}`, "data-id": r.id }, icono(r.icono), h("span", {}, etiqueta(r, usuario.rol)));
   const porId = new Map(permitidas.map((r) => [r.id, r]));
   // Escritorio: menú lateral con todo. Celular: barra inferior con 4 botones + «Más».
@@ -222,7 +225,7 @@ function crearBanner() {
 
 async function navegar() {
   if (!usuario) return;
-  const permitidas = RUTAS.filter((r) => r.roles.includes(usuario.rol));
+  const permitidas = RUTAS.filter((r) => permitida(r, usuario));
   const pedido = location.hash.replace("#/", "");
   const id = ALIAS[pedido] ?? pedido;
   const ruta = permitidas.find((r) => r.id === id) ?? permitidas.find((r) => r.menu !== false);

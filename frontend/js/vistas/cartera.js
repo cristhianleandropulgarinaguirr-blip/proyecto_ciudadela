@@ -153,4 +153,13 @@ async function vistaAdmin() {
       : estadoVacio("Aún no hay residentes", "Crea residentes desde la sección Usuarios.")));
 }
 
-export const render = (ctx) => (ctx.usuario.rol === "Administrador" ? vistaAdmin() : vistaResidente(ctx));
+// El inquilino (con el pago delegado) ve y paga la cuenta del APARTAMENTO, que es del propietario: se usa el id del propietario para consultarla.
+async function vistaInquilino(ctx) {
+  const c = await api("/arrendamientos/mio");
+  const vista = await vistaResidente({ ...ctx, usuario: { ...ctx.usuario, id: c.propietario_id } });
+  vista.prepend(h("p", { class: "small muted", style: "grid-column: 1 / -1" },
+    `Estás viendo la cuenta de tu apartamento (propietario: ${c.propietario_nombre}). Lo que pagues queda a nombre del apartamento y se le avisa a él.`));
+  return vista;
+}
+
+export const render = (ctx) => (ctx.usuario.rol === "Administrador" ? vistaAdmin() : ctx.usuario.rol === "Inquilino" ? vistaInquilino(ctx) : vistaResidente(ctx));

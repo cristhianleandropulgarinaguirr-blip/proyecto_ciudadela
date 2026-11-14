@@ -50,6 +50,12 @@ class EstadoArrendamiento(str, Enum):
     RECHAZADO = "Rechazado"      # el administrador no lo aprobó
 
 
+class Delegacion(str, Enum):
+    """Lo que el propietario puede dejarle hacer a su inquilino (por defecto, nada de esto)."""
+    PAGAR = "pagar"    # ver la cartera del apartamento y pagar la administración en nombre del propietario
+    VOTAR = "votar"    # votar en las asambleas en nombre del apartamento
+
+
 # Lo único que un inquilino puede ver de los documentos del conjunto (nada de actas ni de estados financieros).
 CATEGORIAS_DOC_INQUILINO = ("Reglamento", "Circular")
 

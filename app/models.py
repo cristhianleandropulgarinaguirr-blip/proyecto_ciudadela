@@ -485,6 +485,8 @@ class Arrendamiento(Base):
     fecha_inicio = Column(DateTime, nullable=False)
     fecha_fin = Column(DateTime, nullable=False)              # el acceso se cierra al terminar este día (hora local del conjunto)
     estado = Column(String, nullable=False, default="Pendiente")   # Pendiente | Activo | Finalizado | Rechazado
+    puede_pagar = Column(Boolean, nullable=False, default=False)   # delegación del propietario: cartera y pagos del apartamento
+    puede_votar = Column(Boolean, nullable=False, default=False)   # delegación del propietario: voto del apartamento
     motivo_cierre = Column(String, nullable=True)
     aprobado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     fecha_creacion = Column(DateTime, default=ahora_utc)

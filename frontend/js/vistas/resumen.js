@@ -76,7 +76,9 @@ async function residente(ctx) {
 
 // ---------- Inquilino ----------
 async function inquilino(ctx) {
-  const [contrato, mias, danios, avisos, paq] = await Promise.all([api("/arrendamientos/mio"), api("/reservas/mis-reservas"), api("/mantenimiento/listar-danios"), api("/anuncios/"), api("/paquetes/", { params: { estado: "En porteria" } })]);
+  const del = ctx.usuario.delegaciones ?? [];                      // lo que su propietario le dejó hacer: "pagar" y/o "votar"
+  const [contrato, mias, danios, avisos, paq, votos] = await Promise.all([api("/arrendamientos/mio"), api("/reservas/mis-reservas"), api("/mantenimiento/listar-danios"), api("/anuncios/"),
+    api("/paquetes/", { params: { estado: "En porteria" } }), del.includes("votar") ? api("/votaciones/pendientes").catch(() => ({ pendientes: 0 })) : null]);
   const proximas = mias.filter((r) => r.estado !== "Cancelada" && deLocal(r.fecha_reserva) >= hoy0()).sort((a, b) => deLocal(a.fecha_reserva) - deLocal(b.fecha_reserva)).slice(0, 3);
   const hasta = new Date(`${contrato.fecha_fin}T00:00:00`).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
   return h("div", {},
@@ -90,6 +92,8 @@ async function inquilino(ctx) {
           h("a", { class: "btn suave block", href: "#/reservas" }, icono("calendario", 18), "Reservar una zona común"),
           h("a", { class: "btn suave block", href: "#/mantenimiento" }, icono("llave", 18), "Reportar un daño"),
           paq.length ? h("a", { class: "btn block", href: "#/paquetes" }, icono("caja", 18), `Tienes ${paq.length} ${paq.length === 1 ? "paquete" : "paquetes"} en portería`) : null,
+          votos?.pendientes ? h("a", { class: "btn block", href: "#/votaciones" }, icono("urna", 18), `Tienes ${votos.pendientes} ${votos.pendientes === 1 ? "votación" : "votaciones"} por votar`) : null,
+          del.includes("pagar") ? h("a", { class: "btn suave block", href: "#/cartera" }, icono("tarjeta", 18), "Pagar la administración del apartamento") : null,
           h("a", { class: "btn suave block", href: "#/visitas" }, icono("identificacion", 18), "Avisar que viene una visita"),
           h("a", { class: "btn suave block", href: "#/pqrs" }, icono("mensaje", 18), "Quejas y sugerencias"),
           h("a", { class: "btn suave block", href: "#/documentos" }, icono("archivo", 18), "Reglamento y circulares"),

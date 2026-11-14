@@ -10,7 +10,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auditoria import auditar
-from app.constantes import RolNombre
+from app import arrendamientos as reglas_arr
+from app.constantes import Delegacion, RolNombre
 from app.database import get_db
 from app.dependencies import requiere_roles
 from app.models import Rol, Usuario, Votacion, VotacionOpcion, VotacionParticipacion, ahora_utc
@@ -20,7 +21,14 @@ from app.schemas.votaciones import (OpcionResponse, ParticipacionResponse, Pendi
 
 TAG = "Votaciones"
 router = APIRouter(prefix="/votaciones", tags=[TAG])
-ADMIN, RESIDENTE = RolNombre.ADMINISTRADOR, RolNombre.RESIDENTE
+ADMIN, RESIDENTE, INQUILINO = RolNombre.ADMINISTRADOR, RolNombre.RESIDENTE, RolNombre.INQUILINO
+MSG_VOTO = "Tu propietario no te delegó el voto. Pídele que lo active en «Mis inquilinos»."
+
+
+def _votante(db: Session, usuario: Usuario) -> Usuario:
+    """Quién vota de verdad. Un inquilino con el voto delegado vota POR el apartamento: se usa al propietario (su clave de apartamento y su estado
+    de cuenta), así hay un solo voto por apartamento y el propietario no puede votar dos veces. Un inquilino sin delegación recibe 403."""
+    return reglas_arr.titular_con_delegacion(db, usuario, Delegacion.VOTAR, MSG_VOTO)
 
 
 def _norm(apto: Optional[str]) -> str:
@@ -92,18 +100,20 @@ def _obtener(db: Session, votacion_id: int) -> Votacion:
 
 
 @router.get("/", response_model=list[VotacionResponse], summary="Listar votaciones",
-            description="Roles: **Administrador, Residente**. Primero las abiertas (las que cierran antes, arriba), luego las terminadas. "
+            description="Roles: **Administrador, Residente** e **Inquilino** (solo con el voto delegado). Primero las abiertas (las que cierran antes, arriba), luego las terminadas. "
                         "Los resultados solo aparecen cuando la votación cierra (o al instante si se creó con resultados en vivo).")
-def listar(db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(ADMIN, RESIDENTE))):
+def listar(db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(ADMIN, RESIDENTE, INQUILINO))):
+    votante = _votante(db, usuario)
     todas = db.query(Votacion).order_by(Votacion.id.desc()).limit(60).all()
     abiertas = sorted([v for v in todas if _estado(v) == "Abierta"], key=lambda v: v.fecha_cierre)
     resto = [v for v in todas if _estado(v) != "Abierta"]
-    return _armar(db, abiertas + resto, usuario)
+    return _armar(db, abiertas + resto, votante)
 
 
 @router.get("/pendientes", response_model=PendientesResponse, summary="Cuántas votaciones abiertas me faltan por votar",
-            description="Roles: **Residente**. Para el aviso del inicio.")
-def pendientes(db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE))):
+            description="Roles: **Residente** e **Inquilino** (con el voto delegado). Para el aviso del inicio.")
+def pendientes(db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO))):
+    usuario = _votante(db, usuario)
     abiertas = [v for v in db.query(Votacion).filter(Votacion.estado == "Abierta").all() if _estado(v) == "Abierta"]
     if not abiertas:
         return PendientesResponse(pendientes=0)
@@ -115,8 +125,8 @@ def pendientes(db: Session = Depends(get_db), usuario: Usuario = Depends(requier
 
 @router.get("/{votacion_id}", response_model=VotacionResponse, summary="Ver una votación",
             responses={404: {"description": "Votación no encontrada"}})
-def obtener(votacion_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(ADMIN, RESIDENTE))):
-    return _armar(db, [_obtener(db, votacion_id)], usuario)[0]
+def obtener(votacion_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(ADMIN, RESIDENTE, INQUILINO))):
+    return _armar(db, [_obtener(db, votacion_id)], _votante(db, usuario))[0]
 
 
 @router.post("/", response_model=VotacionResponse, status_code=status.HTTP_201_CREATED, summary="Crear una votación",
@@ -128,17 +138,18 @@ def crear(datos: VotacionCreate, db: Session = Depends(get_db), admin: Usuario =
     db.flush()
     db.add_all([VotacionOpcion(votacion_id=v.id, texto=t, orden=i) for i, t in enumerate(datos.opciones)])
     auditar(db, admin, "Creó una votación", "Votación", v.id, v.titulo)
-    notificar(db, [u for u in usuarios_activos(db) if u.rol == RESIDENTE.value], "Nueva votación: " + v.titulo,
+    notificar(db, [u for u in usuarios_activos(db) if u.rol == RESIDENTE.value] + reglas_arr.inquilinos_con_delegacion(db, Delegacion.VOTAR), "Nueva votación: " + v.titulo,
               "Participa antes de que cierre.", "#/votaciones")
     db.commit()
     return _armar(db, [v], admin)[0]
 
 
 @router.post("/{votacion_id}/votar", response_model=VotacionResponse, summary="Votar",
-             description="Roles: **Residente**. El voto es secreto y no se puede cambiar. Un voto por apartamento (o por persona, según la votación).",
+             description="Roles: **Residente** e **Inquilino** (con el voto delegado: vota en nombre del apartamento). El voto es secreto y no se puede cambiar. Un voto por apartamento (o por persona, según la votación).",
              responses={400: {"description": "Votación cerrada u opción inválida"}, 403: {"description": "No puedes votar"},
                         409: {"description": "Ya votaste"}})
-def votar(votacion_id: int, datos: VotoIn, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE))):
+def votar(votacion_id: int, datos: VotoIn, db: Session = Depends(get_db), quien: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO))):
+    usuario = _votante(db, quien)                       # = el propietario si vota su inquilino con el voto delegado
     v = _obtener(db, votacion_id)
     if _estado(v) != "Abierta":
         raise HTTPException(status_code=400, detail="Esta votación ya terminó.")
@@ -147,10 +158,12 @@ def votar(votacion_id: int, datos: VotoIn, db: Session = Depends(get_db), usuari
     opcion = db.get(VotacionOpcion, datos.opcion_id)
     if opcion is None or opcion.votacion_id != v.id:
         raise HTTPException(status_code=400, detail="Esa opción no pertenece a esta votación.")
-    db.add(VotacionParticipacion(votacion_id=v.id, clave=_clave(usuario, v.un_voto_por), usuario_id=usuario.id))
+    db.add(VotacionParticipacion(votacion_id=v.id, clave=_clave(usuario, v.un_voto_por), usuario_id=quien.id))   # queda quién lo emitió de verdad
     # Incremento atómico en la base de datos: dos votos simultáneos nunca se pisan.
     db.execute(update(VotacionOpcion).where(VotacionOpcion.id == opcion.id).values(conteo=VotacionOpcion.conteo + 1))
-    auditar(db, usuario, "Votó", "Votación", v.id, v.titulo)      # se audita que votó, JAMÁS qué votó
+    auditar(db, quien, "Votó" if quien.id == usuario.id else "Votó por delegación del propietario", "Votación", v.id, v.titulo)   # se audita que votó, JAMÁS qué votó
+    if quien.id != usuario.id:
+        notificar(db, [usuario], f"{quien.nombre_completo} votó por tu apartamento", f"En «{v.titulo}». Tu voto ya quedó contado: en esta consulta no puedes votar tú.", "#/votaciones")
     try:
         db.commit()
     except IntegrityError:
@@ -173,7 +186,7 @@ def _cerrar(db: Session, votacion_id: int, admin: Usuario, nuevo_estado: str) ->
 def cerrar(votacion_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
     v = _cerrar(db, votacion_id, admin, "Cerrada")
     auditar(db, admin, "Cerró una votación", "Votación", v.id, v.titulo)
-    notificar(db, [u for u in usuarios_activos(db) if u.rol == RESIDENTE.value], "Resultados: " + v.titulo, "La votación terminó. Ya puedes ver el resultado.", "#/votaciones")
+    notificar(db, [u for u in usuarios_activos(db) if u.rol == RESIDENTE.value] + reglas_arr.inquilinos_con_delegacion(db, Delegacion.VOTAR), "Resultados: " + v.titulo, "La votación terminó. Ya puedes ver el resultado.", "#/votaciones")
     db.commit()
     return _armar(db, [v], admin)[0]
 

@@ -29,7 +29,7 @@ API para la gestión de un **conjunto residencial** (propiedad horizontal).
 |---|---|
 | **Administrador** | Todo: usuarios, aprobar reservas, estado de los daños, cartera, portería, auditoría, emergencias, PQRS, documentos y reportes en Excel |
 | **Residente** | Reservar zonas, reportar daños, pagar su administración, crear pases QR, autorizar visitantes frecuentes, ver sus paquetes, radicar PQRS, descargar documentos y anunciar su negocio |
-| **Inquilino** | Lo registra su propietario y lo aprueba el administrador; el acceso vence con el contrato. Reservar zonas (si el apartamento está al día), reportar daños, recibir paquetes, crear pases QR y visitantes (hasta 5), radicar PQRS, ver reglamento y circulares. **Sin** cartera, votaciones ni comercio |
+| **Inquilino** | Lo registra su propietario y lo aprueba el administrador; el acceso vence con el contrato. Reservar zonas (si el apartamento está al día), reportar daños, recibir paquetes, crear pases QR y visitantes (hasta 5), radicar PQRS, ver reglamento y circulares. **Sin** comercio propio. Cartera/pagos y votaciones **solo si su propietario se los delega** (y por defecto no puede ninguno) |
 | **Guardia** | Controlar vehículos y visitantes (también escaneando QR), registrar y entregar paquetes, ver reservas |
 
 Errores de seguridad: **401** = no has iniciado sesión o el token expiró · **403** = tu rol no tiene permiso.
