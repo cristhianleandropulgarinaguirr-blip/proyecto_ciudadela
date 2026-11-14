@@ -5,13 +5,27 @@
 import os
 from getpass import getpass
 
+from sqlalchemy import text
+
 from app.constantes import DESCRIPCION_ROLES, RolNombre
 from app.database import SessionLocal
 from app.models import Rol, Usuario
 from app.security import encriptar_password
 
 
+def resincronizar_secuencia_roles(db) -> None:
+    """Alinea el contador de ids de 'roles' con el id más alto existente (solo PostgreSQL)."""
+    if db.bind.dialect.name != "postgresql":
+        return
+    db.execute(text(
+        "SELECT setval(pg_get_serial_sequence('roles', 'id'), "
+        "COALESCE((SELECT MAX(id) FROM roles), 0) + 1, false)"
+    ))
+    db.commit()
+
+
 def asegurar_roles(db) -> None:
+    resincronizar_secuencia_roles(db)
     for rol in RolNombre:
         if not db.query(Rol).filter(Rol.nombre == rol.value).first():
             db.add(Rol(nombre=rol.value, descripcion=DESCRIPCION_ROLES[rol]))
