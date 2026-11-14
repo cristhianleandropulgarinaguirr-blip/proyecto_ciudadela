@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, aliased
 
-from app import config
+from app import arrendamientos as reglas_arr, config
 from app.archivos import guardar_imagen_validada, leer_imagen
 from app.auditoria import auditar
 from app.notificaciones import notificar
@@ -31,6 +31,7 @@ router = APIRouter()
 ADMIN = RolNombre.ADMINISTRADOR
 RESIDENTE = RolNombre.RESIDENTE
 GUARDIA = RolNombre.GUARDIA
+INQUILINO = RolNombre.INQUILINO
 
 # =========================================================================
 #                          MÓDULO DE RESERVAS
@@ -67,12 +68,13 @@ def _vista_reservas(db: Session, reservas: list[Reserva]) -> list[ReservaRespons
 
 @router.post("/reservas/registrar", response_model=ReservaResponse, status_code=status.HTTP_201_CREATED,
              tags=[TAG_RESERVAS], summary="Solicitar una reserva",
-             description="Roles: **Residente**, **Administrador**. La reserva se crea a nombre del usuario del token. "
-             "Se rechaza si el apartamento está en mora o si la zona ya está aprobada para ese día.",
+             description="Roles: **Residente**, **Inquilino**, **Administrador**. La reserva se crea a nombre del usuario del token. "
+             "Se rechaza si el apartamento está en mora (el inquilino hereda el estado del propietario) o si la zona ya está aprobada para ese día.",
              responses={400: {"description": "Zona ya reservada ese día"}, 403: {"description": "Usuario en mora o sin permiso"}})
 def crear_reserva(reserva_in: ReservaCreate, db: Session = Depends(get_db),
-                  usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
-    if not usuario.esta_al_dia:
+                  usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
+    # El candado financiero es del apartamento: un inquilino hereda el estado del propietario (si no, se saltaría la mora).
+    if not reglas_arr.titular_de(db, usuario).esta_al_dia:
         raise HTTPException(status_code=403, detail="Reserva denegada: el apartamento registra saldos en mora con la administración.")
 
     if _hay_reserva_aprobada(db, reserva_in.zona_comun, reserva_in.fecha_reserva):
@@ -83,6 +85,9 @@ def crear_reserva(reserva_in: ReservaCreate, db: Session = Depends(get_db),
     db.add(nueva)
     db.flush()
     auditar(db, usuario, "Solicitó reserva", "Reserva", nueva.id, f"{nueva.zona_comun} · {nueva.fecha_reserva:%Y-%m-%d %H:%M}")
+    if usuario.rol == INQUILINO.value:
+        reglas_arr.avisar_al_propietario(db, usuario, f"{usuario.nombre_completo} pidió una reserva",
+                                         f"{nueva.zona_comun} · {nueva.fecha_reserva:%d/%m/%Y %H:%M}", "#/reservas")
     db.commit()
     db.refresh(nueva)
     return _vista_reservas(db, [nueva])[0]
@@ -173,7 +178,7 @@ def procesar_reporte_en_segundo_plano(reporte_id: int, nombre_foto: str | None) 
 
 @router.post("/mantenimiento/reportar-danio", response_model=ReporteResponse, status_code=status.HTTP_201_CREATED,
              tags=[TAG_DANIOS], summary="Reportar un daño (con foto opcional)",
-             description="Roles: **Residente**, **Administrador**. Se envía como `multipart/form-data`. "
+             description="Roles: **Residente**, **Inquilino**, **Administrador**. Se envía como `multipart/form-data`. "
              "La foto debe ser una imagen real JPG, PNG o WEBP de máximo 5 MB; se guarda con un nombre aleatorio.",
              responses={400: {"description": "El archivo no es una imagen válida"}, 413: {"description": "Imagen demasiado grande"}})
 async def crear_reporte_danio(
@@ -182,13 +187,15 @@ async def crear_reporte_danio(
     descripcion: str = Form(..., min_length=10, max_length=1000, description="Detalle del daño observado"),
     archivo_foto: UploadFile | None = File(default=None, description="Foto del daño (JPG, PNG o WEBP)"),
     db: Session = Depends(get_db),
-    usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN)),
+    usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN)),
 ):
     nombre_foto = await guardar_imagen_validada(archivo_foto, con_miniatura=True) if archivo_foto and archivo_foto.filename else None
 
     nuevo = ReporteDanio(usuario_id=usuario.id, titulo=titulo, descripcion=descripcion,
                          foto_url=nombre_foto or "sin_foto.jpg", estado=EstadoDanio.ABIERTO.value)
     db.add(nuevo)
+    if usuario.rol == INQUILINO.value:
+        reglas_arr.avisar_al_propietario(db, usuario, f"{usuario.nombre_completo} reportó un daño", titulo[:100], "#/mantenimiento")
     db.commit()
     db.refresh(nuevo)
 
@@ -247,6 +254,8 @@ TAG_ADMIN = "Recaudo de Administración"
             description="Un residente solo puede consultar el suyo; el **Administrador** puede consultar el de cualquiera.",
             responses={403: {"description": "No es tu estado de cuenta"}, 404: {"description": "Usuario no encontrado"}})
 def consultar_estado_cuenta(usuario_id: int, db: Session = Depends(get_db), actual: Usuario = Depends(get_current_user)):
+    if actual.rol == INQUILINO.value:
+        raise HTTPException(status_code=403, detail="La cartera del apartamento la consulta el propietario.")
     if usuario_id != actual.id and actual.rol != ADMIN.value:
         raise HTTPException(status_code=403, detail="Solo puedes consultar tu propio estado de cuenta.")
     usuario = db.get(Usuario, usuario_id)

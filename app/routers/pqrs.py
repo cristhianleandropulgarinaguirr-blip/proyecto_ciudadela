@@ -17,7 +17,7 @@ from app.schemas.comunicacion import PQRSCreate, PQRSResponse, PQRSUpdate
 
 TAG = "PQRS"
 router = APIRouter(prefix="/pqrs", tags=[TAG])
-ADMIN, RESIDENTE = RolNombre.ADMINISTRADOR, RolNombre.RESIDENTE
+ADMIN, RESIDENTE, INQUILINO = RolNombre.ADMINISTRADOR, RolNombre.RESIDENTE, RolNombre.INQUILINO
 MAX_ABIERTAS = 5          # por residente: evita saturar a la administración
 ABIERTAS = (EstadoPQRS.RADICADA.value, EstadoPQRS.EN_TRAMITE.value)
 
@@ -42,7 +42,7 @@ def _vistas(db: Session, lista: list[PQRS]) -> list[PQRSResponse]:
              description="Roles: **Residente**, **Administrador**. Se genera un número de radicado y se avisa a los administradores. "
                          f"Máximo {MAX_ABIERTAS} solicitudes abiertas por persona.",
              responses={400: {"description": "Demasiadas PQRS abiertas"}, 422: {"description": "Datos inválidos"}})
-def radicar(datos: PQRSCreate, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+def radicar(datos: PQRSCreate, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
     abiertas = db.query(func.count(PQRS.id)).filter(PQRS.usuario_id == usuario.id, PQRS.estado.in_(ABIERTAS)).scalar()
     if abiertas >= MAX_ABIERTAS:
         raise HTTPException(status_code=400, detail=f"Ya tienes {MAX_ABIERTAS} solicitudes abiertas. Espera la respuesta de alguna antes de enviar otra.")
@@ -61,7 +61,7 @@ def radicar(datos: PQRSCreate, db: Session = Depends(get_db), usuario: Usuario =
 @router.get("/", response_model=list[PQRSResponse], summary="Ver PQRS",
             description="Roles: **Residente**, **Administrador**. El residente ve solo las suyas; el administrador ve todas y puede filtrar por `estado`.")
 def listar(estado: Optional[EstadoPQRS] = Query(None), limite: int = Query(100, ge=1, le=300), db: Session = Depends(get_db),
-           usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+           usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
     q = db.query(PQRS)
     if usuario.rol != ADMIN.value:
         q = q.filter(PQRS.usuario_id == usuario.id)

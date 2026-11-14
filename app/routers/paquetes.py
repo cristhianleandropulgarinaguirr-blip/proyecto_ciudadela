@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.archivos import borrar_imagen, guardar_imagen_validada, leer_imagen
 from app.auditoria import auditar
-from app.constantes import EstadoPaquete, RolNombre
+from app.constantes import ROLES_RESIDENCIALES, EstadoPaquete, RolNombre
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
 from app.models import Paquete, Rol, Usuario, ahora_utc
@@ -53,8 +53,8 @@ def _resumen(p: Paquete, destinatario: Optional[Usuario]) -> str:
 def crear_paquete(db: Session, personal: Usuario, datos: PaqueteCreate, cuando: Optional[datetime] = None) -> Paquete:
     """Lógica de registro (sin commit), reutilizada por la sincronización de portería sin internet."""
     dest = db.get(Usuario, datos.destinatario_id)
-    if dest is None or not dest.esta_activo or dest.rol != RESIDENTE.value:
-        raise HTTPException(status_code=400, detail="El destinatario debe ser un residente activo.")
+    if dest is None or not dest.esta_activo or dest.rol not in ROLES_RESIDENCIALES:
+        raise HTTPException(status_code=400, detail="El destinatario debe ser un residente o inquilino activo.")
     p = Paquete(destinatario_id=dest.id, tipo=datos.tipo.value, remitente=datos.remitente, descripcion=datos.descripcion,
                 estado=EstadoPaquete.EN_PORTERIA.value, recibido_por=personal.id)
     if cuando is not None:
@@ -81,7 +81,7 @@ def entregar_paquete(db: Session, personal: Usuario, paquete_id: int, entregado_
 def destinatarios(q: Optional[str] = Query(None, max_length=40), db: Session = Depends(get_db),
                   _: Usuario = Depends(requiere_roles(GUARDIA, ADMIN))):
     consulta = (db.query(Usuario).join(Rol, Rol.id == Usuario.rol_id)
-                .filter(Rol.nombre == RESIDENTE.value, Usuario.esta_activo.is_(True)))
+                .filter(Rol.nombre.in_(ROLES_RESIDENCIALES), Usuario.esta_activo.is_(True)))
     if q and q.strip():
         consulta = consulta.filter(Usuario.nombre_completo.icontains(q.strip(), autoescape=True) | Usuario.apartamento.icontains(q.strip(), autoescape=True))
     return [DestinatarioResponse(id=u.id, nombre_completo=u.nombre_completo, apartamento=u.apartamento)
@@ -122,7 +122,7 @@ def ver_foto(paquete_id: int, miniatura: bool = False, db: Session = Depends(get
     p = db.get(Paquete, paquete_id)
     if p is None:
         raise HTTPException(status_code=404, detail="Paquete no encontrado.")
-    if usuario.rol == RESIDENTE.value and p.destinatario_id != usuario.id:
+    if usuario.rol in ROLES_RESIDENCIALES and p.destinatario_id != usuario.id:
         raise HTTPException(status_code=403, detail="No tienes permiso para ver esta foto.")
     imagen = leer_imagen(p.foto_url, miniatura=miniatura) if p.foto_url else None
     if imagen is None:
@@ -135,7 +135,7 @@ def ver_foto(paquete_id: int, miniatura: bool = False, db: Session = Depends(get
 def listar(estado: Optional[EstadoPaquete] = Query(None), limite: int = Query(100, ge=1, le=300), db: Session = Depends(get_db),
            usuario: Usuario = Depends(get_current_user)):
     q = db.query(Paquete)
-    if usuario.rol == RESIDENTE.value:
+    if usuario.rol in ROLES_RESIDENCIALES:
         q = q.filter(Paquete.destinatario_id == usuario.id)
     if estado:
         q = q.filter(Paquete.estado == estado.value)

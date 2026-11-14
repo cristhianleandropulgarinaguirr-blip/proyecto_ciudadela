@@ -3,7 +3,7 @@ import { h, icono } from "../ui.js";
 import { cabecera } from "./comun.js";
 
 const GRUPOS = [
-  ["Mi día a día", ["visitas", "reservas", "paquetes", "cartera"]],
+  ["Mi día a día", ["visitas", "reservas", "paquetes", "cartera", "inquilinos"]],
   ["Trámites", ["mantenimiento", "pqrs", "documentos"]],
   ["Comunidad", ["votaciones", "anuncios", "comercio", "emergencias"]],
   ["Administración", ["porteria", "residentes", "auditoria"]],

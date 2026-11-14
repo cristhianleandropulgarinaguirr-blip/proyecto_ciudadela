@@ -9,6 +9,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+from app import arrendamientos
 from app.constantes import RolNombre
 from app.database import get_db
 from app.models import Usuario
@@ -41,6 +42,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise error_401
     # La sesión pudo cerrarse desde el servidor (cerrar sesión, cambio de clave, desactivación): el token deja de servir al instante.
     if not sesiones.sesion_valida(db, sid, usuario_id):
+        raise error_401
+    # El acceso de un inquilino vive lo que dure su contrato: si ya venció, se cierra aquí mismo (y se guarda) y el token deja de servir.
+    if usuario.rol == RolNombre.INQUILINO.value and not arrendamientos.contrato_vigente(db, usuario):
+        db.commit()
         raise error_401
     return usuario
 

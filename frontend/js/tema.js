@@ -15,7 +15,7 @@
              texto: p.texto === "grande" || p.texto === "enorme" ? "grande" : "normal" };
   }
   // Color por rol: el último rol de la sesión se recuerda para pintar bien desde el primer cuadro (sin parpadeo al recargar).
-  var ROLES = { Administrador: ["#07304A", "#06122B"], Residente: ["#053B38", "#04201F"], Guardia: ["#4A3000", "#241800"] };
+  var ROLES = { Administrador: ["#07304A", "#06122B"], Residente: ["#053B38", "#04201F"], Guardia: ["#4A3000", "#241800"], Inquilino: ["#2E1F4D", "#1A1230"] };
   function rolGuardado() { try { var r = localStorage.getItem("ciudadela.rol") || sessionStorage.getItem("ciudadela.rol"); return ROLES[r] ? r : ""; } catch (e) { return ""; } }
   function aplicar() {
     var oscuro = guardada() === "oscuro";

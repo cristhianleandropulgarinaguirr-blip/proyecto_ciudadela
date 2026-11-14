@@ -11,7 +11,7 @@ const esHoy = (r) => deLocal(r.fecha_reserva).toDateString() === new Date().toDa
 
 // ---------- Administrador ----------
 async function admin(ctx) {
-  const [usuarios, reservas, danios, dentro, avisos, comercio, paq, todasPqrs] = await Promise.all([api("/usuarios/"), api("/reservas/listar"), api("/mantenimiento/listar-danios"), api("/porteria/vehiculos-dentro"), api("/anuncios/"), api("/comercio/resumen"), api("/paquetes/", { params: { estado: "En porteria" } }), api("/pqrs/", { params: { limite: 300 } })]);
+  const [usuarios, reservas, danios, dentro, avisos, comercio, paq, todasPqrs, porAprobar] = await Promise.all([api("/usuarios/"), api("/reservas/listar"), api("/mantenimiento/listar-danios"), api("/porteria/vehiculos-dentro"), api("/anuncios/"), api("/comercio/resumen"), api("/paquetes/", { params: { estado: "En porteria" } }), api("/pqrs/", { params: { limite: 300 } }), api("/arrendamientos/", { params: { estado: "Pendiente" } })]);
   const mapa = mapaUsuarios(usuarios);
   const residentes = usuarios.filter((u) => u.rol === "Residente");
   const pendientes = reservas.filter((r) => r.estado === "Pendiente");
@@ -35,7 +35,7 @@ async function admin(ctx) {
       kpi("Apartamentos en mora", residentes.filter((u) => !u.esta_al_dia).length, { alerta: true }),
       kpi("Vehículos dentro", dentro.length),
       kpi("Anuncios por revisar", comercio.por_revisar, { alerta: true }),
-      kpi("Paquetes sin entregar", paq.length), kpi("PQRS por atender", todasPqrs.filter((p) => p.estado === "Radicada" || p.estado === "En tramite").length, { alerta: true })),
+      kpi("Paquetes sin entregar", paq.length), kpi("Arrendamientos por aprobar", porAprobar.length, { alerta: true }), kpi("PQRS por atender", todasPqrs.filter((p) => p.estado === "Radicada" || p.estado === "En tramite").length, { alerta: true })),
     h("div", { class: "grid dos escalona" },
       h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Por aprobar"), h("a", { class: "btn suave sm", href: "#/reservas" }, "Ver todas")), lista),
       h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Daños recientes"), h("a", { class: "btn suave sm", href: "#/mantenimiento" }, "Gestionar")),
@@ -74,6 +74,33 @@ async function residente(ctx) {
       cartelaResumen(avisos)));
 }
 
+// ---------- Inquilino ----------
+async function inquilino(ctx) {
+  const [contrato, mias, danios, avisos, paq] = await Promise.all([api("/arrendamientos/mio"), api("/reservas/mis-reservas"), api("/mantenimiento/listar-danios"), api("/anuncios/"), api("/paquetes/", { params: { estado: "En porteria" } })]);
+  const proximas = mias.filter((r) => r.estado !== "Cancelada" && deLocal(r.fecha_reserva) >= hoy0()).sort((a, b) => deLocal(a.fecha_reserva) - deLocal(b.fecha_reserva)).slice(0, 3);
+  const hasta = new Date(`${contrato.fecha_fin}T00:00:00`).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+  return h("div", {},
+    cabecera(`Hola, ${primerNombre(ctx.usuario.nombre_completo)}`, contrato.apartamento ? `Bienvenido a ${contrato.apartamento}.` : "Bienvenido a tu conjunto.", { saludo: hoyLargo() }),
+    h("div", { class: "grid dos escalona" },
+      h("section", { class: "cuenta" }, h("div", { class: "et" }, "Mi arrendamiento"), h("div", { class: "monto", style: "font-size:1.5rem" }, contrato.apartamento ?? "Mi apartamento"),
+        h("div", { class: "datos" }, h("span", { class: contrato.dias_restantes <= 30 ? "badge laton" : "badge" }, contrato.dias_restantes <= 30 ? `Vence en ${contrato.dias_restantes} día(s)` : `Acceso hasta el ${hasta}`),
+          h("span", { class: "small" }, `Propietario: ${contrato.propietario_nombre}`))),
+      h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Accesos rápidos")),
+        h("div", { class: "lista" },
+          h("a", { class: "btn suave block", href: "#/reservas" }, icono("calendario", 18), "Reservar una zona común"),
+          h("a", { class: "btn suave block", href: "#/mantenimiento" }, icono("llave", 18), "Reportar un daño"),
+          paq.length ? h("a", { class: "btn block", href: "#/paquetes" }, icono("caja", 18), `Tienes ${paq.length} ${paq.length === 1 ? "paquete" : "paquetes"} en portería`) : null,
+          h("a", { class: "btn suave block", href: "#/visitas" }, icono("identificacion", 18), "Avisar que viene una visita"),
+          h("a", { class: "btn suave block", href: "#/pqrs" }, icono("mensaje", 18), "Quejas y sugerencias"),
+          h("a", { class: "btn suave block", href: "#/documentos" }, icono("archivo", 18), "Reglamento y circulares"),
+          h("a", { class: "btn suave block", href: "#/emergencias" }, icono("telefono", 18), "Teléfonos de emergencia"))),
+      h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Mis próximas reservas"), h("a", { class: "btn suave sm", href: "#/reservas" }, "Ver todas")),
+        h("div", { class: "lista" }, proximas.length ? proximas.map((r) => itemReserva(r)) : [estadoVacio("Sin reservas próximas", "Reserva el salón, la zona BBQ y más.")])),
+      h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Mis reportes"), h("a", { class: "btn suave sm", href: "#/mantenimiento" }, "Ver todos")),
+        h("div", { class: "lista" }, danios.length ? danios.slice(0, 3).map((d) => h("div", { class: "item" }, h("div", {}), h("div", { class: "cuerpo" }, h("b", {}, d.titulo), h("span", {}, hace(deUtc(d.fecha_creacion)))), h("div", { class: "acciones" }, badge(d.estado)))) : [estadoVacio("Sin reportes", "Cuando reportes un daño verás su avance aquí.")])),
+      cartelaResumen(avisos)));
+}
+
 // ---------- Guardia ----------
 async function guardia(ctx) {
   const [dentro, reservas, avisos, paq, aPie] = await Promise.all([api("/porteria/vehiculos-dentro"), api("/reservas/listar"), api("/anuncios/"), api("/paquetes/", { params: { estado: "En porteria" } }), api("/visitantes-autorizados/dentro")]);
@@ -89,4 +116,4 @@ async function guardia(ctx) {
       cartelaResumen(avisos)));
 }
 
-export const render = (ctx) => ({ Administrador: admin, Residente: residente, Guardia: guardia })[ctx.usuario.rol](ctx);
+export const render = (ctx) => ({ Administrador: admin, Residente: residente, Inquilino: inquilino, Guardia: guardia })[ctx.usuario.rol](ctx);

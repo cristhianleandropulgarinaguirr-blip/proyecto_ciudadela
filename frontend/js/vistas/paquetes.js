@@ -34,7 +34,7 @@ function fotoPaquete(p) {
 }
 
 export async function render(ctx) {
-  const rol = ctx.usuario.rol, esResidente = rol === "Residente", esPersonal = !esResidente;
+  const rol = ctx.usuario.rol, esResidente = rol === "Residente" || rol === "Inquilino", esPersonal = !esResidente;
   const cargar = () => leer("paquetes", () => api("/paquetes/", { params: { limite: 200 } }));
   let base = await cargar(), filtro = "En porteria", texto = "";
   let datos = superponerPaquetes(base, await pendientes());       // lo registrado sin internet aparece de inmediato, marcado «Pendiente»

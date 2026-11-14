@@ -37,6 +37,8 @@ def listar_usuarios(db: Session = Depends(get_db), _: Usuario = Depends(solo_adm
 def crear_usuario(datos: UsuarioCreateAdmin, db: Session = Depends(get_db), admin: Usuario = Depends(solo_admin)):
     if db.query(Usuario).filter(Usuario.email == datos.email).first():
         raise HTTPException(status_code=400, detail="El correo electrónico ya se encuentra registrado.")
+    if datos.rol == RolNombre.INQUILINO:
+        raise HTTPException(status_code=400, detail="Los inquilinos se registran desde «Inquilinos» (un contrato con su propietario); sin contrato no pueden ingresar.")
     rol = db.query(Rol).filter(Rol.nombre == datos.rol.value).first()
     if rol is None:
         raise HTTPException(status_code=500, detail="Roles sin configurar. Ejecuta: alembic upgrade head")

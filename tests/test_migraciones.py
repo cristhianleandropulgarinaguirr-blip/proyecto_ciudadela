@@ -80,6 +80,6 @@ def test_migracion_en_base_vacia_crea_todo():
     tablas = {t[0] for t in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert {"usuarios", "roles", "reservas", "reportes_danios", "vehiculos_visitantes", "anuncios", "anuncio_asistencias", "codigos_qr", "escaneos_qr", "publicidad", "auditoria", "intentos_login",
             "visitantes_autorizados", "accesos_visitantes", "paquetes", "contactos_emergencia", "notificaciones", "pqrs", "documentos", "pagos", "alembic_version"} <= tablas
-    assert con.execute("SELECT count(*) FROM roles").fetchone()[0] == 3
+    assert con.execute("SELECT count(*) FROM roles").fetchone()[0] == 4   # Administrador, Residente, Guardia e Inquilino
     assert [t[0] for t in con.execute("SELECT telefono FROM contactos_emergencia ORDER BY orden")] == ["123", "112", "119", "132", "144"]
     con.close()

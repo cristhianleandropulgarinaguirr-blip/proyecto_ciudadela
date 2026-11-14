@@ -28,7 +28,7 @@ from app.schemas.asistente import (
 
 TAG = "Asistente de IA"
 router = APIRouter(prefix="/asistente", tags=[TAG])
-ADMIN, RESIDENTE = RolNombre.ADMINISTRADOR, RolNombre.RESIDENTE
+ADMIN, RESIDENTE, INQUILINO = RolNombre.ADMINISTRADOR, RolNombre.RESIDENTE, RolNombre.INQUILINO
 RESPUESTA_INVALIDA = "El asistente no pudo preparar un borrador con ese mensaje. Intenta con otras palabras o usa el formulario normal."
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 
@@ -102,7 +102,7 @@ def _consultar(sistema: str, texto_usuario: str, esquema: dict) -> dict:
 @router.get("/estado", response_model=EstadoAsistente, summary="¿Está disponible el asistente y cuántas consultas me quedan hoy?",
             description="Roles: **todos**. El frontend lo usa para mostrar u ocultar los botones del asistente. No llama a la IA.")
 def estado(db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
-    activo = ia.disponible() and usuario.rol in (ADMIN.value, RESIDENTE.value)
+    activo = ia.disponible() and usuario.rol in (ADMIN.value, RESIDENTE.value, INQUILINO.value)
     restantes = max(0, min(config.IA_LIMITE_DIARIO_USUARIO - _usos(db, usuario.id), config.IA_LIMITE_DIARIO_GLOBAL - _usos(db))) if activo else 0
     return EstadoAsistente(disponible=activo, limite_diario=config.IA_LIMITE_DIARIO_USUARIO, restantes=restantes)
 
@@ -122,7 +122,7 @@ def _mis_solicitudes(db: Session, usuario: Usuario) -> list[SolicitudResumen]:
                          "con el formulario normal. Si el mensaje suena a emergencia, no se consulta la IA y se indican los teléfonos de emergencia. "
                          "Se ocultan correos y números largos antes de enviar el texto al proveedor. Tope diario por persona y global.",
              responses={429: {"description": "Tope diario de consultas"}, 502: {"description": "La IA no dio una respuesta utilizable"}, 503: {"description": "Asistente apagado o no disponible"}})
-def asistente_residente(datos: MensajeResidente, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+def asistente_residente(datos: MensajeResidente, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
     texto = ia.limpiar_entrada(datos.mensaje, 600)
     if len(texto) < 10:
         raise HTTPException(status_code=422, detail="Cuéntame un poco más (mínimo 10 caracteres).")
@@ -250,7 +250,7 @@ def _restantes_chat(db: Session, usuario: Usuario) -> int:
 
 @router.get("/chat/estado", response_model=EstadoChat, summary="¿El chat usa IA y cuántos mensajes me quedan hoy?",
             description="Roles: **Residente**, **Administrador**. No llama a la IA. El chat funciona siempre: sin IA responde en modo básico con los datos de reservas.")
-def chat_estado(db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+def chat_estado(db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
     return EstadoChat(ia=ia.disponible(), limite_diario=config.IA_LIMITE_CHAT_USUARIO, restantes=_restantes_chat(db, usuario))
 
 
@@ -259,7 +259,7 @@ def chat_estado(db: Session = Depends(get_db), usuario: Usuario = Depends(requie
                          "No reserva ni modifica nada. Sin IA, o si se agotó el tope diario del chat, responde en **modo básico** con los mismos datos. "
                          "Si el mensaje suena a emergencia no se consulta la IA y se indican los teléfonos de emergencia. La conversación no se guarda.",
              responses={422: {"description": "Mensaje vacío"}})
-def chat(datos: MensajeChat, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+def chat(datos: MensajeChat, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
     texto = ia.limpiar_entrada(datos.mensaje, 400)
     if len(texto) < 2:
         raise HTTPException(status_code=422, detail="Escribe tu pregunta para que pueda ayudarte.")

@@ -466,3 +466,29 @@ Index("ix_notificaciones_usuario_leida", Notificacion.usuario_id, Notificacion.l
 Index("ix_paquetes_destinatario_estado", Paquete.destinatario_id, Paquete.estado)
 Index("ix_vehiculos_estado", VehiculoVisitante.estado)
 Index("ix_accesos_visitantes_salida", AccesoVisitante.fecha_salida)
+
+
+# ==========================================
+#          TABLA: ARRENDAMIENTOS
+# ==========================================
+class Arrendamiento(Base):
+    """Vínculo entre el propietario (Residente), su inquilino y el apartamento.
+    De aquí salen tres reglas: la mora del apartamento la hereda el inquilino, el acceso vence con el contrato y queda
+    registrado quién autorizó a quién."""
+    __tablename__ = "arrendamientos"
+    __table_args__ = (Index("ix_arrendamientos_propietario_estado", "propietario_id", "estado"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    propietario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    inquilino_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    apartamento = Column(String, nullable=True)
+    fecha_inicio = Column(DateTime, nullable=False)
+    fecha_fin = Column(DateTime, nullable=False)              # el acceso se cierra al terminar este día (hora local del conjunto)
+    estado = Column(String, nullable=False, default="Pendiente")   # Pendiente | Activo | Finalizado | Rechazado
+    motivo_cierre = Column(String, nullable=True)
+    aprobado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    fecha_creacion = Column(DateTime, default=ahora_utc)
+    fecha_decision = Column(DateTime, nullable=True)
+
+    propietario = relationship("Usuario", foreign_keys=[propietario_id])
+    inquilino = relationship("Usuario", foreign_keys=[inquilino_id])

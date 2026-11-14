@@ -75,7 +75,7 @@
 
 /* ==========================================================================
    COLOR POR ROL  (<html data-rol="…"> lo pone app.js / tema.js)
-   Administrador = azul marino (base de arriba). Residente = verde azulado (teal). Guardia = ámbar.
+   Administrador = azul marino (base de arriba). Residente = verde azulado (teal). Guardia = ámbar. Inquilino = violeta.
    Solo se redefinen las variables del color principal: los componentes no se tocan.
    ========================================================================== */
 :root[data-rol="Residente"] {
@@ -101,6 +101,17 @@
   --menu: #241800; --primario: #F2B53D; --sobre-primario: #2A1A00;
   --acento-rol: #FFC93C;
   --rol-rgb: 242, 181, 61;
+}
+:root[data-rol="Inquilino"] {
+  --bosque: #5B3F8C; --bosque-2: #6F52A3; --bosque-100: #E8E0F3;
+  --menu: #2E1F4D; --primario: #5B3F8C; --sobre-primario: #F7F3FC;
+  --rol-rgb: 91, 63, 140;
+  --tarjeta: #E6DEF2; --tarjeta-borde: #A593C7;
+}
+:root[data-rol="Inquilino"][data-tema="oscuro"] {
+  --bosque: #BBA6EA; --bosque-2: #A78BDF; --bosque-100: #2A1F4A;
+  --menu: #1A1230; --primario: #BBA6EA; --sobre-primario: #1C1233;
+  --rol-rgb: 187, 166, 234;
 }
 /* Insignia del rol junto al nombre */
 .rol-insignia { display: inline-block; margin-top: 2px; padding: .06rem .55rem; border-radius: 999px; font-size: .72rem !important; font-weight: 600; letter-spacing: .02em;
@@ -219,6 +230,8 @@ a { color: inherit; }
 .badge.bosque { background: var(--verde-100); color: var(--verde-ink); }
 .badge.laton { background: var(--laton-100); color: var(--laton-ink); }
 .badge.arcilla { background: var(--arcilla-100); color: var(--arcilla-ink); }
+.badge.violeta { background: #E8E0F3; color: #4A2F7A; }
+:root[data-tema="oscuro"] .badge.violeta { background: #2A1F4A; color: #CDBDF2; }
 .badge.borde { background: transparent; box-shadow: inset 0 0 0 1.5px var(--bosque-2); color: var(--bosque-2); }
 
 .chips { display: flex; flex-wrap: wrap; gap: .5rem; padding-bottom: .25rem; }

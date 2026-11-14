@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, aliased
 
-from app.constantes import EstadoQR, RolNombre, TipoQR
+from app.constantes import MAX_VISITAS_INQUILINO, EstadoQR, RolNombre, TipoQR
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
 from app.models import CodigoQR, EscaneoQR, Usuario, VehiculoVisitante, ahora_utc
@@ -27,6 +27,7 @@ TAG = "Códigos QR"
 router = APIRouter(prefix="/qr", tags=[TAG])
 
 ADMIN, RESIDENTE, GUARDIA = RolNombre.ADMINISTRADOR, RolNombre.RESIDENTE, RolNombre.GUARDIA
+INQUILINO = RolNombre.INQUILINO
 PREFIJO = "CD1:"          # versión 1 del formato; permite cambiar el formato en el futuro sin romper QR viejos
 MAX_PASES_ACTIVOS = 10    # por usuario: evita llenar la base de datos de pases
 
@@ -97,17 +98,18 @@ def renovar_carnet(db: Session = Depends(get_db), usuario: Usuario = Depends(get
 # ---------------------------------------------------------------- PASES DE VISITANTE
 @router.post("/visitantes", response_model=CodigoResponse, status_code=status.HTTP_201_CREATED,
              summary="Crear un pase QR para un visitante",
-             description="Roles: **Residente**, **Administrador**. El pase sirve para ingresar durante `horas_validez`; "
-                         "se escanea al llegar (ingreso) y al salir (salida). Máximo 10 pases vigentes por usuario.",
+             description="Roles: **Residente**, **Inquilino**, **Administrador**. El pase sirve para ingresar durante `horas_validez`; "
+                         "se escanea al llegar (ingreso) y al salir (salida). Máximo 10 pases vigentes por usuario (5 para el inquilino).",
              responses={400: {"description": "Demasiados pases vigentes"}})
 def crear_pase(datos: VisitanteCreate, db: Session = Depends(get_db),
-               usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+               usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
+    tope = MAX_VISITAS_INQUILINO if usuario.rol == INQUILINO.value else MAX_PASES_ACTIVOS
     vigentes = (db.query(func.count(CodigoQR.id))
                 .filter(CodigoQR.usuario_id == usuario.id, CodigoQR.tipo == TipoQR.VISITANTE.value,
                         CodigoQR.estado.in_([EstadoQR.ACTIVO.value, EstadoQR.DENTRO.value]),
                         (CodigoQR.valido_hasta.is_(None)) | (CodigoQR.valido_hasta >= ahora_utc())).scalar())
-    if vigentes >= MAX_PASES_ACTIVOS:
-        raise HTTPException(status_code=400, detail=f"Ya tienes {MAX_PASES_ACTIVOS} pases vigentes. Revoca alguno para crear otro.")
+    if vigentes >= tope:
+        raise HTTPException(status_code=400, detail=f"Ya tienes {tope} pases vigentes. Revoca alguno para crear otro.")
     c = CodigoQR(usuario_id=usuario.id, tipo=TipoQR.VISITANTE.value, token=_nuevo_token(),
                  nombre_visitante=datos.nombre_visitante, placa=datos.placa.upper(),
                  valido_hasta=ahora_utc() + timedelta(hours=datos.horas_validez))
@@ -120,7 +122,7 @@ def crear_pase(datos: VisitanteCreate, db: Session = Depends(get_db),
 @router.get("/visitantes", response_model=list[CodigoResponse], summary="Ver mis pases de visitante",
             description="Roles: **Residente**, **Administrador**. El administrador puede ver los de todos con `todos=true`.")
 def listar_pases(todos: bool = Query(False), db: Session = Depends(get_db),
-                 usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+                 usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
     q = (db.query(CodigoQR, Usuario).join(Usuario, Usuario.id == CodigoQR.usuario_id)
          .filter(CodigoQR.tipo == TipoQR.VISITANTE.value))
     if not (todos and usuario.rol == ADMIN.value):

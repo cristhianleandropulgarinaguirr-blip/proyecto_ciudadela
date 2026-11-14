@@ -207,7 +207,7 @@ async function pestanaGestion(recargar) {
 
 export async function render(ctx) {
   const rol = ctx.usuario.rol, panel = h("div"), tabs = h("div", { class: "tabs", role: "tablist" });
-  const PESTANAS = [["directorio", "Directorio", ["Administrador", "Residente", "Guardia"]], ["mios", "Mis anuncios", ["Administrador", "Residente"]], ["gestion", "Gestión", ["Administrador"]]]
+  const PESTANAS = [["directorio", "Directorio", ["Administrador", "Residente", "Guardia", "Inquilino"]], ["mios", "Mis anuncios", ["Administrador", "Residente"]], ["gestion", "Gestión", ["Administrador"]]]
     .filter(([, , roles]) => roles.includes(rol));
   let actual = "directorio";
   async function mostrar(cual) {

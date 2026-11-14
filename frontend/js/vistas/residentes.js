@@ -4,8 +4,9 @@ import { api } from "../api.js";
 import { h, icono, badge, iniciales, estadoVacio, toast, conCarga, modal, confirmar } from "../ui.js";
 import { cabecera, filtros } from "./comun.js";
 
-const ROLES = ["Residente", "Guardia", "Administrador"];
-const PLURAL = { Residente: "Residentes", Guardia: "Guardias", Administrador: "Administradores" };
+const ROLES = ["Residente", "Inquilino", "Guardia", "Administrador"];
+const PLURAL = { Residente: "Residentes", Inquilino: "Inquilinos", Guardia: "Guardias", Administrador: "Administradores" };
+const CREABLES = ROLES.filter((r) => r !== "Inquilino");   // los inquilinos se registran con un contrato (pantalla «Arrendamientos»)
 
 function clavePronunciable() {
   const a = new Uint32Array(14); crypto.getRandomValues(a);
@@ -32,7 +33,7 @@ export async function render(ctx) {
       return h("tr", {},
         h("td", { class: "ancho" }, h("div", { class: "persona" }, h("div", { class: "avatar" }, iniciales(u.nombre_completo)),
           h("div", {}, h("b", {}, u.nombre_completo, yo ? " (tú)" : ""), h("span", {}, u.email)))),
-        h("td", { "data-et": "Rol" }, h("span", { class: `badge ${u.rol === "Administrador" ? "laton" : u.rol === "Guardia" ? "borde" : "bosque"}` }, u.rol)),
+        h("td", { "data-et": "Rol" }, h("span", { class: `badge ${u.rol === "Administrador" ? "laton" : u.rol === "Guardia" ? "borde" : u.rol === "Inquilino" ? "violeta" : "bosque"}` }, u.rol)),
         h("td", { "data-et": "Apartamento" }, u.apartamento ?? "—"),
         h("td", { "data-et": "Parqueadero" }, h("button", { class: "btn suave sm", onclick: () => editarParqueadero(u) }, u.parqueadero_asignado)),
         h("td", { "data-et": "Cartera" }, u.rol === "Residente" ? (u.esta_al_dia ? badge("Al día", "Al día") : badge("En mora", "En mora")) : "—"),
@@ -69,7 +70,7 @@ export async function render(ctx) {
   function nuevoUsuario() {
     const f = {};
     const campo = (id, et, attrs = {}) => { f[id] = h("input", { id, placeholder: " ", ...attrs }); return h("div", { class: "field" }, f[id], h("label", { for: id }, et)); };
-    const rol = h("select", { id: "rol" }, ROLES.map((r) => h("option", { value: r }, r)));
+    const rol = h("select", { id: "rol" }, CREABLES.map((r) => h("option", { value: r }, r)));
     const generar = h("button", { type: "button", class: "btn suave sm lado", onclick: () => { f.password.type = "text"; f.password.value = clavePronunciable(); } }, "Generar");
     const ok = h("button", { class: "btn", type: "submit", form: "f-nuevo" }, "Crear usuario");
     const m = modal("Nuevo usuario", h("form", { id: "f-nuevo", novalidate: true, onsubmit: async (e) => {

@@ -177,7 +177,7 @@ La IA **redacta borradores**; nunca radica, publica ni envía nada por su cuenta
 
 ## Versión 3.0: color por rol, cámara en las fotos y más velocidad — recuerda `alembic upgrade head` (migraciones 0011 y 0012)
 
-**Color por rol.** Cada rol tiene su identidad: Administrador = azul marino, Residente = verde esmeralda, Guardia = cobre/ámbar (modo claro y oscuro).
+**Color por rol.** Cada rol tiene su identidad: Administrador = azul marino, Residente = verde esmeralda, Guardia = cobre/ámbar, Inquilino = violeta (modo claro y oscuro).
 Todo vive en variables CSS al final de las variables de `frontend/estilos.css` (`:root[data-rol="…"]`); `js/tema.js` pone el atributo `data-rol` según el usuario.
 Para cambiar un color basta con editar esas variables.
 
@@ -236,6 +236,33 @@ que visita `/salud` cada 10 min para que Render gratis no se duerma (define la v
 |---|---|
 | **401** | No enviaste token, es falso, o expiró |
 | **403** | Tu token es válido pero tu rol no tiene permiso para esa acción |
+
+## Versión 3.3: rol Inquilino — recuerda `alembic upgrade head` (migración 0014)
+
+Quien arrienda un apartamento entra con un rol propio, **distinto del propietario (Residente)**, vinculado a él por un contrato.
+
+**Flujo.** El propietario registra a su inquilino (*Mis inquilinos*: nombre, correo, inicio y fin del contrato) → la cuenta nace **bloqueada** y el contrato queda *Pendiente* → el administrador lo **aprueba** (*Arrendamientos*) y recibe una **clave temporal** que se muestra una sola vez → el inquilino entra y debe cambiarla. Máximo 3 contratos abiertos por apartamento.
+
+**Qué puede y qué no.**
+
+| Módulo | Residente (propietario) | Inquilino |
+|---|:--:|:--:|
+| Reservas de zonas comunes | ✅ | ✅ (bloqueadas si el **propietario** está en mora) |
+| Reportar daños · PQRS · Cartelera · Emergencias | ✅ | ✅ |
+| Paquetes (los suyos) · pases QR y visitantes autorizados | ✅ | ✅ (tope de 5 pases y 5 autorizados) |
+| Documentos | todos | solo *Reglamento* y *Circular* |
+| Comercio | publicar y ver | solo ver el directorio |
+| Cartera, pagos y comprobantes | ✅ | ❌ |
+| Votaciones | ✅ | ❌ |
+| Registrar / terminar inquilinos | ✅ | ❌ |
+
+**Reglas que lo hacen seguro.**
+- **Mora heredada:** el candado financiero es del apartamento; el inquilino usa el estado del propietario (`app/arrendamientos.py → titular_de`).
+- **El acceso vence con el contrato:** al terminar el día de `fecha_fin` (hora de Colombia) la cuenta se desactiva sola, sin proceso aparte (se verifica al iniciar sesión, en cada petición y al listar arrendamientos). Al terminar un contrato (por fecha, propietario o administrador) se cierran sus sesiones, se revocan sus pases QR y se retiran sus visitantes autorizados.
+- **Trazabilidad:** queda en auditoría quién registró, aprobó o cerró cada contrato; el propietario recibe aviso cuando su inquilino reserva o reporta un daño.
+- El administrador **no** crea inquilinos desde *Usuarios*: sin contrato no podrían entrar.
+
+Endpoints: `POST/GET /arrendamientos/` · `GET /arrendamientos/mio` · `POST /arrendamientos/{id}/aprobar|rechazar|finalizar`. Código: `app/arrendamientos.py`, `app/routers/arrendamientos.py`, `frontend/js/vistas/inquilinos.js`, pruebas en `tests/test_arrendamientos.py`.
 
 ## Roles y permisos
 

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.archivos import borrar_documento, guardar_pdf_validado, leer_documento
 from app.auditoria import auditar
-from app.constantes import CategoriaDocumento, RolNombre
+from app.constantes import CATEGORIAS_DOC_INQUILINO, CategoriaDocumento, RolNombre
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
 from app.models import Documento, Usuario
@@ -23,6 +23,7 @@ from app.schemas.negocio import MensajeResponse
 TAG = "Documentos del Conjunto"
 router = APIRouter(prefix="/documentos", tags=[TAG])
 ADMIN = RolNombre.ADMINISTRADOR
+INQUILINO = RolNombre.INQUILINO
 MAX_DOCUMENTOS = 200
 
 
@@ -39,9 +40,11 @@ def _vistas(db: Session, docs: list[Documento]) -> list[DocumentoResponse]:
 
 
 @router.get("/", response_model=list[DocumentoResponse], summary="Ver los documentos del conjunto",
-            description="Roles: **todos**. Más recientes primero; filtra por `categoria`.")
-def listar(categoria: Optional[CategoriaDocumento] = None, db: Session = Depends(get_db), _: Usuario = Depends(get_current_user)):
+            description="Roles: **todos**. Más recientes primero; filtra por `categoria`. El inquilino solo ve Reglamento y Circular.")
+def listar(categoria: Optional[CategoriaDocumento] = None, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
     q = db.query(Documento)
+    if usuario.rol == INQUILINO.value:                   # el inquilino solo ve el reglamento y las circulares
+        q = q.filter(Documento.categoria.in_(CATEGORIAS_DOC_INQUILINO))
     if categoria:
         q = q.filter(Documento.categoria == categoria.value)
     return _vistas(db, q.order_by(Documento.id.desc()).all())
@@ -61,7 +64,8 @@ async def subir(titulo: str = Form(..., min_length=3, max_length=100), categoria
     db.add(d)
     db.flush()
     auditar(db, admin, "Subió documento", "Documento", d.id, f"{d.categoria}: {d.titulo}")
-    notificar(db, usuarios_activos(db, excluir_id=admin.id), f"Nuevo documento: {d.titulo}", d.categoria, "#/documentos")
+    destinatarios = [u for u in usuarios_activos(db, excluir_id=admin.id) if u.rol != INQUILINO.value or d.categoria in CATEGORIAS_DOC_INQUILINO]
+    notificar(db, destinatarios, f"Nuevo documento: {d.titulo}", d.categoria, "#/documentos")
     db.commit()
     db.refresh(d)
     return _vistas(db, [d])[0]
@@ -70,8 +74,10 @@ async def subir(titulo: str = Form(..., min_length=3, max_length=100), categoria
 @router.get("/{documento_id}/descargar", summary="Descargar un documento",
             description="Roles: **todos** (con sesión iniciada). Devuelve el PDF.", response_class=Response,
             responses={404: {"description": "Documento no encontrado"}})
-def descargar(documento_id: int, db: Session = Depends(get_db), _: Usuario = Depends(get_current_user)):
+def descargar(documento_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
     d = db.get(Documento, documento_id)
+    if d is not None and usuario.rol == INQUILINO.value and d.categoria not in CATEGORIAS_DOC_INQUILINO:
+        d = None                                         # para él es como si no existiera (no se revela qué documentos hay)
     datos = leer_documento(d.archivo) if d else None
     if datos is None:
         raise HTTPException(status_code=404, detail="Documento no encontrado.")

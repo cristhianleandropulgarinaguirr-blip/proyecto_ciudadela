@@ -145,6 +145,8 @@ def auditoria(entidad: Optional[str] = Query(None, max_length=30), db: Session =
             description="El residente descarga el suyo; el **Administrador** el de cualquier residente. Si no hay saldo pendiente, el documento lo indica como «a paz y salvo».",
             responses={403: {"description": "No es tu estado de cuenta"}, 404: {"description": "Usuario no encontrado"}})
 def estado_cuenta_pdf(usuario_id: int, db: Session = Depends(get_db), actual: Usuario = Depends(get_current_user)):
+    if actual.rol == RolNombre.INQUILINO.value:
+        raise HTTPException(status_code=403, detail="La cartera del apartamento la consulta el propietario.")
     if usuario_id != actual.id and actual.rol != ADMIN.value:
         raise HTTPException(status_code=403, detail="Solo puedes descargar tu propio estado de cuenta.")
     u = db.get(Usuario, usuario_id)

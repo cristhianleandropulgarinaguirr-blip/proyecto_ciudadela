@@ -11,7 +11,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, aliased
 
 from app.auditoria import auditar
-from app.constantes import RolNombre
+from app.constantes import MAX_VISITAS_INQUILINO, RolNombre
 from app.database import get_db
 from app.dependencies import requiere_roles
 from app.models import AccesoVisitante, Usuario, VisitanteAutorizado, ahora_utc
@@ -24,6 +24,7 @@ TAG = "Visitantes Autorizados"
 router = APIRouter(prefix="/visitantes-autorizados", tags=[TAG])
 
 ADMIN, RESIDENTE, GUARDIA = RolNombre.ADMINISTRADOR, RolNombre.RESIDENTE, RolNombre.GUARDIA
+INQUILINO = RolNombre.INQUILINO
 MAX_AUTORIZADOS = 20                              # por residente: evita que la lista se vuelva una puerta abierta
 HORA_COLOMBIA = timezone(timedelta(hours=-5))     # Colombia no tiene horario de verano
 
@@ -80,11 +81,11 @@ def _obtener_propio(db: Session, visitante_id: int, usuario: Usuario) -> Visitan
 # ---------------------------------------------------------------- RESIDENTE
 @router.post("/", response_model=VisitanteAutorizadoResponse, status_code=status.HTTP_201_CREATED,
              summary="Autorizar a un visitante frecuente",
-             description="Roles: **Residente**, **Administrador**. Máximo 20 personas autorizadas por usuario. "
+             description="Roles: **Residente**, **Inquilino**, **Administrador**. Máximo 20 personas autorizadas por usuario (5 para el inquilino). "
                          "Si autorizaste antes a esa persona y la retiraste, se reactiva con los datos nuevos.",
              responses={400: {"description": "Ya está autorizada o llegaste al límite"}, 422: {"description": "Datos inválidos"}})
 def autorizar(datos: VisitanteAutorizadoCreate, db: Session = Depends(get_db),
-              usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+              usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
     _validar_fecha(datos.vigente_hasta)
     # Solo cuentan las autorizaciones vigentes: las visitas de un día que ya pasaron no ocupan cupo.
     activos = db.query(func.count(VisitanteAutorizado.id)).filter(
@@ -95,8 +96,9 @@ def autorizar(datos: VisitanteAutorizadoCreate, db: Session = Depends(get_db),
     if previo is not None and previo.activo and _vigente(previo):
         raise HTTPException(status_code=400, detail=f"Ya tienes autorizada a {previo.nombre} con ese documento.")
     # (una autorización vencida se renueva sobre el mismo registro: no pide cupo nuevo)
-    if activos >= MAX_AUTORIZADOS and not (previo is not None and previo.activo):
-        raise HTTPException(status_code=400, detail=f"Ya tienes {MAX_AUTORIZADOS} personas autorizadas. Retira alguna para agregar otra.")
+    tope = MAX_VISITAS_INQUILINO if usuario.rol == INQUILINO.value else MAX_AUTORIZADOS
+    if activos >= tope and not (previo is not None and previo.activo):
+        raise HTTPException(status_code=400, detail=f"Ya tienes {tope} personas autorizadas. Retira alguna para agregar otra.")
     if previo is None:
         previo = VisitanteAutorizado(usuario_id=usuario.id, documento=datos.documento)
         db.add(previo)
@@ -113,7 +115,7 @@ def autorizar(datos: VisitanteAutorizadoCreate, db: Session = Depends(get_db),
 @router.get("/", response_model=list[VisitanteAutorizadoResponse], summary="Ver mis visitantes autorizados",
             description="Roles: **Residente**, **Administrador**. El administrador ve los de todos con `todos=true`.")
 def mis_visitantes(todos: bool = Query(False), db: Session = Depends(get_db),
-                   usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+                   usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
     q = db.query(VisitanteAutorizado).filter(VisitanteAutorizado.activo.is_(True))
     if not (todos and usuario.rol == ADMIN.value):
         q = q.filter(VisitanteAutorizado.usuario_id == usuario.id)
@@ -124,7 +126,7 @@ def mis_visitantes(todos: bool = Query(False), db: Session = Depends(get_db),
               description="Quien lo autorizó o el **Administrador**. Solo se cambia lo que se envíe (el documento no se edita).",
               responses={403: {"description": "No lo autorizaste tú"}, 404: {"description": "Visitante no encontrado"}})
 def editar(visitante_id: int, datos: VisitanteAutorizadoUpdate, db: Session = Depends(get_db),
-           usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+           usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
     v = _obtener_propio(db, visitante_id, usuario)
     cambios = datos.model_dump(exclude_unset=True)
     if "vigente_hasta" in cambios:
@@ -145,7 +147,7 @@ def editar(visitante_id: int, datos: VisitanteAutorizadoUpdate, db: Session = De
 @router.delete("/{visitante_id}", response_model=MensajeResponse, summary="Retirar la autorización",
                description="Quien lo autorizó o el **Administrador**. La persona deja de poder ingresar, pero su historial de ingresos se conserva.",
                responses={403: {"description": "No lo autorizaste tú"}, 404: {"description": "Visitante no encontrado"}})
-def retirar(visitante_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, ADMIN))):
+def retirar(visitante_id: int, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
     v = _obtener_propio(db, visitante_id, usuario)
     v.activo = False
     auditar(db, usuario, "Retiró visitante autorizado", "Visitante", v.id, v.nombre)

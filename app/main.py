@@ -11,7 +11,7 @@ from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.routers import (
-    anuncios, asistente, auditoria, auth, comercio, documentos, emergencias, modulos, notificaciones, paquetes, pqrs, push, qr, reportes,
+    anuncios, arrendamientos, asistente, auditoria, auth, comercio, documentos, emergencias, modulos, notificaciones, paquetes, pqrs, push, qr, reportes,
     sincronizacion, usuarios, visitantes, votaciones,
 )
 
@@ -29,6 +29,7 @@ API para la gestión de un **conjunto residencial** (propiedad horizontal).
 |---|---|
 | **Administrador** | Todo: usuarios, aprobar reservas, estado de los daños, cartera, portería, auditoría, emergencias, PQRS, documentos y reportes en Excel |
 | **Residente** | Reservar zonas, reportar daños, pagar su administración, crear pases QR, autorizar visitantes frecuentes, ver sus paquetes, radicar PQRS, descargar documentos y anunciar su negocio |
+| **Inquilino** | Lo registra su propietario y lo aprueba el administrador; el acceso vence con el contrato. Reservar zonas (si el apartamento está al día), reportar daños, recibir paquetes, crear pases QR y visitantes (hasta 5), radicar PQRS, ver reglamento y circulares. **Sin** cartera, votaciones ni comercio |
 | **Guardia** | Controlar vehículos y visitantes (también escaneando QR), registrar y entregar paquetes, ver reservas |
 
 Errores de seguridad: **401** = no has iniciado sesión o el token expiró · **403** = tu rol no tiene permiso.
@@ -53,6 +54,7 @@ TAGS = [
     {"name": "Reportes", "description": "Excel para el administrador y PDF del estado de cuenta."},
     {"name": "Auditoría", "description": "Bitácora de quién hizo qué y cuándo (solo administrador)."},
     {"name": "Control de Parqueaderos", "description": "Portería: ingreso, salida e historial de vehículos visitantes, y sincronización de lo registrado sin internet."},
+    {"name": "Arrendamientos (Inquilinos)", "description": "El propietario registra a su inquilino, el administrador lo aprueba y el acceso vence con el contrato."},
     {"name": "Votaciones", "description": "Consultas y votaciones del conjunto: voto secreto, un voto por apartamento, resultados al cerrar."},
 ]
 
@@ -76,6 +78,7 @@ app.include_router(notificaciones.router)
 app.include_router(reportes.router)
 app.include_router(auditoria.router)
 app.include_router(votaciones.router)
+app.include_router(arrendamientos.router)
 app.include_router(push.router)
 app.include_router(sincronizacion.router)
 

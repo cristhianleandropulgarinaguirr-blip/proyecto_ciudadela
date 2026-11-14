@@ -8,6 +8,7 @@ class RolNombre(str, Enum):
     ADMINISTRADOR = "Administrador"
     RESIDENTE = "Residente"
     GUARDIA = "Guardia"
+    INQUILINO = "Inquilino"   # vive en el apartamento por contrato con un propietario (Residente); permisos acotados
 
 
 class EstadoReserva(str, Enum):
@@ -35,7 +36,25 @@ DESCRIPCION_ROLES = {
     RolNombre.ADMINISTRADOR: "Gestiona usuarios, reservas, daños y cartera del conjunto",
     RolNombre.RESIDENTE: "Reserva zonas comunes, reporta daños y consulta su estado de cuenta",
     RolNombre.GUARDIA: "Controla el ingreso y salida de vehículos en portería",
+    RolNombre.INQUILINO: "Vive en el apartamento por arrendamiento: reserva zonas, recibe paquetes y radica solicitudes; sin cartera ni votaciones",
 }
+
+# Quienes viven en el conjunto: el propietario (Residente) y su inquilino. Sirve para reglas como «ve solo lo suyo».
+ROLES_RESIDENCIALES = (RolNombre.RESIDENTE.value, RolNombre.INQUILINO.value)
+
+
+class EstadoArrendamiento(str, Enum):
+    PENDIENTE = "Pendiente"      # lo registró el propietario; espera la aprobación del administrador (el inquilino aún no puede entrar)
+    ACTIVO = "Activo"            # aprobado y dentro de las fechas del contrato
+    FINALIZADO = "Finalizado"    # terminó por fecha, o lo cerró el propietario o el administrador
+    RECHAZADO = "Rechazado"      # el administrador no lo aprobó
+
+
+# Lo único que un inquilino puede ver de los documentos del conjunto (nada de actas ni de estados financieros).
+CATEGORIAS_DOC_INQUILINO = ("Reglamento", "Circular")
+
+# Tope de pases QR vigentes y de visitantes autorizados para un inquilino (el propietario conserva los topes normales).
+MAX_VISITAS_INQUILINO = 5
 
 
 # ---------- Fase 2: códigos QR ----------

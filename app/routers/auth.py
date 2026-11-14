@@ -12,7 +12,8 @@ from app.auditoria import auditar
 from app.config import ACCESS_TOKEN_EXPIRE_MINUTES
 from app.database import get_db
 from app.dependencies import get_current_user, sid_actual
-from app.models import IntentoLogin, Sesion, Usuario, ahora_utc
+from app import arrendamientos
+from app.models import Arrendamiento, IntentoLogin, Sesion, Usuario, ahora_utc
 from app.schemas.negocio import MensajeResponse
 from app.schemas.usuarios import CambioPassword, SesionResponse, TokenResponse
 from app.security import crear_token_acceso, encriptar_password, es_hash_antiguo, verificar_password
@@ -69,7 +70,12 @@ def login_usuario(request: Request, response: Response, form: OAuth2PasswordRequ
             headers={"WWW-Authenticate": "Bearer"},
         )
     if not usuario.esta_activo:
+        if usuario.rol == "Inquilino" and db.query(Arrendamiento).filter(Arrendamiento.inquilino_id == usuario.id, Arrendamiento.estado == "Pendiente").first():
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu acceso está pendiente de aprobación por la administración.")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Usuario desactivado.")
+    if usuario.rol == "Inquilino" and not arrendamientos.contrato_vigente(db, usuario):
+        db.commit()    # contrato vencido: queda cerrado y la cuenta desactivada
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tu contrato de arrendamiento ya no está vigente. Habla con el propietario o con la administración.")
     if intento:                                     # entró bien: el contador vuelve a cero
         db.delete(intento)
         db.commit()

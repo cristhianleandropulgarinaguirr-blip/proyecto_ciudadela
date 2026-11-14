@@ -137,6 +137,7 @@ const COLOR_ESTADO = {
   "En porteria": "laton", Anulado: "borde",
   Radicada: "laton", "En tramite": "borde", Resuelta: "bosque", Cerrada: "borde",
   Pendiente: "laton", Abierta: "bosque", Anulada: "borde",
+  Finalizado: "borde", Rechazado: "arcilla",
 };
 const ETIQUETA = { "En Revision": "En revisión", "En Reparacion": "En reparación", "En porteria": "En portería", "En tramite": "En trámite" };
 export const badge = (estado, texto) => h("span", { class: `badge ${COLOR_ESTADO[estado] ?? ""}` }, texto ?? ETIQUETA[estado] ?? estado);
