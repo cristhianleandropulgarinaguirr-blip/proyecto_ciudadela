@@ -10,6 +10,29 @@ os.environ["DATABASE_URL"] = f"sqlite:///{_TMP}/pruebas.db"
 os.environ["UPLOAD_DIR"] = f"{_TMP}/uploads"
 os.environ.setdefault("BCRYPT_ROUNDS", "4")   # bcrypt rápido solo en pruebas (en producción son 12 rondas)
 
+# Las pruebas NO deben depender de tu archivo .env (ahí tienes tus valores reales: claves push, correo, IA, etc.).
+# Se fijan aquí, antes de importar la app, y load_dotenv() no sobrescribe lo que ya está definido.
+_VALORES_DE_PRUEBA = {
+    "ACCESS_TOKEN_EXPIRE_MINUTES": "15",
+    "GUARDIA_TOKEN_HORAS": "12",
+    "SESION_DIAS_ADMIN": "7",
+    "SESION_DIAS": "14",
+    "SESION_MAXIMA_DIAS": "60",
+    "VAPID_PUBLIC_KEY": "",      # sin claves push: así se prueba el modo «apagado»
+    "VAPID_PRIVATE_KEY": "",
+    "SMTP_HOST": "",             # sin correo real
+    "IA_API_KEY": "",            # sin IA real
+    "GEMINI_API_KEY": "",
+    "PROVEEDOR_IA": "gemini",
+    "IA_MODELO": "",
+    "IA_URL_BASE": "",
+    "ALMACEN": "local",          # nunca Supabase real
+    "SUPABASE_URL": "",
+    "SUPABASE_SECRET_KEY": "",
+    "PAGOS_SIMULADOS": "1",
+}
+os.environ.update(_VALORES_DE_PRUEBA)
+
 import pytest
 from fastapi.testclient import TestClient
 
