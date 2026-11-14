@@ -7,7 +7,7 @@ import { api } from "./api.js";
 import { h, icono, badge, deUtc, hace } from "./ui.js";
 
 const CORTO = { lunes: "lun", martes: "mar", miércoles: "mié", jueves: "jue", viernes: "vie", sábado: "sáb", domingo: "dom" };
-const INICIALES = ["¿Qué días suele estar más congestionado el BBQ?", "¿Qué día está más libre la piscina?", "¿Cómo reservo una zona?"];
+const INICIALES = ["¿Cómo reservo una zona?", "¿Qué días suele estar más congestionado el BBQ?", "¿Hay votaciones abiertas?", "¿Qué eventos hay próximamente?"];
 const MAX_TURNOS = 8;
 
 let fab = null, panel = null, cuerpo = null, campo = null, enviarBtn = null, pie = null, subtitulo = null;
@@ -74,7 +74,7 @@ function escribiendo() {
 function bienvenida() {
   cuerpo.replaceChildren();
   const primero = nombre.split(" ")[0] || "";
-  agregarBot({ respuesta: `¡Hola${primero ? `, ${primero}` : ""}! Soy **Ciudabot**. Te cuento qué días y horas se congestionan las zonas comunes (BBQ, piscina, salón…) con los datos reales de reservas, y te oriento en la app.`, sugerencias: INICIALES });
+  agregarBot({ respuesta: `¡Hola${primero ? `, ${primero}` : ""}! Soy **Ciudabot** y te ayudo con todo lo relacionado con la app y nuestro conjunto: reservas, pagos, paquetes, visitas, votaciones, eventos y más. ¿Qué quieres saber?`, sugerencias: INICIALES });
 }
 
 function actualizarPie() {

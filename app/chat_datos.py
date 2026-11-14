@@ -225,7 +225,7 @@ def responder_basico(texto: str, stats: dict, zona_previa: Optional[str] = None,
     if not pregunta_demanda_zona(plano, zona):
         for patron, ayuda, accion in AYUDA_BASICA:
             if re.search(patron, plano):
-                return {"respuesta": ayuda, "zona": None, "accion": accion, "sugerencias": ["¿Qué días suele estar más congestionado el BBQ?", "¿Hay votaciones abiertas?"]}
+                return {"respuesta": ayuda, "zona": None, "accion": accion, "sugerencias": ["¿Cómo reservo una zona?", "¿Hay votaciones abiertas?", "¿Qué eventos hay próximamente?"]}
 
     if pide_reservar and not pregunta_demanda:
         return {"respuesta": "Para reservar una zona común entra a la sección Reservas, elige la zona, el día y la hora, y la administración confirma tu solicitud.",
@@ -258,9 +258,9 @@ def responder_basico(texto: str, stats: dict, zona_previa: Optional[str] = None,
         return {"respuesta": f"Las zonas con más demanda son: {top}. Dime de cuál quieres saber los días más congestionados.", "zona": None, "accion": None,
                 "sugerencias": [f"¿Qué días se congestiona {totales[0][1]}?"]}
 
-    return {"respuesta": "Puedo contarte qué días y franjas se congestionan las zonas comunes (BBQ, piscina, salón…) y guiarte por la app. "
-                         "Por ahora estoy en modo básico, así que pregúntame algo como «¿qué días suele estar más lleno el BBQ?».",
-            "zona": None, "accion": None, "sugerencias": ["¿Qué días suele estar más congestionado el BBQ?", "¿Qué día está más libre la piscina?"]}
+    return {"respuesta": "¡Hola! Te ayudo con todo lo relacionado con la app y nuestro conjunto: reservas, pagos, paquetes, visitas, votaciones, eventos y más. "
+                         "Por ahora estoy en modo básico, así que pregúntame algo concreto, por ejemplo «¿cómo reservo una zona?».",
+            "zona": None, "accion": None, "sugerencias": ["¿Cómo reservo una zona?", "¿Hay votaciones abiertas?", "¿Qué días suele estar más congestionado el BBQ?"]}
 
 
 def pregunta_demanda_zona(plano: str, zona: Optional[str]) -> bool:
