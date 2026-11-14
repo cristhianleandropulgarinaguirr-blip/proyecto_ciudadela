@@ -184,9 +184,22 @@ export async function conCarga(btn, fn) {
 }
 
 // ---------- Toasts ----------
+// Un <dialog> abierto con showModal() queda en la «capa superior» del navegador y tapa todo lo que está fuera de él
+// (incluidos los avisos). Por eso, mientras hay un modal abierto, el contenedor de avisos vive DENTRO del modal
+// y se muestra arriba para no tapar los campos ni los botones; al cerrarse vuelve al <body>.
+function ubicarToasts() {
+  const cont = document.getElementById("toasts"), d = document.getElementById("modal");
+  if (!cont || !d) return cont;
+  const destino = d.open ? d : document.body;
+  if (cont.parentElement !== destino) destino.append(cont);
+  cont.classList.toggle("en-modal", d.open);
+  return cont;
+}
+document.getElementById("modal")?.addEventListener("close", ubicarToasts);
+
 export function toast(texto, tipo = "ok") {
   const t = h("div", { class: `toast ${tipo}`, role: "status" }, icono(tipo === "ok" ? "ok" : "alerta"), h("span", {}, texto));
-  document.getElementById("toasts").append(t);
+  ubicarToasts().append(t);
   setTimeout(() => { t.classList.add("sale"); setTimeout(() => t.remove(), 300); }, 4200);
 }
 
@@ -194,11 +207,14 @@ export function toast(texto, tipo = "ok") {
 export function modal(titulo, contenido, { pie } = {}) {
   const d = document.getElementById("modal");
   const cerrar = () => d.close();
+  const cont = document.getElementById("toasts");
+  if (cont && d.contains(cont)) document.body.append(cont);   // se rescatan los avisos antes de vaciar el modal
   d.replaceChildren(h("div", { class: "modal-int" },
     h("div", { class: "modal-cab" }, h("h2", {}, titulo), h("button", { class: "btn suave icono sm", "aria-label": "Cerrar", onclick: cerrar }, icono("x"))),
     contenido, pie ? h("div", { class: "modal-pie" }, pie) : null));
   d.onclick = (e) => { if (e.target === d) cerrar(); };
   d.showModal();
+  ubicarToasts();
   return { cerrar };
 }
 export function confirmar(titulo, texto, textoBtn = "Confirmar", peligro = false) {
