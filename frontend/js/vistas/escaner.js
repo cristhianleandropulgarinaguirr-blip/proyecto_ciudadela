@@ -120,12 +120,14 @@ export function vistaEscaner() {
   const btnCamara = h("button", { class: "btn", type: "button", onclick: () => (activo ? detener() : activar()) }, icono("camara", 18), "Activar cámara");
   const btnLinterna = h("button", { class: "btn suave", type: "button", hidden: true, style: "margin-left:.5rem", onclick: alternarLinterna }, "Linterna");
 
-  const entrada = h("input", { id: "codigo-manual", placeholder: " ", autocomplete: "off", spellcheck: "false", autocapitalize: "off" });   // sin inputmode numérico: también se escribe el código largo
+  const entrada = h("input", { id: "codigo-manual", placeholder: " ", autocomplete: "off", spellcheck: "false", autocapitalize: "off", enterkeyhint: "go" });   // sin inputmode numérico: también se escribe el código largo
+  // En el celular el teclado tapaba el botón «Validar código»: al tocar el campo se sube el formulario para que se vea completo.
+  entrada.addEventListener("focus", () => setTimeout(() => form.scrollIntoView({ block: "center", behavior: "smooth" }), 350));
   const form = h("form", { novalidate: true, onsubmit: async (e) => {
     e.preventDefault();
     const b = form.querySelector("button");
     await conCarga(b, () => enviar(entrada.value)); entrada.value = ""; entrada.focus();
-  } }, h("div", { class: "field" }, entrada, h("label", { for: "codigo-manual" }, "PIN de 6 dígitos, código escrito o lector USB")),
+  } }, h("div", { class: "field" }, entrada, h("label", { for: "codigo-manual" }, "PIN de 6 dígitos o código")),
     h("button", { class: "btn suave block", type: "submit" }, "Validar código"));
 
   async function cargarBitacora() {

@@ -3,6 +3,7 @@
 # El QR del PDF lleva a /verificar/<codigo> (página pública en app/routers/publico.py), donde cualquiera comprueba en el servidor
 # que el documento es auténtico, no fue adulterado y sigue vigente (no vencido, no revocado y el apartamento sigue al día).
 import io
+import socket
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -132,8 +133,32 @@ def revocar(paz_id: int, db: Session = Depends(get_db), admin: Usuario = Depends
 
 
 # ---------------------------------------------------------------- PDF
+_NO_ALCANZABLES = {"localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]", ""}   # direcciones que un celular NO puede abrir
+
+
+def _ip_de_la_red_local() -> str | None:
+    """IP de este equipo en el Wi-Fi/red local (para que el celular abra el QR cuando pruebas desde tu PC). No envía ningún dato."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("10.255.255.255", 1))          # UDP: solo sirve para que el sistema elija la tarjeta de red; no sale tráfico
+            ip = s.getsockname()[0]
+        return None if ip.startswith("127.") or ip == "0.0.0.0" else ip
+    except OSError:
+        return None
+
+
 def _url_base(request: Request) -> str:
-    return config.URL_PUBLICA or str(request.base_url).rstrip("/")
+    """Dirección que va dentro del QR. Prioridad: URL_PUBLICA (producción) > la de la petición > IP de la red local si la petición vino de
+    localhost/127.0.0.1 (el celular no puede abrir esas direcciones: apuntan a SÍ MISMO, y por eso el QR daba «No se puede acceder»)."""
+    if config.URL_PUBLICA:
+        return config.URL_PUBLICA
+    host = (request.url.hostname or "").lower()
+    if host in _NO_ALCANZABLES:
+        ip = _ip_de_la_red_local()
+        if ip:
+            puerto = request.url.port
+            return f"{request.url.scheme}://{ip}" + (f":{puerto}" if puerto else "")
+    return str(request.base_url).rstrip("/")
 
 
 @router.get("/{paz_id}/pdf", summary="Descargar el paz y salvo en PDF", response_class=Response,

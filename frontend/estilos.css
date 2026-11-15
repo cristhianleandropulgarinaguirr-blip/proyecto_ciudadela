@@ -1174,3 +1174,18 @@ html[data-texto="grande"] { font-size: 112.5%; }
 .oculto-visual:focus-visible + * , label[for="archivo-importar"]:focus-within { outline: 2px solid var(--primario); outline-offset: 2px; }
 .pasos-importar { margin: 0; padding-left: 1.2rem; display: grid; gap: .35rem; color: var(--tinta-2); font-size: .92rem; }
 .texto-error { color: var(--arcilla-ink, var(--arcilla)); }
+
+
+/* ---------- v3.7 · Ajustes para celular ---------- */
+/* Etiquetas flotantes largas: una sola línea con «…» (antes saltaban a 2 líneas y se montaban sobre lo que se escribe). */
+.field label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: calc(100% - 1.9rem); }
+.field input:focus + label, .field input:not(:placeholder-shown) + label,
+.field textarea:focus + label, .field textarea:not(:placeholder-shown) + label,
+.field select + label { max-width: calc((100% - 1.9rem) / .78); }
+/* Pestañas: ocupan todo el ancho, se deslizan con el dedo y no se cortan en el borde. */
+@media (max-width: 639px) {
+  .tabs { display: flex; width: 100%; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+  .tab { flex: 1 0 auto; scroll-snap-align: center; }
+}
+/* Con el teclado abierto, el contenido tiene espacio extra abajo para poder desplazarlo por encima de él. */
+@media (hover: none) and (pointer: coarse) { #app main, main { scroll-padding-bottom: 40vh; } }

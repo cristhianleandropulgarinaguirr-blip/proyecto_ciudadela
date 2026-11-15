@@ -91,6 +91,7 @@ export async function render(ctx) {
     actual = cual;
     tabs.replaceChildren(...[["ahora", "Vehículos"], ["visitantes", "Visitantes a pie"], ["escaner", "Escanear QR"], ["historial", "Historial"]].map(([id, texto]) =>
       h("button", { class: "tab", role: "tab", "aria-selected": String(id === actual), onclick: () => id !== actual && mostrar(id) }, texto)));
+    tabs.querySelector('[aria-selected="true"]')?.scrollIntoView({ inline: "center", block: "nearest" });   // en celulares angostos la pestaña activa no queda cortada
     panel.replaceChildren(h("div", { class: "esq", style: "height:160px" }));
     try {
       const nodo = cual === "ahora" ? await panelActual() : cual === "visitantes" ? await vistaVisitantesPorteria(ctx.usuario.rol === "Administrador") : cual === "escaner" ? vistaEscaner() : vistaHistorial(ctx);
