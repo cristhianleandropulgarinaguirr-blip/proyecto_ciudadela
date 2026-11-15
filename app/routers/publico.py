@@ -25,15 +25,18 @@ from sqlalchemy.orm import Session
 from app import config, limitador
 from app.constantes import EstadoQR, RolNombre, TipoQR
 from app.database import get_db
-from app.models import CodigoQR, Usuario, ahora_utc
+from app.models import CodigoQR, PazSalvo, Usuario, ahora_utc
 from app.notificaciones import notificar, usuarios_activos
+from app.routers.paz_y_salvo import estado_de as estado_paz, folio as folio_paz
 from app.routers.qr import PREFIJO, _estado_visible, pase_sirve
 
 TAG = "Pase público (sin sesión)"
 router = APIRouter(tags=[TAG])
 
 ESPERA_AVISOS = timedelta(minutes=5)
-PAGINA = Path(__file__).resolve().parent.parent.parent / "frontend" / "pase" / "pase.html"
+FRONTEND = Path(__file__).resolve().parent.parent.parent / "frontend"
+PAGINA = FRONTEND / "pase" / "pase.html"
+PAGINA_VERIFICAR = FRONTEND / "verificar" / "verificar.html"
 # La página solo carga SU css y SU js (mismo origen) y consulta SU api: nada de terceros, nada inline.
 CSP_PASE = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; "
             "form-action 'none'; frame-ancestors 'none'")
@@ -144,3 +147,31 @@ def avisar(token: str, datos: AvisoRequest, request: Request, response: Response
     db.commit()
     response.headers.update(CABECERAS_API)
     return {"ok": True, "mensaje": mensaje}
+
+
+# ---------------------------------------------------------------- verificación del paz y salvo (v3.6)
+# El QR del PDF abre /verificar/<codigo>. Cualquiera puede comprobar el documento, así que la respuesta es mínima: lo mismo que ya dice el PDF
+# (folio, titular, apartamento, fechas) y un estado. Los motivos por los que un certificado deja de valer (revocado, o que el apartamento volvió a tener
+# saldo) NO se detallan: «No vigente» no revela datos financieros de nadie.
+@router.get("/verificar/{codigo}", response_class=HTMLResponse, include_in_schema=False)
+def pagina_de_verificacion(codigo: str):
+    return HTMLResponse(PAGINA_VERIFICAR.read_text(encoding="utf-8"), headers=CABECERAS_PAGINA)
+
+
+@router.get("/verificacion-publica/{codigo}", summary="Verificar un paz y salvo (página pública)",
+            description="**Sin sesión.** El código del QR es la única llave. Devuelve el folio, el titular, el apartamento, las fechas y el estado (`Vigente`, `Vencido` o `No vigente`). "
+                        "Límite: 90 consultas por minuto por IP.",
+            responses={404: {"description": "Código no válido"}, 429: {"description": "Demasiadas solicitudes"}})
+def verificar_paz_y_salvo(codigo: str, request: Request, response: Response, db: Session = Depends(get_db)):
+    _limitar(limitador.LECTURAS_PUBLICAS, request)
+    p = db.query(PazSalvo).filter(PazSalvo.codigo == codigo).first()
+    if p is None:
+        raise HTTPException(status_code=404, detail="Este código no corresponde a ningún paz y salvo.")
+    titular = db.get(Usuario, p.usuario_id)
+    estado = estado_paz(p, titular)
+    estado = "No vigente" if estado == "Revocado" else estado          # no se distingue «revocado» de «ya no está al día»
+    response.headers.update(CABECERAS_API)
+    return {"conjunto": {"nombre": config.CONJUNTO_NOMBRE},
+            "documento": {"folio": folio_paz(p), "estado": estado, "valido": estado == "Vigente", "titular": titular.nombre_completo if titular else None,
+                          "apartamento": titular.apartamento if titular else None, "destino": p.destino,
+                          "fecha_emision": p.fecha_emision, "valido_hasta": p.valido_hasta}}

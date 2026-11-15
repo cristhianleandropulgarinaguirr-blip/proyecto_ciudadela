@@ -2,17 +2,39 @@
 // Endpoints: GET /administracion/estado-cuenta/{id} · PATCH /administracion/registrar-deuda/{id}?saldo_pendiente=
 //            POST /administracion/simular-pago-pasarela?valor_pagado=   (solo demostración: PAGOS_SIMULADOS=1)
 //            POST /administracion/registrar-pago/{id}?valor_pagado=&referencia=   (administrador: pago real recibido)
-//            GET  /administracion/config-pagos
-import { api } from "../api.js";
+//            GET  /administracion/config-pagos · GET /administracion/cartera (administrador: todos los residentes en UNA petición)
+//            POST /paz-y-salvo · GET /paz-y-salvo · GET /paz-y-salvo/{id}/pdf   (paz y salvo con QR de verificación)
+import { api, apiBlob } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, dinero, kpi, deUtc, fmtFechaHora } from "../ui.js";
 import { cabecera } from "./comun.js";
-import { descargar, hoyArchivo } from "../descargas.js";
+import { descargar, guardarBlob, hoyArchivo } from "../descargas.js";
+
+// ---------- Paz y salvo con QR (residente, inquilino con permiso y administrador) ----------
+const ESTADO_PAZ = { Vigente: "bosque", Vencido: "borde", Revocado: "laton", "No vigente": "laton" };
+const nombrePdf = (p) => `paz_y_salvo_${p.folio}.pdf`;
+
+/** Genera el certificado (solo si el apartamento está al día) y lo descarga. `usuarioId` solo lo usa el administrador. */
+async function generarPaz(boton, { destino, usuarioId } = {}) {
+  const json = {}; if (destino?.trim()) json.destino = destino.trim(); if (usuarioId) json.usuario_id = usuarioId;
+  try {
+    const p = await conCarga(boton, () => api("/paz-y-salvo", { metodo: "POST", json }));
+    guardarBlob(await apiBlob(`/paz-y-salvo/${p.id}/pdf`), nombrePdf(p));
+    toast(`Paz y salvo ${p.folio} generado. Tiene un QR para verificarlo.`);
+    return p;
+  } catch (err) { toast(err.message, "error"); return null; }
+}
+
+async function copiarEnlaceVerificacion(p) {
+  try { await navigator.clipboard.writeText(`${location.origin}${p.enlace}`); toast("Enlace de verificación copiado."); }
+  catch { toast("No se pudo copiar el enlace.", "error"); }
+}
 
 // ---------- Residente: su estado de cuenta + pago ----------
 async function vistaResidente(ctx) {
   let cuenta = await api(`/administracion/estado-cuenta/${ctx.usuario.id}`);
   let pagos = await api("/administracion/mis-pagos");
   const cfg = await api("/administracion/config-pagos").catch(() => ({ pagos_simulados: false, instrucciones: "" }));
+  let pazs = await api("/paz-y-salvo").catch(() => []);
   const raiz = h("div", { class: "grid dos escalona" });
   const botonComprobante = (p, clase = "btn suave sm") => h("button", { class: clase, onclick: (e) => descargar(e.currentTarget, `/reportes/recibo/${p.id}.pdf`, `comprobante_${p.comprobante}.pdf`) }, icono("descarga", 16), "Comprobante");
 
@@ -20,6 +42,22 @@ async function vistaResidente(ctx) {
   const comoPagar = () => h("div", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Cómo pagar")),
     h("p", { style: "margin-bottom:.8rem" }, cfg.instrucciones || "Paga por transferencia y avisa en la administración."),
     h("p", { class: "small muted" }, "Cuando la administración registre tu pago, aparece aquí abajo con su comprobante en PDF."));
+
+  function tarjetaPaz(alDia) {
+    const destino = h("input", { id: "paz-destino", type: "text", maxlength: "80", placeholder: " " });
+    const boton = h("button", { class: "btn", type: "submit" }, icono("descarga", 18), "Generar y descargar");
+    return h("div", { class: "card", style: "grid-column: 1 / -1" }, h("div", { class: "card-titulo" }, h("h2", {}, "Paz y salvo")),
+      alDia
+        ? h("form", { novalidate: true, onsubmit: async (e) => { e.preventDefault(); const p = await generarPaz(boton, { destino: destino.value }); if (p) { pazs = await api("/paz-y-salvo").catch(() => pazs); pintar(); } } },
+            h("p", { class: "muted small", style: "margin-bottom:.8rem" }, "Certificado en PDF para mudanzas o trámites bancarios. Lleva un código QR: quien lo reciba lo escanea y comprueba en línea que es auténtico y está vigente."),
+            h("div", { class: "field" }, destino, h("label", { for: "paz-destino" }, "¿Para qué lo necesitas? (opcional)")), boton)
+        : h("div", { class: "aviso" }, icono("alerta"), h("div", {}, "Para generar el paz y salvo el apartamento debe estar al día con la administración.")),
+      pazs.length ? h("div", { class: "lista", style: "margin-top:.9rem" }, pazs.slice(0, 5).map((p) => h("div", { class: "item" }, h("div", { class: "ico-caja" }, icono("escudo")),
+        h("div", { class: "cuerpo" }, h("b", {}, p.folio, p.destino ? ` · ${p.destino}` : ""), h("span", {}, `${fmtFechaHora(deUtc(p.fecha_emision))} · válido hasta ${fmtFechaHora(deUtc(p.valido_hasta))}`)),
+        h("div", { class: "acciones" }, h("span", { class: `badge ${ESTADO_PAZ[p.estado] ?? ""}` }, p.estado),
+          h("button", { class: "btn suave sm", title: "Copiar el enlace de verificación", onclick: () => copiarEnlaceVerificacion(p) }, "Enlace"),
+          h("button", { class: "btn suave sm", onclick: (e) => descargar(e.currentTarget, `/paz-y-salvo/${p.id}/pdf`, nombrePdf(p)) }, icono("descarga", 16), "PDF"))))) : null);
+  }
 
   function pintar() {
     const alDia = cuenta.saldo_pendiente === 0;
@@ -45,6 +83,7 @@ async function vistaResidente(ctx) {
       h("div", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Estado de cuenta")),
         h("p", { class: "muted small", style: "margin-bottom:.8rem" }, "Descárgalo en PDF para tus trámites. Si estás al día, indica que el apartamento está a paz y salvo."),
         h("button", { class: "btn suave", onclick: (e) => descargar(e.currentTarget, `/reportes/estado-cuenta/${ctx.usuario.id}.pdf`, `estado_de_cuenta_${hoyArchivo()}.pdf`) }, icono("descarga", 18), "Descargar PDF")),
+      tarjetaPaz(alDia),
       h("div", { class: "card", style: "grid-column: 1 / -1" }, h("div", { class: "card-titulo" }, h("h2", {}, "Mis pagos")),
         pagos.length ? h("div", { class: "lista" }, pagos.map((p) => h("div", { class: "item" }, h("div", { class: "ico-caja" }, icono("tarjeta")),
           h("div", { class: "cuerpo" }, h("b", {}, dinero(p.valor)), h("span", {}, `${fmtFechaHora(deUtc(p.fecha))} · ${p.comprobante}`),
@@ -79,9 +118,8 @@ async function vistaResidente(ctx) {
 
 // ---------- Administrador: cartera de todos los residentes ----------
 async function vistaAdmin() {
-  const usuarios = (await api("/usuarios/")).filter((u) => u.rol === "Residente");
-  // El listado de usuarios no trae saldos: se consulta el estado de cuenta de cada residente en paralelo.
-  let filas = await Promise.all(usuarios.map(async (u) => ({ u, c: await api(`/administracion/estado-cuenta/${u.id}`) })));
+  // v3.6: UNA sola petición con todos los residentes y sus saldos (antes: el listado de usuarios + el estado de cuenta de cada residente, 201 peticiones con 200 residentes).
+  let filas = (await api("/administracion/cartera")).map((f) => ({ u: { id: f.usuario_id, nombre_completo: f.nombre_completo }, c: f }));
   const cuerpo = h("tbody"), resumen = h("div", { class: "kpis" });
 
   function pintar() {
@@ -98,6 +136,7 @@ async function vistaAdmin() {
       h("td", { "data-et": "Estado" }, c.esta_al_dia ? badge("Al día", "Al día") : badge("En mora", "En mora")),
       h("td", { class: "ancho der" }, h("div", { class: "acciones" },
         c.saldo_pendiente > 0 ? h("button", { class: "btn sm", onclick: () => registrarPago(u, c) }, "Registrar pago") : null,
+        c.saldo_pendiente === 0 ? h("button", { class: "btn suave sm", title: "Generar el paz y salvo con QR", onclick: (e) => generarPaz(e.currentTarget, { usuarioId: u.id }) }, icono("escudo", 16), "Paz y salvo") : null,
         h("button", { class: "btn suave sm", onclick: () => editarDeuda(u, c) }, "Registrar saldo"),
         h("button", { class: "btn suave sm", title: "Estado de cuenta en PDF", "aria-label": `Estado de cuenta de ${u.nombre_completo} en PDF`, onclick: (e) => descargar(e.currentTarget, `/reportes/estado-cuenta/${u.id}.pdf`, `estado_de_cuenta_${(c.apartamento ?? u.id).toString().replace(/\s+/g, "_")}.pdf`) }, icono("descarga", 16), "PDF"))))));
   }
@@ -146,7 +185,7 @@ async function vistaAdmin() {
   pintar();
   const excel = h("button", { class: "btn suave sm", onclick: (e) => descargar(e.currentTarget, "/reportes/cartera.xlsx", `cartera_${hoyArchivo()}.xlsx`, { aviso: "Cartera exportada a Excel." }) }, icono("descarga", 16), "Exportar a Excel");
   return h("div", {}, cabecera("Cartera", "Seguimiento del recaudo de administración por apartamento."), resumen,
-    h("div", { class: "barra" }, h("span", {}), excel),
+    h("div", { class: "barra" }, h("span", {}), h("a", { class: "btn suave sm", href: "#/importar" }, icono("subir", 16), "Cargar desde Excel"), excel),
     h("div", { class: "card" }, filas.length
       ? h("div", { class: "tabla-wrap" }, h("table", { class: "tabla" },
           h("thead", {}, h("tr", {}, h("th", {}, "Residente"), h("th", {}, "Cuota"), h("th", { class: "der" }, "Saldo"), h("th", {}, "Estado"), h("th", {}))), cuerpo))

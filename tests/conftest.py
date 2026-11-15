@@ -37,6 +37,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import limitador
+from app.routers import dashboard as _dashboard
 from app.database import Base, SessionLocal, engine
 from app.main import app
 from app.seed import asegurar_roles, crear_admin
@@ -49,6 +50,7 @@ CLAVE = "claveSegura123"
 
 @pytest.fixture()
 def db():
+    _dashboard.reiniciar_cache()    # los indicadores se guardan 60 s: cada prueba los calcula de nuevo
     limitador.reiniciar_todo()      # los contadores de abuso (IP, PIN) viven en memoria: cada prueba empieza en cero
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)

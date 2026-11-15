@@ -1,0 +1,35 @@
+/* Página pública de verificación del paz y salvo. Sin fuentes ni librerías externas; legible al sol y en modo oscuro. */
+:root {
+  --azul: #053550; --fondo: #F4F5F3; --tinta: #1E2D3A; --tinta-2: #4F5F6B; --linea: #C9D6DE; --tarjeta: #FFFFFF;
+  --ok: #176B3A; --ok-100: #DDF3E4; --aviso: #8A5300; --aviso-100: #FBEBCB; --mal: #A63C23; --mal-100: #F9E0D8;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fondo: #081633; --tinta: #E4ECF5; --tinta-2: #A9B9CD; --linea: #25407A; --tarjeta: #0F2146;
+          --ok: #7FE09B; --ok-100: #0E3A22; --aviso: #F3CB92; --aviso-100: #3A2C17; --mal: #F6A58E; --mal-100: #40241F; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fondo); color: var(--tinta); min-height: 100vh; font: 17px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.doc { max-width: 480px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+.cab { display: flex; gap: .75rem; align-items: center; background: var(--azul); color: #F2F7FA; border-radius: 18px 18px 0 0; padding: .9rem 1rem; }
+.cab h1 { margin: 0; font-size: 1.15rem; line-height: 1.2; }
+.cab .peq { color: #BFD6E4; margin: 0; }
+.logo { border-radius: 10px; }
+.peq { font-size: .85rem; color: var(--tinta-2); }
+.tarjeta { background: var(--tarjeta); border: 1px solid var(--linea); border-top: 0; border-radius: 0 0 18px 18px; padding: 1.1rem 1rem 1.3rem; }
+.tarjeta[hidden] { display: none !important; }
+.error { border-radius: 18px; border-top: 1px solid var(--linea); margin-top: 1rem; }
+.sello { display: grid; justify-items: center; gap: .15rem; text-align: center; padding: 1rem .8rem; border-radius: 14px; background: var(--ok-100); color: var(--ok); margin-bottom: 1rem; }
+.sello.aviso { background: var(--aviso-100); color: var(--aviso); }
+.sello.mal { background: var(--mal-100); color: var(--mal); }
+.sello strong { font-size: 1.35rem; }
+.sello .icono { font-size: 2.2rem; line-height: 1; font-weight: 700; }
+.datos { margin: 0; display: grid; gap: .55rem; }
+.datos div { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--linea); padding-bottom: .5rem; }
+.datos div[hidden] { display: none; }
+.datos dt { color: var(--tinta-2); font-size: .9rem; }
+.datos dd { margin: 0; font-weight: 600; text-align: right; }
+.mono { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .06em; }
+.nota { margin: 1rem 0 0; }
+.pie { text-align: center; margin-top: 1.2rem; }

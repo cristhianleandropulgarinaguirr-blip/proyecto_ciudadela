@@ -124,3 +124,9 @@ CONJUNTO_NOMBRE = os.getenv("CONJUNTO_NOMBRE", "").strip() or "Ciudadela Digital
 CONJUNTO_DIRECCION = os.getenv("CONJUNTO_DIRECCION", "").strip()
 CONJUNTO_LATITUD = _decimal("CONJUNTO_LATITUD")
 CONJUNTO_LONGITUD = _decimal("CONJUNTO_LONGITUD")
+
+
+# Versión 3.6 — paz y salvo con QR. Cuántos días sirve un certificado y la dirección pública de la app (para el QR del PDF).
+# URL_PUBLICA solo hace falta si el QR saliera con una dirección interna (p. ej. detrás de un proxy raro); normalmente se deduce sola de la petición.
+PAZ_Y_SALVO_DIAS = max(1, min(365, int(os.getenv("PAZ_Y_SALVO_DIAS", "30") or "30")))
+URL_PUBLICA = os.getenv("URL_PUBLICA", "").strip().rstrip("/")

@@ -1144,3 +1144,33 @@ html[data-texto="grande"] { font-size: 112.5%; }
 .pase-pin { display: grid; gap: .2rem; justify-items: center; text-align: center; margin: .6rem 0; padding: .7rem .8rem; border: 1px dashed var(--tarjeta-borde); border-radius: var(--r); background: var(--campo); }
 .pase-pin small { color: var(--tinta-3); }
 .pase-pin b { font-size: 1.9rem; letter-spacing: .28em; padding-left: .28em; color: var(--bosque); }
+
+/* ======================================================================
+   v3.6 · Gráficos (SVG propio), carga masiva y paz y salvo
+   ====================================================================== */
+.grafico { margin: 0; }
+.g-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.g-etiqueta { font: 500 11.5px var(--f-ui); fill: var(--tinta-2); }
+.g-valor { font: 700 12px var(--f-ui); fill: var(--tinta); }
+.g-fondo { fill: var(--campo); }
+.g-barra { fill: var(--primario); }
+.g-barra.pico { fill: var(--arcilla); }
+.g-eje { stroke: var(--linea); stroke-width: 1; }
+.g-eje-texto { font: 500 10px var(--f-ui); fill: var(--tinta-3); }
+.g-fondo-anillo { fill: none; stroke: var(--campo); stroke-width: 18; }
+.g-anillo { fill: none; stroke-width: 18; }
+.g-p1 { stroke: var(--verde); background: var(--verde); }
+.g-p2 { stroke: var(--primario); background: var(--primario); }
+.g-p3 { stroke: var(--arcilla); background: var(--arcilla); }
+.g-centro { font: 600 24px var(--f-display); fill: var(--tinta); }
+.g-subcentro { font: 500 11px var(--f-ui); fill: var(--tinta-3); }
+.g-dona { max-width: 170px; }
+.dona-fila { display: flex; align-items: center; gap: 1.2rem; flex-wrap: wrap; }
+.g-leyenda { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.g-leyenda li { display: flex; align-items: center; gap: .5rem; font-size: .92rem; }
+.g-punto { width: .85rem; height: .85rem; border-radius: 50%; display: inline-block; }
+
+.oculto-visual { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+.oculto-visual:focus-visible + * , label[for="archivo-importar"]:focus-within { outline: 2px solid var(--primario); outline-offset: 2px; }
+.pasos-importar { margin: 0; padding-left: 1.2rem; display: grid; gap: .35rem; color: var(--tinta-2); font-size: .92rem; }
+.texto-error { color: var(--arcilla-ink, var(--arcilla)); }

@@ -16,9 +16,10 @@ SECRET_KEY = obtener_secret_key()
 _HASH_SHA256_ANTIGUO = re.compile(r"^[0-9a-f]{64}$")
 
 
-def encriptar_password(password: str) -> str:
-    """Genera un hash bcrypt (con sal aleatoria incluida). bcrypt solo lee los primeros 72 bytes."""
-    return bcrypt.hashpw(password.encode("utf-8")[:72], bcrypt.gensalt(rounds=BCRYPT_ROUNDS)).decode("utf-8")
+def encriptar_password(password: str, rondas: int | None = None) -> str:
+    """Genera un hash bcrypt (con sal aleatoria incluida). bcrypt solo lee los primeros 72 bytes.
+    `rondas` solo se usa para las claves TEMPORALES de una importación masiva (ver app/importacion.py); nunca sube del valor configurado."""
+    return bcrypt.hashpw(password.encode("utf-8")[:72], bcrypt.gensalt(rounds=min(rondas or BCRYPT_ROUNDS, BCRYPT_ROUNDS))).decode("utf-8")
 
 
 def es_hash_antiguo(hash_guardado: str) -> bool:

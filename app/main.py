@@ -11,7 +11,7 @@ from fastapi.responses import RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.routers import (
-    anuncios, arrendamientos, asistente, auditoria, auth, comercio, documentos, emergencias, modulos, notificaciones, paquetes, pqrs, push, qr, reportes,
+    anuncios, arrendamientos, asistente, auditoria, auth, comercio, dashboard, documentos, emergencias, importaciones, modulos, notificaciones, paquetes, paz_y_salvo, pqrs, push, qr, reportes,
     publico, sincronizacion, usuarios, visitantes, votaciones,
 )
 
@@ -56,12 +56,15 @@ TAGS = [
     {"name": "Control de Parqueaderos", "description": "Portería: ingreso, salida e historial de vehículos visitantes, y sincronización de lo registrado sin internet."},
     {"name": "Arrendamientos (Inquilinos)", "description": "El propietario registra a su inquilino, el administrador lo aprueba y el acceso vence con el contrato."},
     {"name": "Pase público (sin sesión)", "description": "La página que abre el visitante con el enlace de su pase: QR, PIN, «Cómo llegar» y avisos «Estoy en camino / Llegué». Sin sesión; protegida por un token imposible de adivinar y por límites de uso."},
+    {"name": "Carga masiva (Excel/CSV)", "description": "El administrador sube el censo de apartamentos y la cartera mensual desde Excel o CSV: primero una vista previa sin guardar nada, luego se aplica en una sola transacción."},
+    {"name": "Indicadores (KPIs)", "description": "Números para la pantalla de indicadores del administrador: cartera, zonas más reservadas, tiempos de respuesta de PQRS y flujo de visitantes por hora."},
+    {"name": "Paz y salvo", "description": "Certificado en PDF con código QR de verificación: se emite solo si el apartamento está al día y cualquiera puede comprobar su autenticidad escaneando el QR."},
     {"name": "Votaciones", "description": "Consultas y votaciones del conjunto: voto secreto, un voto por apartamento, resultados al cerrar."},
 ]
 
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="3.5.0", openapi_tags=TAGS)
+              version="3.6.0", openapi_tags=TAGS)
 
 app.include_router(auth.router)
 app.include_router(usuarios.router)
@@ -83,6 +86,9 @@ app.include_router(arrendamientos.router)
 app.include_router(push.router)
 app.include_router(sincronizacion.router)
 app.include_router(publico.router)
+app.include_router(importaciones.router)
+app.include_router(dashboard.router)
+app.include_router(paz_y_salvo.router)
 
 
 # Frontend (HTML/CSS/JS) servido por la misma API: así comparten origen y no hace falta configurar CORS.
@@ -95,7 +101,7 @@ _IMG_NUCLEO = {"icono.png", "icono-crema.png", "logo-crema.png", "favicon.png"}
 
 
 def _archivos_de_la_app() -> list[Path]:
-    return sorted(p for p in FRONTEND_DIR.rglob("*") if p.is_file() and p.name != "sw.js" and "vendor" not in p.parts and "pase" not in p.parts
+    return sorted(p for p in FRONTEND_DIR.rglob("*") if p.is_file() and p.name != "sw.js" and "vendor" not in p.parts and "pase" not in p.parts and "verificar" not in p.parts
                   and (p.suffix in _EXT_NUCLEO or (p.parent.name == "img" and p.name in _IMG_NUCLEO)))
 
 

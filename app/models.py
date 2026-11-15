@@ -500,3 +500,21 @@ class Arrendamiento(Base):
 
     propietario = relationship("Usuario", foreign_keys=[propietario_id])
     inquilino = relationship("Usuario", foreign_keys=[inquilino_id])
+
+
+# ==========================================
+#   V3.6 · PAZ Y SALVO CON QR DE VERIFICACIÓN
+# ==========================================
+class PazSalvo(Base):
+    """Certificado de paz y salvo con código único. El QR del PDF apunta a /verificar/<codigo>: cualquiera (banco, empresa de trasteos, guardia)
+    comprueba en el servidor que es auténtico y sigue vigente. «Vigente» no se guarda: se calcula (no revocado, no vencido y el apartamento sigue al día)."""
+    __tablename__ = "paz_y_salvos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)   # el titular (propietario) del apartamento
+    codigo = Column(String, unique=True, nullable=False, index=True)                       # aleatorio de 128 bits: es lo que viaja en el QR
+    destino = Column(String(80), nullable=True)                                            # para qué se pidió: «Mudanza», «Trámite bancario»…
+    fecha_emision = Column(DateTime, default=ahora_utc, nullable=False, index=True)
+    valido_hasta = Column(DateTime, nullable=False)
+    emitido_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)               # quién lo pidió (puede ser el inquilino con permiso, o el administrador)
+    revocado = Column(Boolean, nullable=False, default=False)

@@ -6,7 +6,7 @@ const GRUPOS = [
   ["Mi día a día", ["visitas", "reservas", "paquetes", "cartera", "inquilinos"]],
   ["Trámites", ["mantenimiento", "pqrs", "documentos"]],
   ["Comunidad", ["votaciones", "anuncios", "comercio", "emergencias"]],
-  ["Administración", ["porteria", "residentes", "auditoria"]],
+  ["Administración", ["indicadores", "porteria", "residentes", "importar", "auditoria"]],
   ["Mi cuenta", ["configuracion"]],
 ];
 

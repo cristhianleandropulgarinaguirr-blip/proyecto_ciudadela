@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#053550">
+  <title>Verificación de paz y salvo</title>
+  <link rel="icon" type="image/png" href="/app/img/favicon.png">
+  <link rel="stylesheet" href="/app/verificar/verificar.css">
+</head>
+<body>
+  <main class="doc" id="doc" aria-live="polite">
+    <header class="cab">
+      <img class="logo" src="/app/img/logo-crema.png" alt="" width="40" height="40">
+      <div>
+        <p class="peq">Verificación de documento</p>
+        <h1 id="conjunto">Cargando…</h1>
+      </div>
+    </header>
+
+    <section class="tarjeta" id="tarjeta" hidden>
+      <div class="sello" id="sello" role="status">
+        <span class="icono" id="icono" aria-hidden="true"></span>
+        <strong id="titulo-estado"></strong>
+        <span id="texto-estado"></span>
+      </div>
+      <dl class="datos">
+        <div><dt>Documento</dt><dd>Paz y salvo de administración</dd></div>
+        <div><dt>Folio</dt><dd id="folio" class="mono"></dd></div>
+        <div><dt>Titular</dt><dd id="titular"></dd></div>
+        <div><dt>Apartamento</dt><dd id="apartamento"></dd></div>
+        <div id="fila-destino"><dt>Para</dt><dd id="destino"></dd></div>
+        <div><dt>Emitido</dt><dd id="emision"></dd></div>
+        <div><dt>Válido hasta</dt><dd id="validez"></dd></div>
+      </dl>
+      <p class="peq nota">Compara el folio, el titular y el apartamento con el documento que te entregaron. Si no coinciden, el documento fue modificado y no es válido.</p>
+    </section>
+
+    <section class="tarjeta error" id="error" hidden>
+      <div class="sello mal"><span class="icono">✕</span><strong id="error-titulo">Código no válido</strong></div>
+      <p id="error-texto">Este código no corresponde a ningún paz y salvo emitido por Ciudadela Digital. El documento puede ser falso.</p>
+    </section>
+
+    <footer class="pie peq">Ciudadela Digital · Verificación en tiempo real</footer>
+  </main>
+  <script src="/app/verificar/verificar.js" defer></script>
+</body>
+</html>

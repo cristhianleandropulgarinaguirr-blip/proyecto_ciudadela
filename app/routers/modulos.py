@@ -18,10 +18,10 @@ from app.notificaciones import notificar
 from app.constantes import Delegacion, EstadoDanio, EstadoReserva, RolNombre
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
-from app.models import Pago, ReporteDanio, Reserva, Usuario, VehiculoVisitante, ahora_utc
+from app.models import Pago, ReporteDanio, Reserva, Rol, Usuario, VehiculoVisitante, ahora_utc
 from app.schemas.negocio import (
     OcupacionDia, PagoRegistroResponse,
-    EstadoCuentaResponse, MensajeResponse, PagoResponse, ReservaCreate,
+    CarteraFila, EstadoCuentaResponse, MensajeResponse, PagoResponse, ReservaCreate,
     HistorialVehiculosResponse, ReservaResponse, ReporteResponse, VehiculoHistorialItem, VehiculoResponse,
 )
 
@@ -278,6 +278,17 @@ def consultar_estado_cuenta(usuario_id: int, db: Session = Depends(get_db), actu
     if usuario is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
     return usuario
+
+
+@router.get("/administracion/cartera", response_model=list[CarteraFila], tags=[TAG_ADMIN],
+            summary="Cartera de todos los residentes (una sola consulta)",
+            description="Solo **Administrador**. Una fila por residente con su cuota, saldo y estado. Reemplaza pedir el estado de cuenta de cada residente por separado "
+                        "(con 200 residentes la pantalla pasa de 201 peticiones a 1).")
+def cartera_completa(db: Session = Depends(get_db), _: Usuario = Depends(requiere_roles(ADMIN))):
+    filas = (db.query(Usuario).join(Rol, Rol.id == Usuario.rol_id).filter(Rol.nombre == RolNombre.RESIDENTE.value)
+             .order_by(Usuario.apartamento, Usuario.nombre_completo).all())
+    return [CarteraFila(usuario_id=u.id, nombre_completo=u.nombre_completo, apartamento=u.apartamento, valor_administracion=u.valor_administracion,
+                        saldo_pendiente=u.saldo_pendiente, esta_al_dia=u.esta_al_dia, esta_activo=u.esta_activo) for u in filas]
 
 
 @router.patch("/administracion/registrar-deuda/{usuario_id}", response_model=EstadoCuentaResponse, tags=[TAG_ADMIN],

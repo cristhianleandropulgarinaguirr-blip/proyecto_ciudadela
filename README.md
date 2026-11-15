@@ -418,3 +418,6 @@ git push origin feature/seguridad-jwt        # luego Pull Request hacia main
 
 ## Versión 3.5
 Rendimiento de reservas, enlace público del pase de visitante, PIN de 6 dígitos y avisos «Estoy en camino / Llegué». Ver `PASOS_V3.5.md`.
+
+## Versión 3.6
+Carga masiva por Excel/CSV (censo y cartera), paz y salvo con QR de verificación, indicadores (KPIs) y cartera en una sola petición. Ver `PASOS_V3.6.md`.

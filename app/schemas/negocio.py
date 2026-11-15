@@ -65,6 +65,19 @@ class ReporteResponse(BaseModel):
 
 
 # ---------------- ADMINISTRACIÓN ----------------
+class CarteraFila(BaseModel):
+    """Una fila de la pantalla «Cartera» del administrador: todo lo necesario en UNA sola respuesta (antes la pantalla pedía el estado de cuenta residente por residente)."""
+    usuario_id: int
+    nombre_completo: str
+    apartamento: Optional[str]
+    valor_administracion: int
+    saldo_pendiente: int
+    esta_al_dia: bool
+    esta_activo: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class EstadoCuentaResponse(BaseModel):
     apartamento: Optional[str]
     nombre_completo: str

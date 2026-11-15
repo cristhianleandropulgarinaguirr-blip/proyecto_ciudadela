@@ -47,3 +47,7 @@ services:
         sync: false
       - key: CONJUNTO_LONGITUD
         sync: false
+      - key: PAZ_Y_SALVO_DIAS         # v3.6 · días de validez del paz y salvo (por defecto 30)
+        sync: false
+      - key: URL_PUBLICA              # v3.6 · opcional: dirección pública de la app para el QR del paz y salvo
+        sync: false

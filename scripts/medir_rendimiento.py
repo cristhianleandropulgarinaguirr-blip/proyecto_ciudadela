@@ -87,7 +87,7 @@ def _dia(delta=0):
 
 
 RUTAS = {
-    "admin": ["/reservas/listar?estado=Pendiente", f"/reservas/listar?desde={_dia(-90)}","/usuarios/", "/reservas/listar", "/reservas/ocupacion?zona=Zona%20BBQ&mes=2026-11", "/mantenimiento/listar-danios", "/anuncios/", "/paquetes/",
+    "admin": ["/dashboard/kpis?refrescar=true", "/administracion/cartera", "/reservas/listar?estado=Pendiente", f"/reservas/listar?desde={_dia(-90)}","/usuarios/", "/reservas/listar", "/reservas/ocupacion?zona=Zona%20BBQ&mes=2026-11", "/mantenimiento/listar-danios", "/anuncios/", "/paquetes/",
               "/paquetes/destinatarios", "/pqrs/", "/auditoria/", "/qr/visitantes?todos=true", "/qr/escaneos", "/comercio/gestion",
               "/porteria/historial", "/porteria/vehiculos-dentro", "/notificaciones/", "/notificaciones/conteo", "/votaciones/",
               "/documentos/", "/arrendamientos/", "/visitantes-autorizados/accesos", "/usuarios/me", "/emergencias/"],
