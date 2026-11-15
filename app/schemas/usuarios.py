@@ -45,6 +45,7 @@ class UsuarioResponse(UsuarioBase):
     esta_activo: bool
     esta_al_dia: bool
     parqueadero_asignado: str
+    coeficiente: Optional[float] = None   # % de copropiedad del apartamento (Ley 675); lo asigna el administrador
     debe_cambiar_password: bool = False
     politica_aceptada: bool = False   # ¿ya aceptó la política de tratamiento de datos?
     delegaciones: list[str] = []      # solo inquilinos: lo que su propietario le dejó hacer ("pagar", "votar")
@@ -79,6 +80,18 @@ class TokenResponse(BaseModel):
 
 class ParqueaderoUpdate(BaseModel):
     parqueadero_asignado: str = Field(..., min_length=1, max_length=20, examples=["P-202"])
+
+
+class CoeficienteUpdate(BaseModel):
+    coeficiente: Optional[float] = Field(default=None, gt=0, le=100, description="Porcentaje de copropiedad del apartamento (por ejemplo 0.8523). null = quitarlo.", examples=[0.8523])
+
+
+class CoeficientesResumen(BaseModel):
+    total: float                      # suma de los coeficientes de todos los apartamentos (debe ser 100)
+    apartamentos: int
+    con_coeficiente: int
+    sin_coeficiente: list[str]        # apartamentos a los que aún les falta
+    completo: bool                    # todos tienen coeficiente y la suma es 100
 
 
 class CambioPassword(BaseModel):

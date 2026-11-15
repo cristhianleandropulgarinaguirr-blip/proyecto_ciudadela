@@ -421,3 +421,6 @@ Rendimiento de reservas, enlace público del pase de visitante, PIN de 6 dígito
 
 ## Versión 3.6
 Carga masiva por Excel/CSV (censo y cartera), paz y salvo con QR de verificación, indicadores (KPIs) y cartera en una sola petición. Ver `PASOS_V3.6.md`.
+
+## Versión 3.8
+Fase 3 (legal y operativo): coeficiente de copropiedad, votación ponderada con quórum (Ley 675) y flujo de trasteos con validación de paz y salvo, aprobación y alerta a la portería. Ver `PASOS_V3.8.md`.

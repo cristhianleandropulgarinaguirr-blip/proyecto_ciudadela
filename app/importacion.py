@@ -27,6 +27,7 @@ ALIAS: dict[str, dict[str, set[str]]] = {
         "apartamento": {"apartamento", "apto", "apt", "inmueble", "unidad", "casa"},
         "parqueadero": {"parqueadero", "parqueo", "garaje", "garage"},
         "valor_administracion": {"valor_administracion", "cuota", "cuota_administracion", "cuota_mensual", "valor_cuota", "administracion"},
+        "coeficiente": {"coeficiente", "coeficiente_copropiedad", "coeficiente_de_copropiedad", "coef", "indiviso", "porcentaje_copropiedad", "participacion"},
     },
     "cartera": {
         "email": {"email", "correo", "correo_electronico", "e_mail", "mail"},
@@ -37,7 +38,7 @@ ALIAS: dict[str, dict[str, set[str]]] = {
 # Columnas sin las cuales la planilla no sirve (de «cartera» basta con una de email/apartamento, se valida aparte).
 OBLIGATORIAS = {"residentes": {"nombre_completo", "email", "apartamento"}, "cartera": {"saldo_pendiente"}}
 TITULOS = {"nombre_completo": "nombre_completo", "email": "email", "apartamento": "apartamento", "parqueadero": "parqueadero",
-           "valor_administracion": "valor_administracion", "saldo_pendiente": "saldo_pendiente"}
+           "valor_administracion": "valor_administracion", "saldo_pendiente": "saldo_pendiente", "coeficiente": "coeficiente"}
 
 _EMAIL = TypeAdapter(EmailStr)
 
@@ -67,6 +68,25 @@ def _celda(v: Any) -> str:
     if isinstance(v, (datetime, date)):
         return v.isoformat()
     return " ".join(str(v).split())            # sin saltos de línea ni espacios dobles
+
+
+def parsear_coeficiente(valor: Any) -> float:
+    """«0,8523», «0.8523», «0,8523 %» → 0.8523 (porcentaje). Acepta coma o punto decimal. Debe estar entre 0 (sin incluir) y 100."""
+    if isinstance(valor, (int, float)):
+        n = float(valor)
+    else:
+        t = re.sub(r"[\s%]", "", str(valor or "")).replace(",", ".")
+        if not t:
+            raise ValueError("está vacío")
+        if t.count(".") > 1:
+            raise ValueError(f"«{valor}» no es un número (usa una sola coma o punto decimal)")
+        try:
+            n = float(t)
+        except ValueError:
+            raise ValueError(f"«{valor}» no es un número")
+    if not 0 < n <= 100:
+        raise ValueError("debe ser un porcentaje mayor que 0 y de máximo 100 (por ejemplo 0,8523)")
+    return round(n, 4)
 
 
 def parsear_dinero(valor: Any) -> int:
@@ -212,6 +232,12 @@ def validar_residente(numero: int, v: dict[str, str]) -> Fila:
             datos["valor_administracion"] = parsear_dinero(v["valor_administracion"])
         except ValueError as e:
             f.mensaje = f"Cuota de administración: {e}."
+            return f
+    if v.get("coeficiente"):
+        try:
+            datos["coeficiente"] = parsear_coeficiente(v["coeficiente"])
+        except ValueError as e:
+            f.mensaje = f"Coeficiente: {e}."
             return f
     f.datos, f.accion = datos, "crear"           # el servicio decide si es «crear» o «actualizar» según exista el correo
     return f

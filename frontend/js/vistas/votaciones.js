@@ -4,6 +4,8 @@ import { api } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, confirmar, deUtc, fmtFechaHora, kpi } from "../ui.js";
 import { cabecera } from "./comun.js";
 
+const pc = (n) => Number(n ?? 0).toLocaleString("es-CO", { maximumFractionDigits: 4 });   // 0,8523 (coma decimal)
+
 function faltan(d) {
   const ms = d - Date.now();
   if (ms <= 0) return "terminó";
@@ -20,7 +22,8 @@ function formularioNueva(alCrear) {
   const aLocal = (d) => new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   const cierre = h("input", { id: "vt-cierre", type: "datetime-local", value: aLocal(porDefecto), required: true });
   const cajaOpc = h("div", { class: "opciones-voto" });
-  let opciones = ["Sí", "No", "Me abstengo"], unoPor = "apartamento", vivo = false, alDia = false;
+  let opciones = ["Sí", "No", "Me abstengo"], unoPor = "apartamento", vivo = false, alDia = false, pondera = false, resumenCoef = null;
+  const infoCoef = h("p", { class: "small muted", hidden: true, style: "margin:.4rem 0 0 1.9rem" });
 
   const pintarOpc = () => cajaOpc.replaceChildren(...opciones.map((t, i) => h("div", { class: "fila-opcion" },
     h("input", { value: t, maxlength: "80", placeholder: `Opción ${i + 1}`, "aria-label": `Opción ${i + 1}`, oninput: (e) => { opciones[i] = e.target.value; } }),
@@ -29,7 +32,17 @@ function formularioNueva(alCrear) {
 
   const chips = h("div", { class: "chips", role: "group", "aria-label": "Quién vota" });
   const pintarChips = () => chips.replaceChildren(...[["apartamento", "Un voto por apartamento"], ["persona", "Un voto por persona"]].map(([id, t]) =>
-    h("button", { class: "chip", type: "button", "aria-pressed": String(unoPor === id), onclick: () => { unoPor = id; pintarChips(); } }, t)));
+    h("button", { class: "chip", type: "button", "aria-pressed": String(unoPor === id), disabled: pondera && id === "persona", onclick: () => { unoPor = id; pintarChips(); } }, t)));
+  const pintarInfoCoef = () => {
+    infoCoef.hidden = !pondera;
+    if (!pondera) return;
+    if (!resumenCoef) { infoCoef.textContent = "Revisando los coeficientes…"; return; }
+    const r = resumenCoef;
+    infoCoef.className = `small ${r.completo ? "muted" : "texto-error"}`;
+    infoCoef.textContent = r.completo ? `Listo: los ${r.apartamentos} apartamentos tienen coeficiente y suman ${pc(r.total)} %.`
+      : r.sin_coeficiente.length ? `Faltan ${r.sin_coeficiente.length} de ${r.apartamentos} apartamentos sin coeficiente (por ejemplo: ${r.sin_coeficiente.slice(0, 3).join(", ")}). Cárgalos en «Usuarios» o en «Cargar datos» antes de publicar.`
+      : `Los coeficientes suman ${pc(r.total)} % y deberían sumar 100 %. Puedes publicar, pero revisa la suma.`;
+  };
   const caja = (texto, ayuda, alCambiar) => h("label", { class: "check" }, h("input", { type: "checkbox", onchange: (e) => alCambiar(e.target.checked) }), h("span", {}, h("b", {}, texto), h("small", {}, ayuda)));
 
   const ok = h("button", { class: "btn", type: "submit", form: "f-votacion" }, icono("ok", 16), "Publicar votación");
@@ -41,7 +54,7 @@ function formularioNueva(alCrear) {
     if (!cierre.value) return toast("Indica cuándo cierra la votación.", "error");
     try {
       await conCarga(ok, () => api("/votaciones/", { metodo: "POST", json: { titulo: titulo.value.trim(), descripcion: desc.value.trim() || null, opciones: limpias,
-        fecha_cierre: new Date(cierre.value).toISOString(), un_voto_por: unoPor, resultados_en_vivo: vivo, exige_al_dia: alDia } }));
+        fecha_cierre: new Date(cierre.value).toISOString(), un_voto_por: unoPor, resultados_en_vivo: vivo, exige_al_dia: alDia, ponderada: pondera } }));
       m.cerrar(); toast("Votación publicada. Los residentes ya recibieron el aviso."); alCrear();
     } catch (err) { toast(err.message, "error"); }
   } },
@@ -52,6 +65,10 @@ function formularioNueva(alCrear) {
     h("div", { class: "etiqueta-seccion" }, "Quién vota"), chips,
     caja("Mostrar resultados mientras se vota", "Si no, se publican solo al cerrar (recomendado).", (v) => { vivo = v; }),
     caja("Solo residentes al día con la administración", "Para decisiones de asamblea.", (v) => { alDia = v; }),
+    caja("Votar por coeficiente de copropiedad (Ley 675)", "Cada apartamento vota con su porcentaje y se calcula el quórum. Cuenta un voto por apartamento.", (v) => {
+      pondera = v; if (v) unoPor = "apartamento"; pintarChips(); pintarInfoCoef();
+      if (v && !resumenCoef) api("/usuarios/coeficientes/resumen").then((r) => { resumenCoef = r; pintarInfoCoef(); }).catch(() => { infoCoef.textContent = "No pude revisar los coeficientes ahora; el servidor lo validará al publicar."; });
+    }), infoCoef,
     h("p", { class: "small muted", style: "margin-top:.8rem" }, "El voto es secreto: ni la administración puede ver qué votó cada persona.")),
   { pie: [h("button", { class: "btn suave", onclick: () => m.cerrar() }, "Cancelar"), ok] });
   pintarOpc(); pintarChips(); titulo.focus();
@@ -63,7 +80,9 @@ async function verParticipacion(v) {
   try {
     const p = await api(`/votaciones/${v.id}/participacion`);
     const lista = (t, xs) => h("div", { style: "margin-bottom:1rem" }, h("b", {}, `${t} (${xs.length})`), xs.length ? h("ul", { class: "lista-simple" }, xs.map((x) => h("li", {}, x))) : h("p", { class: "small muted" }, "Nadie."));
-    caja.replaceChildren(lista("Ya votaron", p.participaron), lista("Faltan por votar", p.pendientes), h("p", { class: "small muted" }, "Solo se muestra quién votó, nunca qué votó."));
+    const quorum = p.coeficiente_participaron != null
+      ? h("p", { class: "small", style: "margin-bottom:1rem" }, h("b", {}, `Quórum: ${pc(p.coeficiente_participaron)} % del coeficiente`), ` ya votó · falta ${pc(p.coeficiente_pendientes)} %.`) : null;
+    caja.replaceChildren(quorum, lista("Ya votaron", p.participaron), lista("Faltan por votar", p.pendientes), h("p", { class: "small muted" }, "Solo se muestra quién votó, nunca qué votó."));
   } catch (e) { caja.replaceChildren(h("p", { class: "muted" }, e.message)); }
 }
 
@@ -76,9 +95,9 @@ function tarjeta(v, esAdmin, recargar) {
   const resultados = () => {
     const max = Math.max(...v.opciones.map((o) => o.votos ?? 0));
     return [...v.opciones.map((o) => h("div", { class: `resultado-op ${max > 0 && o.votos === max ? "gana" : ""}` },
-      h("div", { class: "fila" }, h("b", {}, o.texto), h("span", {}, `${o.votos} · ${o.porcentaje}%`)),
+      h("div", { class: "fila" }, h("b", {}, o.texto), h("span", {}, v.ponderada ? `${pc(o.coeficiente)} % del coeficiente · ${o.votos} voto(s) · ${pc(o.porcentaje)}%` : `${o.votos} · ${o.porcentaje}%`)),
       h("div", { class: "barra-progreso" }, h("i", { style: `width:${o.porcentaje}%` })))),
-    h("p", { class: "small muted" }, `${v.total_votos} voto(s) en total.`)];
+    h("p", { class: "small muted" }, v.ponderada ? `${v.total_votos} apartamento(s) votaron. El porcentaje es sobre el coeficiente que votó.` : `${v.total_votos} voto(s) en total.`)];
   };
 
   const pintar = () => {
@@ -101,7 +120,7 @@ function tarjeta(v, esAdmin, recargar) {
   const votar = h("button", { class: "btn", type: "button", onclick: async () => {
     if (!elegida) return toast("Elige una opción.", "error");
     const texto = v.opciones.find((o) => o.id === elegida).texto;
-    if (!(await confirmar("¿Confirmas tu voto?", `Votarás «${texto}». Tu voto es secreto y no se puede cambiar.${v.un_voto_por === "apartamento" ? " Cuenta como el voto de tu apartamento." : ""}`, "Sí, votar"))) return;
+    if (!(await confirmar("¿Confirmas tu voto?", `Votarás «${texto}». Tu voto es secreto y no se puede cambiar.${v.ponderada ? ` Tu voto vale ${pc(v.tu_coeficiente)} % del coeficiente de copropiedad.` : v.un_voto_por === "apartamento" ? " Cuenta como el voto de tu apartamento." : ""}`, "Sí, votar"))) return;
     try { await conCarga(votar, () => api(`/votaciones/${v.id}/votar`, { metodo: "POST", json: { opcion_id: elegida } })); toast("Voto registrado. ¡Gracias por participar!"); recargar(); }
     catch (e) { toast(e.message, "error"); recargar(); }
   } }, icono("urna", 18), "Votar");
@@ -114,9 +133,11 @@ function tarjeta(v, esAdmin, recargar) {
     h("div", { class: "card-titulo" }, h("h2", {}, v.titulo), badge(v.estado)),
     v.descripcion ? h("p", { class: "muted" }, v.descripcion) : null,
     h("p", { class: "small muted" }, abierta ? `Cierra ${fmtFechaHora(cierre)} (${faltan(cierre)})` : v.estado === "Anulada" ? "Votación anulada" : `Cerró ${fmtFechaHora(cierre)}`,
-      ` · ${v.un_voto_por === "apartamento" ? "un voto por apartamento" : "un voto por persona"}${v.exige_al_dia ? " · solo residentes al día" : ""}`),
+      ` · ${v.ponderada ? "por coeficiente de copropiedad" : v.un_voto_por === "apartamento" ? "un voto por apartamento" : "un voto por persona"}${v.exige_al_dia ? " · solo residentes al día" : ""}`),
+    v.ponderada && v.tu_coeficiente != null && !esAdmin ? h("p", { class: "small" }, `Tu voto vale `, h("b", {}, `${pc(v.tu_coeficiente)} %`), " del coeficiente.") : null,
     cuerpo,
-    h("div", { class: "participacion" }, h("div", { class: "barra-progreso" }, h("i", { style: `width:${pct}%` })), h("span", { class: "small muted" }, `Han votado ${v.participacion} de ${v.elegibles}`)),
+    h("div", { class: "participacion" }, h("div", { class: "barra-progreso" }, h("i", { style: `width:${v.ponderada ? Math.min(100, v.quorum_coeficiente) : pct}%` })),
+      h("span", { class: "small muted" }, v.ponderada ? `Quórum: ${pc(v.quorum_coeficiente)} % del coeficiente · han votado ${v.participacion} de ${v.elegibles} apartamentos` : `Han votado ${v.participacion} de ${v.elegibles}`)),
     h("div", { class: "acciones-fila" }, v.puede_votar ? votar : null, esAdmin ? h("button", { class: "btn suave sm", onclick: () => verParticipacion(v) }, icono("usuarios", 16), "Quién votó") : null, ...admin));
 }
 

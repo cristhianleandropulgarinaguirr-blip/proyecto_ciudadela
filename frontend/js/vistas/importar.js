@@ -10,7 +10,7 @@ const TIPOS = {
   residentes: {
     nombre: "Censo de residentes", icono: "usuarios", plantilla: "plantilla_residentes.xlsx",
     que: "Crea de una vez las cuentas de todos los residentes (con una clave temporal) y actualiza los datos de los que ya existen.",
-    pasos: ["Descarga la plantilla y llénala: nombre, correo y apartamento (parqueadero y cuota son opcionales).", "Súbela y revisa la vista previa: verás cuántas cuentas se crean y qué filas tienen errores.",
+    pasos: ["Descarga la plantilla y llénala: nombre, correo y apartamento (parqueadero, cuota y coeficiente de copropiedad son opcionales; el coeficiente lo necesitas para votar por coeficiente, y todos deben sumar 100).", "Súbela y revisa la vista previa: verás cuántas cuentas se crean y qué filas tienen errores.",
       "Al importar, descarga las claves temporales y entrégalas a cada residente. Deberán cambiarlas al ingresar."],
   },
   cartera: {

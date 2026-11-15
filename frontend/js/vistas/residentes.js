@@ -36,6 +36,8 @@ export async function render(ctx) {
         h("td", { "data-et": "Rol" }, h("span", { class: `badge ${u.rol === "Administrador" ? "laton" : u.rol === "Guardia" ? "borde" : u.rol === "Inquilino" ? "violeta" : "bosque"}` }, u.rol)),
         h("td", { "data-et": "Apartamento" }, u.apartamento ?? "—"),
         h("td", { "data-et": "Parqueadero" }, h("button", { class: "btn suave sm", onclick: () => editarParqueadero(u) }, u.parqueadero_asignado)),
+        h("td", { "data-et": "Coeficiente" }, u.rol === "Residente" && u.apartamento ? h("button", { class: "btn suave sm", title: "Porcentaje de copropiedad del apartamento (Ley 675)", onclick: () => editarCoeficiente(u) },
+          u.coeficiente != null ? `${Number(u.coeficiente).toLocaleString("es-CO", { maximumFractionDigits: 4 })} %` : "Asignar") : "—"),
         h("td", { "data-et": "Cartera" }, u.rol === "Residente" ? (u.esta_al_dia ? badge("Al día", "Al día") : badge("En mora", "En mora")) : "—"),
         h("td", { "data-et": "Activo" }, h("div", { class: "acciones-celda" }, h("label", { class: "switch" }, sw, h("i")),
           yo ? null : h("button", { class: "btn suave sm", title: "Genera una contraseña temporal", onclick: () => restablecerClave(u) }, "Restablecer clave"))));
@@ -67,6 +69,35 @@ export async function render(ctx) {
     { pie: [h("button", { class: "btn suave", onclick: () => m.cerrar() }, "Cancelar"), ok] });
   }
 
+  function editarCoeficiente(u) {
+    const val = h("input", { id: "coef", placeholder: " ", inputmode: "decimal", maxlength: "9", value: u.coeficiente != null ? String(u.coeficiente).replace(".", ",") : "" });
+    const ok = h("button", { class: "btn", type: "submit", form: "f-coef" }, "Guardar");
+    const m = modal(`Coeficiente de ${u.apartamento}`, h("form", { id: "f-coef", novalidate: true, onsubmit: async (e) => {
+      e.preventDefault();
+      const t = val.value.trim().replace("%", "").replace(",", ".");
+      const n = t === "" ? null : Number(t);
+      if (n !== null && !(n > 0 && n <= 100)) return toast("Escribe un porcentaje entre 0 y 100, por ejemplo 0,8523.", "error");
+      try { Object.assign(u, await conCarga(ok, () => api(`/usuarios/${u.id}/coeficiente`, { metodo: "PATCH", json: { coeficiente: n } }))); toast(n === null ? "Coeficiente quitado" : "Coeficiente guardado"); m.cerrar(); pintar(); resumen(); }
+      catch (err) { toast(err.message, "error"); }
+    } }, h("div", { class: "field" }, val, h("label", { for: "coef" }, "Porcentaje (ej. 0,8523)")),
+    h("p", { class: "small muted" }, "Es el porcentaje de copropiedad del apartamento según el reglamento. Entre todos los apartamentos deben sumar 100. Déjalo vacío para quitarlo.")),
+    { pie: [h("button", { class: "btn suave", onclick: () => m.cerrar() }, "Cancelar"), ok] });
+    val.focus();
+  }
+
+  // Resumen del coeficiente del conjunto (para saber si ya se puede votar por coeficiente).
+  const avisoCoef = h("p", { class: "small muted", style: "margin:.2rem 0 .8rem" });
+  async function resumen() {
+    try {
+      const r = await api("/usuarios/coeficientes/resumen");
+      const f = (n) => Number(n).toLocaleString("es-CO", { maximumFractionDigits: 4 });
+      avisoCoef.className = `small ${r.completo ? "muted" : "texto-error"}`;
+      avisoCoef.textContent = r.apartamentos === 0 ? "" : r.completo ? `Coeficiente de copropiedad completo: ${r.apartamentos} apartamentos, suman ${f(r.total)} %. Ya puedes votar por coeficiente.`
+        : `Coeficiente de copropiedad: ${r.con_coeficiente} de ${r.apartamentos} apartamentos cargados, suman ${f(r.total)} % (deben sumar 100 % para votar por coeficiente).`;
+    } catch { avisoCoef.textContent = ""; }
+  }
+  resumen();
+
   function nuevoUsuario() {
     const f = {};
     const campo = (id, et, attrs = {}) => { f[id] = h("input", { id, placeholder: " ", ...attrs }); return h("div", { class: "field" }, f[id], h("label", { for: id }, et)); };
@@ -94,7 +125,8 @@ export async function render(ctx) {
   return h("div", {}, cabecera("Usuarios", "Crea cuentas, asigna parqueaderos y activa o desactiva accesos."),
     h("div", { class: "card" },
       h("div", { class: "barra" }, h("div", { class: "buscador" }, icono("buscar"), buscar), h("button", { class: "btn", onclick: nuevoUsuario }, icono("mas", 18), "Nuevo usuario")),
+      avisoCoef,
       h("div", { style: "margin-bottom:.5rem" }, chips),
       h("div", { class: "tabla-wrap" }, h("table", { class: "tabla" },
-        h("thead", {}, h("tr", {}, ["Usuario", "Rol", "Apartamento", "Parqueadero", "Cartera", "Activo"].map((t) => h("th", {}, t)))), cuerpo)), vacio));
+        h("thead", {}, h("tr", {}, ["Usuario", "Rol", "Apartamento", "Parqueadero", "Coeficiente", "Cartera", "Activo"].map((t) => h("th", {}, t)))), cuerpo)), vacio));
 }

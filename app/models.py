@@ -1,7 +1,7 @@
 # app/models.py
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -48,6 +48,8 @@ class Usuario(Base):
     valor_administracion = Column(Integer, default=150000)
     saldo_pendiente = Column(Integer, default=0)
     parqueadero_asignado = Column(String, default="Ninguno")
+    # V3.8: coeficiente de copropiedad del apartamento, en PORCENTAJE (por ejemplo 0.8523 = 0,8523 %). Ley 675: pesa en votaciones de asamblea.
+    coeficiente = Column(Float, nullable=True)
 
     # True cuando el administrador restableció la clave: la persona debe crear una propia al entrar.
     debe_cambiar_password = Column(Boolean, default=False, nullable=False)
@@ -423,6 +425,7 @@ class Votacion(Base):
     un_voto_por = Column(String, nullable=False, default="apartamento")      # apartamento | persona
     resultados_en_vivo = Column(Boolean, nullable=False, default=False)
     exige_al_dia = Column(Boolean, nullable=False, default=False)             # solo vota quien está al día con la administración
+    ponderada = Column(Boolean, nullable=False, default=False)                # V3.8: cada voto vale el coeficiente de copropiedad del apartamento (Ley 675)
     cerrada_en = Column(DateTime, nullable=True)
     fecha_creacion = Column(DateTime, default=ahora_utc)
 
@@ -435,6 +438,7 @@ class VotacionOpcion(Base):
     texto = Column(String, nullable=False)
     orden = Column(Integer, nullable=False, default=0)
     conteo = Column(Integer, nullable=False, default=0)
+    peso = Column(Float, nullable=False, default=0.0)         # V3.8: suma de los coeficientes (%) de quienes eligieron esta opción (solo votaciones ponderadas)
 
 
 class VotacionParticipacion(Base):
@@ -446,6 +450,7 @@ class VotacionParticipacion(Base):
     votacion_id = Column(Integer, ForeignKey("votaciones.id"), nullable=False, index=True)
     clave = Column(String, nullable=False)                    # «apto:torre 1 apt 101» o «usr:15»
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    peso = Column(Float, nullable=False, default=0.0)         # V3.8: coeficiente (%) con el que votó ese apartamento; sirve para el quórum. No dice QUÉ votó.
     fecha = Column(DateTime, default=ahora_utc)
 
 
@@ -518,3 +523,33 @@ class PazSalvo(Base):
     valido_hasta = Column(DateTime, nullable=False)
     emitido_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)               # quién lo pidió (puede ser el inquilino con permiso, o el administrador)
     revocado = Column(Boolean, nullable=False, default=False)
+
+
+# ==========================================
+#   V3.8 · TRASTEOS (mudanzas) CON VALIDACIÓN DE PAZ Y SALVO
+# ==========================================
+class Trasteo(Base):
+    """Solicitud de trasteo: la pide el residente (o su inquilino), la aprueba el administrador y la ejecuta la portería.
+    Una SALIDA solo se aprueba y se inicia si el apartamento tiene paz y salvo vigente (se vuelve a comprobar en cada paso)."""
+    __tablename__ = "trasteos"
+    __table_args__ = (Index("ix_trasteos_estado_inicio", "estado", "fecha_inicio"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    solicitante_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    titular_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)    # el propietario del apartamento (de quien se valida el paz y salvo)
+    apartamento = Column(String, nullable=True)
+    tipo = Column(String, nullable=False)                      # Entrada | Salida
+    fecha_inicio = Column(DateTime, nullable=False)            # UTC: desde cuándo puede entrar/salir el trasteo
+    fecha_fin = Column(DateTime, nullable=False)               # UTC: hasta cuándo
+    empresa = Column(String(80), nullable=True)                # empresa de trasteos o nombre de quien lo hace
+    placa = Column(String(15), nullable=True)                  # placa del camión o vehículo
+    observaciones = Column(String(300), nullable=True)
+    estado = Column(String, nullable=False, default="Pendiente")
+    paz_salvo_id = Column(Integer, ForeignKey("paz_y_salvos.id"), nullable=True)           # el certificado con el que se pidió (solo Salida)
+    decidido_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    fecha_decision = Column(DateTime, nullable=True)
+    motivo = Column(String(200), nullable=True)                # motivo del rechazo o de la cancelación
+    registrado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)             # el guardia que lo inició
+    inicio_real = Column(DateTime, nullable=True)
+    fin_real = Column(DateTime, nullable=True)
+    fecha_creacion = Column(DateTime, default=ahora_utc)

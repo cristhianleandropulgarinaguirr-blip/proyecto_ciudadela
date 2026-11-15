@@ -161,3 +161,25 @@ class CategoriaDocumento(str, Enum):
     CIRCULAR = "Circular"
     FINANCIERO = "Financiero"
     OTROS = "Otros"
+
+
+# ---------- V3.8 · Fase 3 (legal y operativo): trasteos ----------
+class TipoTrasteo(str, Enum):
+    ENTRADA = "Entrada"    # llegan muebles al conjunto (mudanza de llegada)
+    SALIDA = "Salida"      # salen muebles del conjunto: exige paz y salvo vigente
+
+
+class EstadoTrasteo(str, Enum):
+    PENDIENTE = "Pendiente"      # el residente lo solicitó; espera al administrador
+    APROBADO = "Aprobado"        # el administrador lo aprobó y se avisó a portería
+    EN_CURSO = "En curso"        # el guardia registró el inicio
+    COMPLETADO = "Completado"    # el guardia registró el fin
+    RECHAZADO = "Rechazado"
+    CANCELADO = "Cancelado"
+    # «Vencido» no se guarda: se calcula cuando una solicitud Pendiente/Aprobada pasó de fecha sin iniciarse.
+
+
+MAX_TRASTEOS_ACTIVOS = 2          # solicitudes abiertas (pendientes, aprobadas o en curso) por apartamento
+MAX_HORAS_TRASTEO = 12            # duración máxima de la ventana de un trasteo
+MAX_DIAS_ANTICIPACION = 60        # no se puede pedir un trasteo para dentro de más de 60 días
+HORAS_ANTES_PERMITIDAS = 2        # el guardia puede iniciar un trasteo hasta 2 h antes de la hora acordada

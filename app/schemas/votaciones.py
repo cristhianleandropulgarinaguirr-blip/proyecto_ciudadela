@@ -2,7 +2,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class VotacionCreate(BaseModel):
@@ -13,6 +13,13 @@ class VotacionCreate(BaseModel):
     un_voto_por: Literal["apartamento", "persona"] = "apartamento"
     resultados_en_vivo: bool = False
     exige_al_dia: bool = False
+    ponderada: bool = Field(default=False, description="Cada voto vale el coeficiente de copropiedad del apartamento (Ley 675). Obliga a «un voto por apartamento».")
+
+    @model_validator(mode="after")
+    def _ponderada_por_apartamento(self):
+        if self.ponderada and self.un_voto_por != "apartamento":
+            raise ValueError("Una votación por coeficiente cuenta un voto por apartamento (el coeficiente es del apartamento, no de la persona).")
+        return self
 
     @field_validator("titulo", "descripcion")
     @classmethod
@@ -49,7 +56,8 @@ class OpcionResponse(BaseModel):
     id: int
     texto: str
     votos: Optional[int] = None            # None = los resultados aún no son visibles
-    porcentaje: Optional[float] = None
+    porcentaje: Optional[float] = None     # % de los votos (o, si es ponderada, % del coeficiente que votó) que eligió esta opción
+    coeficiente: Optional[float] = None    # solo ponderadas: suma del coeficiente (%) de los apartamentos que la eligieron
 
 
 class VotacionResponse(BaseModel):
@@ -62,12 +70,16 @@ class VotacionResponse(BaseModel):
     un_voto_por: str
     resultados_en_vivo: bool
     exige_al_dia: bool
+    ponderada: bool = False
     autor_nombre: str
     opciones: list[OpcionResponse]
     resultados_visibles: bool
     total_votos: Optional[int] = None
     participacion: int                     # cuántos (apartamentos o personas) ya votaron
     elegibles: int                         # cuántos pueden votar
+    quorum_coeficiente: Optional[float] = None   # solo ponderadas: % del coeficiente total del conjunto que ya votó (el quórum de la asamblea)
+    coeficiente_total: Optional[float] = None    # solo ponderadas: suma del coeficiente de todos los apartamentos
+    tu_coeficiente: Optional[float] = None       # solo ponderadas: cuánto vale el voto de quien consulta (% de su apartamento)
     ya_vote: bool = False
     puede_votar: bool = False
     motivo_no_puede: Optional[str] = None
@@ -77,6 +89,8 @@ class ParticipacionResponse(BaseModel):
     """Solo QUIÉN votó, nunca qué votó (el voto es secreto)."""
     participaron: list[str]
     pendientes: list[str]
+    coeficiente_participaron: Optional[float] = None   # solo ponderadas: % del coeficiente que ya votó
+    coeficiente_pendientes: Optional[float] = None     # solo ponderadas: % que falta
 
 
 class PendientesResponse(BaseModel):

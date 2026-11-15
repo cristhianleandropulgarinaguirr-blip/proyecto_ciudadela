@@ -46,7 +46,7 @@ def test_el_lector_de_dinero_rechaza_basura_y_negativos(malo):
 
 # ---------------------------------------------------------------- plantillas y permisos
 def test_las_plantillas_se_descargan_con_sus_encabezados(client, auth):
-    for tipo, cols in (("residentes", ["nombre_completo", "email", "apartamento", "parqueadero", "valor_administracion"]), ("cartera", ["email", "apartamento", "saldo_pendiente"])):
+    for tipo, cols in (("residentes", ["nombre_completo", "email", "apartamento", "parqueadero", "valor_administracion", "coeficiente"]), ("cartera", ["email", "apartamento", "saldo_pendiente"])):
         r = client.get(f"/importaciones/plantilla/{tipo}", headers=auth("admin@conjunto.com"))
         assert r.status_code == 200 and r.headers["content-type"] == XLSX
         libro = load_workbook(io.BytesIO(r.content))

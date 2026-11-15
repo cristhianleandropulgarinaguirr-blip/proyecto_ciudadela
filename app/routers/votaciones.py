@@ -1,6 +1,7 @@
 # app/routers/votaciones.py
 # Votaciones y consultas del conjunto. VOTO SECRETO por diseño: la tabla de participaciones guarda quién votó y la de opciones
 # guarda cuántos votos tiene cada una; no existe ningún dato que una ambas cosas. Un voto por apartamento (o por persona).
+# V3.8: votación PONDERADA (Ley 675): cada voto vale el coeficiente de copropiedad del apartamento y se muestra el quórum (% del coeficiente que ya votó).
 import re
 from typing import Optional
 
@@ -10,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.auditoria import auditar
-from app import arrendamientos as reglas_arr
+from app import arrendamientos as reglas_arr, coeficientes
 from app.constantes import Delegacion, RolNombre
 from app.database import get_db
 from app.dependencies import requiere_roles
@@ -58,11 +59,16 @@ def _armar(db: Session, votaciones: list[Votacion], usuario: Usuario) -> list[Vo
     for o in db.query(VotacionOpcion).filter(VotacionOpcion.votacion_id.in_(ids)).order_by(VotacionOpcion.orden).all():
         opciones.setdefault(o.votacion_id, []).append(o)
     claves: dict[int, set[str]] = {}
-    for vid, clave in db.query(VotacionParticipacion.votacion_id, VotacionParticipacion.clave).filter(VotacionParticipacion.votacion_id.in_(ids)).all():
+    peso_votado: dict[int, float] = {}                  # por votación: coeficiente (%) que ya votó
+    for vid, clave, peso in db.query(VotacionParticipacion.votacion_id, VotacionParticipacion.clave, VotacionParticipacion.peso).filter(VotacionParticipacion.votacion_id.in_(ids)).all():
         claves.setdefault(vid, set()).add(clave)
+        peso_votado[vid] = peso_votado.get(vid, 0.0) + (peso or 0.0)
     autores = {u.id: u.nombre_completo for u in db.query(Usuario).filter(Usuario.id.in_({v.autor_id for v in votaciones})).all()}
     residentes = _residentes(db)
     elegibles = {m: len({_clave(r, m) for r in residentes}) for m in ("apartamento", "persona")}
+    coef_aptos = coeficientes.por_apartamento(residentes)
+    coef_total = round(sum(c or 0.0 for c in coef_aptos.values()), coeficientes.DECIMALES)
+    tu_coef = coef_aptos.get(coeficientes.norm_apto(usuario.apartamento))
 
     salida = []
     for v in votaciones:
@@ -70,6 +76,7 @@ def _armar(db: Session, votaciones: list[Votacion], usuario: Usuario) -> list[Vo
         ops = opciones.get(v.id, [])
         visibles = estado == "Cerrada" or (estado == "Abierta" and v.resultados_en_vivo)
         total = sum(o.conteo for o in ops)
+        total_peso = sum(o.peso or 0.0 for o in ops)
         ya = _clave(usuario, v.un_voto_por) in claves.get(v.id, set())
         motivo = None
         if usuario.rol != RESIDENTE.value:
@@ -82,14 +89,24 @@ def _armar(db: Session, votaciones: list[Votacion], usuario: Usuario) -> list[Vo
             motivo = "Solo pueden votar quienes están al día con la administración."
         salida.append(VotacionResponse(
             id=v.id, titulo=v.titulo, descripcion=v.descripcion, estado=estado, fecha_inicio=v.fecha_inicio, fecha_cierre=v.fecha_cierre,
-            un_voto_por=v.un_voto_por, resultados_en_vivo=v.resultados_en_vivo, exige_al_dia=v.exige_al_dia,
+            un_voto_por=v.un_voto_por, resultados_en_vivo=v.resultados_en_vivo, exige_al_dia=v.exige_al_dia, ponderada=bool(v.ponderada),
             autor_nombre=autores.get(v.autor_id, "Administración"),
             opciones=[OpcionResponse(id=o.id, texto=o.texto, votos=o.conteo if visibles else None,
-                                     porcentaje=(round(o.conteo * 100 / total, 1) if total else 0.0) if visibles else None) for o in ops],
+                                     porcentaje=(_porcentaje(o, total, total_peso, v.ponderada)) if visibles else None,
+                                     coeficiente=(round(o.peso or 0.0, coeficientes.DECIMALES) if visibles else None) if v.ponderada else None) for o in ops],
             resultados_visibles=visibles, total_votos=total if visibles else None,
             participacion=len(claves.get(v.id, ())), elegibles=elegibles[v.un_voto_por],
+            quorum_coeficiente=(round(peso_votado.get(v.id, 0.0) * 100 / coef_total, 2) if coef_total else 0.0) if v.ponderada else None,
+            coeficiente_total=coef_total if v.ponderada else None, tu_coeficiente=tu_coef if v.ponderada else None,
             ya_vote=ya, puede_votar=motivo is None, motivo_no_puede=motivo))
     return salida
+
+
+def _porcentaje(o: VotacionOpcion, total: int, total_peso: float, ponderada: bool) -> float:
+    """% que representa la opción: de los votos emitidos o, en las ponderadas, del coeficiente que votó."""
+    if ponderada:
+        return round((o.peso or 0.0) * 100 / total_peso, 1) if total_peso else 0.0
+    return round(o.conteo * 100 / total, 1) if total else 0.0
 
 
 def _obtener(db: Session, votacion_id: int) -> Votacion:
@@ -132,12 +149,19 @@ def obtener(votacion_id: int, db: Session = Depends(get_db), usuario: Usuario = 
 @router.post("/", response_model=VotacionResponse, status_code=status.HTTP_201_CREATED, summary="Crear una votación",
              description="Roles: **Administrador**. Avisa a todos los residentes (campana y, si activaron los avisos, al celular).")
 def crear(datos: VotacionCreate, db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
+    if datos.ponderada:
+        r = coeficientes.resumen(db)
+        if r.apartamentos == 0:
+            raise HTTPException(status_code=400, detail="No hay residentes con apartamento: no se puede votar por coeficiente.")
+        if r.sin_coeficiente:
+            raise HTTPException(status_code=400, detail=f"Faltan {len(r.sin_coeficiente)} apartamento(s) sin coeficiente (por ejemplo: {', '.join(r.sin_coeficiente[:3])}). "
+                                                        "Cárgalos en «Usuarios» o en «Cargar datos» antes de votar por coeficiente.")
     v = Votacion(autor_id=admin.id, titulo=datos.titulo, descripcion=datos.descripcion or None, fecha_cierre=datos.fecha_cierre,
-                 un_voto_por=datos.un_voto_por, resultados_en_vivo=datos.resultados_en_vivo, exige_al_dia=datos.exige_al_dia)
+                 un_voto_por=datos.un_voto_por, resultados_en_vivo=datos.resultados_en_vivo, exige_al_dia=datos.exige_al_dia, ponderada=datos.ponderada)
     db.add(v)
     db.flush()
     db.add_all([VotacionOpcion(votacion_id=v.id, texto=t, orden=i) for i, t in enumerate(datos.opciones)])
-    auditar(db, admin, "Creó una votación", "Votación", v.id, v.titulo)
+    auditar(db, admin, "Creó una votación por coeficiente" if v.ponderada else "Creó una votación", "Votación", v.id, v.titulo)
     notificar(db, [u for u in usuarios_activos(db) if u.rol == RESIDENTE.value] + reglas_arr.inquilinos_con_delegacion(db, Delegacion.VOTAR), "Nueva votación: " + v.titulo,
               "Participa antes de que cierre.", "#/votaciones")
     db.commit()
@@ -158,9 +182,14 @@ def votar(votacion_id: int, datos: VotoIn, db: Session = Depends(get_db), quien:
     opcion = db.get(VotacionOpcion, datos.opcion_id)
     if opcion is None or opcion.votacion_id != v.id:
         raise HTTPException(status_code=400, detail="Esa opción no pertenece a esta votación.")
-    db.add(VotacionParticipacion(votacion_id=v.id, clave=_clave(usuario, v.un_voto_por), usuario_id=quien.id))   # queda quién lo emitió de verdad
+    peso = 0.0
+    if v.ponderada:                      # el voto vale el coeficiente del APARTAMENTO (si lo vota el inquilino delegado, el del propietario)
+        peso = coeficientes.por_apartamento(_residentes(db)).get(coeficientes.norm_apto(usuario.apartamento)) or 0.0
+        if peso <= 0:
+            raise HTTPException(status_code=400, detail="Tu apartamento no tiene coeficiente registrado. Pídele a la administración que lo cargue para poder votar.")
+    db.add(VotacionParticipacion(votacion_id=v.id, clave=_clave(usuario, v.un_voto_por), usuario_id=quien.id, peso=peso))   # queda quién lo emitió de verdad
     # Incremento atómico en la base de datos: dos votos simultáneos nunca se pisan.
-    db.execute(update(VotacionOpcion).where(VotacionOpcion.id == opcion.id).values(conteo=VotacionOpcion.conteo + 1))
+    db.execute(update(VotacionOpcion).where(VotacionOpcion.id == opcion.id).values(conteo=VotacionOpcion.conteo + 1, peso=VotacionOpcion.peso + peso))
     auditar(db, quien, "Votó" if quien.id == usuario.id else "Votó por delegación del propietario", "Votación", v.id, v.titulo)   # se audita que votó, JAMÁS qué votó
     if quien.id != usuario.id:
         notificar(db, [usuario], f"{quien.nombre_completo} votó por tu apartamento", f"En «{v.titulo}». Tu voto ya quedó contado: en esta consulta no puedes votar tú.", "#/votaciones")
@@ -205,11 +234,17 @@ def anular(votacion_id: int, db: Session = Depends(get_db), admin: Usuario = Dep
 def participacion(votacion_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
     v = _obtener(db, votacion_id)
     ya = {c for (c,) in db.query(VotacionParticipacion.clave).filter(VotacionParticipacion.votacion_id == v.id).all()}
+    peso_ya = sum(p or 0.0 for (p,) in db.query(VotacionParticipacion.peso).filter(VotacionParticipacion.votacion_id == v.id).all())
     participaron, pendientes_ = {}, {}
-    for r in _residentes(db):
+    residentes = _residentes(db)
+    for r in residentes:
         c = _clave(r, v.un_voto_por)
         etiqueta = (r.apartamento or r.nombre_completo) if v.un_voto_por == "apartamento" else r.nombre_completo
         (participaron if c in ya else pendientes_)[c] = etiqueta
     for c in participaron:                      # quien votó nunca figura como pendiente aunque otro del mismo apartamento no
         pendientes_.pop(c, None)
-    return ParticipacionResponse(participaron=sorted(participaron.values()), pendientes=sorted(pendientes_.values()))
+    if not v.ponderada:
+        return ParticipacionResponse(participaron=sorted(participaron.values()), pendientes=sorted(pendientes_.values()))
+    total = sum(c or 0.0 for c in coeficientes.por_apartamento(residentes).values())
+    return ParticipacionResponse(participaron=sorted(participaron.values()), pendientes=sorted(pendientes_.values()),
+                                 coeficiente_participaron=round(peso_ya, coeficientes.DECIMALES), coeficiente_pendientes=round(max(0.0, total - peso_ya), coeficientes.DECIMALES))

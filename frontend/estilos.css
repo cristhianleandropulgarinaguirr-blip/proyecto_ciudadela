@@ -1189,3 +1189,10 @@ html[data-texto="grande"] { font-size: 112.5%; }
 }
 /* Con el teclado abierto, el contenido tiene espacio extra abajo para poder desplazarlo por encima de él. */
 @media (hover: none) and (pointer: coarse) { #app main, main { scroll-padding-bottom: 40vh; } }
+
+/* ---------- v3.8 · Fase 3: trasteos y votación por coeficiente ---------- */
+.trasteo .card-titulo h2 { font-size: 1.05rem; }
+.trasteo.terminada { opacity: .8; }
+.etiquetas { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.trasteo p { margin: .25rem 0; }
+.chip[disabled] { opacity: .45; cursor: not-allowed; }

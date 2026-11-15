@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.routers import (
     anuncios, arrendamientos, asistente, auditoria, auth, comercio, dashboard, documentos, emergencias, importaciones, modulos, notificaciones, paquetes, paz_y_salvo, pqrs, push, qr, reportes,
-    publico, sincronizacion, usuarios, visitantes, votaciones,
+    publico, sincronizacion, trasteos, usuarios, visitantes, votaciones,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -59,12 +59,13 @@ TAGS = [
     {"name": "Carga masiva (Excel/CSV)", "description": "El administrador sube el censo de apartamentos y la cartera mensual desde Excel o CSV: primero una vista previa sin guardar nada, luego se aplica en una sola transacción."},
     {"name": "Indicadores (KPIs)", "description": "Números para la pantalla de indicadores del administrador: cartera, zonas más reservadas, tiempos de respuesta de PQRS y flujo de visitantes por hora."},
     {"name": "Paz y salvo", "description": "Certificado en PDF con código QR de verificación: se emite solo si el apartamento está al día y cualquiera puede comprobar su autenticidad escaneando el QR."},
-    {"name": "Votaciones", "description": "Consultas y votaciones del conjunto: voto secreto, un voto por apartamento, resultados al cerrar."},
+    {"name": "Votaciones", "description": "Consultas y votaciones del conjunto: voto secreto, un voto por apartamento, resultados al cerrar. Opción de votar por coeficiente de copropiedad (Ley 675) con quórum."},
+    {"name": "Trasteos", "description": "Mudanzas: el residente solicita, el sistema valida el paz y salvo (en las salidas), el administrador aprueba, se alerta a la portería y el guardia registra el inicio y el fin."},
 ]
 
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="3.6.0", openapi_tags=TAGS)
+              version="3.8.0", openapi_tags=TAGS)
 
 app.include_router(auth.router)
 app.include_router(usuarios.router)
@@ -89,6 +90,7 @@ app.include_router(publico.router)
 app.include_router(importaciones.router)
 app.include_router(dashboard.router)
 app.include_router(paz_y_salvo.router)
+app.include_router(trasteos.router)
 
 
 # Frontend (HTML/CSS/JS) servido por la misma API: así comparten origen y no hace falta configurar CORS.

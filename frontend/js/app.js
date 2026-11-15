@@ -21,6 +21,7 @@ const RUTAS = [
   { id: "votaciones", texto: "Votaciones", icono: "urna", roles: [A, R, I], delegado: "votar", cargar: () => import("./vistas/votaciones.js") },
   { id: "visitas", texto: { [R]: "Mis visitas", [I]: "Mis visitas", otro: "Visitas" }, icono: "identificacion", roles: [A, R, I], cargar: () => import("./vistas/visitas.js") },
   { id: "inquilinos", texto: { [A]: "Arrendamientos", otro: "Mis inquilinos" }, icono: "usuarios", roles: [A, R], cargar: () => import("./vistas/inquilinos.js") },
+  { id: "trasteos", texto: "Trasteos", icono: "carro", roles: [A, R, G, I], cargar: () => import("./vistas/trasteos.js") },
   { id: "porteria", texto: "Portería", icono: "carro", roles: [A, G], cargar: () => import("./vistas/porteria.js") },
   { id: "mantenimiento", texto: { [R]: "Reportar un daño", [I]: "Reportar un daño", otro: "Daños" }, icono: "llave", roles: [A, R, I], cargar: () => import("./vistas/mantenimiento.js") },
   { id: "pqrs", texto: { [R]: "Quejas y sugerencias", [I]: "Quejas y sugerencias", otro: "PQRS" }, icono: "mensaje", roles: [A, R, I], cargar: () => import("./vistas/pqrs.js") },

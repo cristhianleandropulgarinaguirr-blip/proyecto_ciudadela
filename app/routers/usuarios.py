@@ -4,13 +4,13 @@ import secrets
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app import arrendamientos, sesiones
+from app import arrendamientos, coeficientes, sesiones
 from app.auditoria import auditar
 from app.constantes import RolNombre
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
 from app.models import Rol, Usuario
-from app.schemas.usuarios import ParqueaderoUpdate, PasswordTemporalResponse, UsuarioCreateAdmin, UsuarioResponse
+from app.schemas.usuarios import CoeficienteUpdate, CoeficientesResumen, ParqueaderoUpdate, PasswordTemporalResponse, UsuarioCreateAdmin, UsuarioResponse
 from app.security import encriptar_password
 
 router = APIRouter(prefix="/usuarios", tags=["Usuarios (Administración)"])
@@ -69,6 +69,36 @@ def asignar_parqueadero(usuario_id: int, datos: ParqueaderoUpdate, db: Session =
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
     auditar(db, admin, "Asignó parqueadero", "Usuario", usuario.id, f"{usuario.nombre_completo}: {datos.parqueadero_asignado}")
     usuario.parqueadero_asignado = datos.parqueadero_asignado
+    db.commit()
+    db.refresh(usuario)
+    return usuario
+
+
+@router.get("/coeficientes/resumen", response_model=CoeficientesResumen, summary="Estado del coeficiente de copropiedad del conjunto",
+            description="Solo **Administrador**. Cuántos apartamentos ya tienen coeficiente, cuáles faltan y cuánto suman (deben sumar 100). Se necesita completo para votar por coeficiente.")
+def resumen_coeficientes(db: Session = Depends(get_db), _: Usuario = Depends(solo_admin)):
+    r = coeficientes.resumen(db)
+    return CoeficientesResumen(total=r.total, apartamentos=r.apartamentos, con_coeficiente=r.con_coeficiente, sin_coeficiente=r.sin_coeficiente, completo=r.completo)
+
+
+@router.patch("/{usuario_id}/coeficiente", response_model=UsuarioResponse, summary="Asignar el coeficiente de copropiedad",
+              description="Solo **Administrador**. Porcentaje del apartamento (Ley 675), de 0,0001 a 100. Solo para propietarios (rol Residente). "
+                          "La suma de todos los apartamentos no puede pasar de 100. Enviar `null` lo quita.",
+              responses={404: {"description": "Usuario no encontrado"}, 400: {"description": "No es residente o la suma pasaría de 100"}})
+def asignar_coeficiente(usuario_id: int, datos: CoeficienteUpdate, db: Session = Depends(get_db), admin: Usuario = Depends(solo_admin)):
+    usuario = db.get(Usuario, usuario_id)
+    if usuario is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    if usuario.rol != RolNombre.RESIDENTE.value:
+        raise HTTPException(status_code=400, detail="El coeficiente se asigna al propietario del apartamento (rol Residente).")
+    if not coeficientes.norm_apto(usuario.apartamento):
+        raise HTTPException(status_code=400, detail="Primero asígnale un apartamento a este residente: el coeficiente es del apartamento.")
+    nuevo = None if datos.coeficiente is None else round(datos.coeficiente, coeficientes.DECIMALES)
+    total = sum(v or 0 for v in coeficientes.por_apartamento(coeficientes.residentes_activos(db), sustituir=(usuario.id, nuevo)).values())
+    if total > coeficientes.TOTAL_MAXIMO + coeficientes.TOLERANCIA:
+        raise HTTPException(status_code=400, detail=f"Con ese valor los coeficientes sumarían {total:.4f} %: no pueden pasar de 100 %. Revisa los demás apartamentos.")
+    auditar(db, admin, "Asignó coeficiente", "Usuario", usuario.id, f"{usuario.nombre_completo} ({usuario.apartamento}): {usuario.coeficiente} → {nuevo}")
+    usuario.coeficiente = nuevo
     db.commit()
     db.refresh(usuario)
     return usuario

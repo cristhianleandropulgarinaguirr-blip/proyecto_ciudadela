@@ -13,7 +13,7 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app import importacion as imp
+from app import coeficientes, importacion as imp
 from app.auditoria import auditar
 from app.constantes import RolNombre
 from app.database import get_db
@@ -72,7 +72,30 @@ def _evaluar_residentes(db: Session, filas: list[dict], numeros: list[int]) -> l
         cambios = [c for c, nuevo in f.datos.items() if c != "email" and getattr(u, c) != nuevo]
         f.accion = "actualizar" if cambios else "sin_cambios"
         f.mensaje = ("Cambia: " + ", ".join(c.replace("_asignado", "").replace("_", " ") for c in cambios)) if cambios else "Sin cambios."
+    _validar_suma_coeficientes(db, evaluadas)
     return evaluadas
+
+
+def _validar_suma_coeficientes(db: Session, evaluadas: list[imp.Fila]) -> None:
+    """Los coeficientes de todos los apartamentos (los ya registrados + los de la planilla) no pueden pasar de 100 %."""
+    con_coef = [f for f in evaluadas if f.accion != "error" and f.datos.get("coeficiente") is not None]
+    if not con_coef:
+        return
+    residentes = coeficientes.residentes_activos(db)
+    nuevos_por_id = {f.usuario_id: f.datos["coeficiente"] for f in con_coef if f.usuario_id}
+    mapa: dict[str, float] = {}
+    for u in residentes:
+        clave = coeficientes.norm_apto(u.apartamento)
+        valor = nuevos_por_id.get(u.id, u.coeficiente)
+        if clave and valor:
+            mapa[clave] = max(mapa.get(clave, 0.0), valor)
+    for f in con_coef:
+        if not f.usuario_id:
+            clave = coeficientes.norm_apto(f.datos["apartamento"])
+            mapa[clave] = max(mapa.get(clave, 0.0), f.datos["coeficiente"])
+    total = sum(mapa.values())
+    if total > coeficientes.TOTAL_MAXIMO + coeficientes.TOLERANCIA:
+        raise HTTPException(status_code=400, detail=f"Los coeficientes (los ya registrados más los de la planilla) suman {total:.4f} %, más del 100 % permitido. Revisa la columna «coeficiente».")
 
 
 def _evaluar_cartera(db: Session, filas: list[dict], numeros: list[int]) -> list[imp.Fila]:
@@ -146,11 +169,12 @@ def plantilla(tipo: Tipo, _: Usuario = Depends(requiere_roles(ADMIN))):
     datos = libro.active
     datos.title = "Datos"
     if tipo == "residentes":
-        columnas = ["nombre_completo", "email", "apartamento", "parqueadero", "valor_administracion"]
+        columnas = ["nombre_completo", "email", "apartamento", "parqueadero", "valor_administracion", "coeficiente"]
         ayuda = [("nombre_completo", "Obligatoria. Nombre y apellidos (3 a 100 caracteres)."), ("email", "Obligatoria. Correo de la persona; es su usuario para entrar. No se puede repetir."),
                  ("apartamento", "Obligatoria. Por ejemplo: Torre 1 Apt 101."), ("parqueadero", "Opcional. Por ejemplo: P-12. Si va vacía no se cambia."),
-                 ("valor_administracion", "Opcional. Cuota mensual en pesos, por ejemplo 180000. Si va vacía no se cambia.")]
-        ejemplo = "Ana María Gómez | ana.gomez@correo.com | Torre 1 Apt 101 | P-12 | 180000"
+                 ("valor_administracion", "Opcional. Cuota mensual en pesos, por ejemplo 180000. Si va vacía no se cambia."),
+                 ("coeficiente", "Opcional pero necesaria para votar por coeficiente (Ley 675). Porcentaje de copropiedad del apartamento, por ejemplo 0,8523. Entre todos los apartamentos deben sumar 100. Si va vacía no se cambia.")]
+        ejemplo = "Ana María Gómez | ana.gomez@correo.com | Torre 1 Apt 101 | P-12 | 180000 | 0,8523"
         notas = ["Cada fila con un correo NUEVO crea una cuenta de Residente con una clave temporal (se muestra una sola vez al terminar). Debe cambiarla al entrar.",
                  "Si el correo ya existe como Residente, se actualizan sus datos (nombre, apartamento, parqueadero, cuota). Nunca se cambia su clave ni su rol.",
                  "Si el correo pertenece a un guardia, administrador o inquilino, esa fila se rechaza."]
@@ -237,7 +261,7 @@ def _guardar_residentes(db: Session, evaluadas: list[imp.Fila]) -> list[Credenci
             # segundos y no minutos. Es seguro porque es aleatoria de 72 bits y la persona está obligada a cambiarla al entrar (ahí se guarda con las 12 rondas).
             db.add(Usuario(nombre_completo=f.datos["nombre_completo"], email=f.datos["email"], password_encriptada=encriptar_password(clave, rondas=8),
                            rol_id=rol.id, apartamento=f.datos["apartamento"], debe_cambiar_password=True,
-                           **{k: v for k, v in f.datos.items() if k in ("parqueadero_asignado", "valor_administracion")}))
+                           **{k: v for k, v in f.datos.items() if k in ("parqueadero_asignado", "valor_administracion", "coeficiente")}))
             credenciales.append(CredencialNueva(nombre_completo=f.datos["nombre_completo"], email=f.datos["email"], apartamento=f.datos["apartamento"], clave_temporal=clave))
         elif f.accion == "actualizar":
             u = por_id[f.usuario_id]
