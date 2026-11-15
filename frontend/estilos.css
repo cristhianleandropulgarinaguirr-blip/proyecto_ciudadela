@@ -1138,3 +1138,9 @@ html[data-texto="grande"] { font-size: 112.5%; }
   .btn.icono svg, .btn.icono.sm svg { width: 24px; height: 24px; }
 }
 .anuncio .acciones, .anuncio .acciones-fila { gap: .6rem; }
+
+
+/* v3.5 · PIN de respaldo del pase de visitante (se muestra grande para dictarlo sin equivocarse). */
+.pase-pin { display: grid; gap: .2rem; justify-items: center; text-align: center; margin: .6rem 0; padding: .7rem .8rem; border: 1px dashed var(--tarjeta-borde); border-radius: var(--r); background: var(--campo); }
+.pase-pin small { color: var(--tinta-3); }
+.pase-pin b { font-size: 1.9rem; letter-spacing: .28em; padding-left: .28em; color: var(--bosque); }

@@ -37,7 +37,7 @@ class Usuario(Base):
     password_encriptada = Column(String, nullable=False)  # hash bcrypt
 
     # Llave foránea al rol (RBAC): define qué endpoints puede usar
-    rol_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
+    rol_id = Column(Integer, ForeignKey("roles.id"), nullable=False, index=True)   # se une en CADA petición autenticada (rol_rel lazy="joined")
     rol_rel = relationship("Rol", back_populates="usuarios", lazy="joined")
 
     apartamento = Column(String, nullable=True)
@@ -102,9 +102,9 @@ class VehiculoVisitante(Base):
     id = Column(Integer, primary_key=True, index=True)
     placa = Column(String, nullable=False, index=True)
     apartamento_destino = Column(String, nullable=False)
-    fecha_ingreso = Column(DateTime, default=ahora_utc)
+    fecha_ingreso = Column(DateTime, default=ahora_utc, index=True)
     fecha_salida = Column(DateTime, nullable=True)
-    estado = Column(String, default="Dentro")  # Dentro | Salido
+    estado = Column(String, default="Dentro", index=True)  # Dentro | Salido (se filtra en cada escaneo y en «vehículos dentro»)
     # Trazabilidad: qué miembro del personal registró cada movimiento (útil ante daños o reclamos).
     ingreso_registrado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     salida_registrada_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
@@ -155,6 +155,12 @@ class CodigoQR(Base):
     valido_hasta = Column(DateTime, nullable=True)           # límite para INGRESAR (la salida siempre se permite)
     vehiculo_id = Column(Integer, ForeignKey("vehiculos_visitantes.id"), nullable=True)  # registro creado al ingresar
     fecha_creacion = Column(DateTime, default=ahora_utc)
+    # v3.5 · PIN de 6 dígitos del pase (solo tipo Visitante): plan B cuando la cámara o la luz de la portería fallan.
+    # Se guarda tal cual, igual que el token: la persona debe poder volver a verlo. Es único entre los pases VIGENTES (lo garantiza el código).
+    pin = Column(String(6), nullable=True, index=True)
+    # v3.5 · «Estoy en camino» / «Llegué» desde la página pública del pase: cuándo se avisó por última vez (para no repetir avisos en bucle).
+    aviso_camino = Column(DateTime, nullable=True)
+    aviso_llegada = Column(DateTime, nullable=True)
 
 
 class EscaneoQR(Base):

@@ -415,3 +415,6 @@ git add .
 git commit -m "feat: login con JWT y bcrypt"
 git push origin feature/seguridad-jwt        # luego Pull Request hacia main
 ```
+
+## Versión 3.5
+Rendimiento de reservas, enlace público del pase de visitante, PIN de 6 dígitos y avisos «Estoy en camino / Llegué». Ver `PASOS_V3.5.md`.

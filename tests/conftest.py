@@ -36,6 +36,7 @@ os.environ.update(_VALORES_DE_PRUEBA)
 import pytest
 from fastapi.testclient import TestClient
 
+from app import limitador
 from app.database import Base, SessionLocal, engine
 from app.main import app
 from app.seed import asegurar_roles, crear_admin
@@ -48,6 +49,7 @@ CLAVE = "claveSegura123"
 
 @pytest.fixture()
 def db():
+    limitador.reiniciar_todo()      # los contadores de abuso (IP, PIN) viven en memoria: cada prueba empieza en cero
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
     with SessionLocal() as sesion:

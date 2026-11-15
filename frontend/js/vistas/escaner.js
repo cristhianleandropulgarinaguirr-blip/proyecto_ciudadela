@@ -1,6 +1,6 @@
 // Escáner de QR para portería (guardia y administrador).
 // Lee con la cámara (BarcodeDetector nativo; si el navegador no lo tiene, jsQR) o con un lector USB / escribiendo el código.
-// Endpoints: POST /qr/escanear · GET /qr/escaneos
+// Endpoints: POST /qr/escanear · POST /qr/escanear-pin (PIN de 6 dígitos) · GET /qr/escaneos
 import { api } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, deUtc, hace, placa } from "../ui.js";
 import { red } from "../red.js";
@@ -44,7 +44,9 @@ export function vistaEscaner() {
     if (t === ultimo && Date.now() - ultimoT < 3000) return;   // la cámara ve el mismo QR varios cuadros seguidos
     ocupado = true; ultimo = t; ultimoT = Date.now();
     try {
-      const r = await api("/qr/escanear", { metodo: "POST", json: { codigo: t } });
+      // Seis dígitos exactos = PIN del pase (plan B si la cámara o la luz fallan). Un QR siempre empieza por «CD1:», nunca se confunden.
+      const esPin = /^\d{6}$/.test(t);
+      const r = await api(esPin ? "/qr/escanear-pin" : "/qr/escanear", { metodo: "POST", json: esPin ? { pin: t } : { codigo: t } });
       resultado.replaceChildren(tarjetaResultado(r));
       navigator.vibrate?.(r.ok ? 80 : [120, 60, 120]);
       cargarBitacora();
@@ -118,12 +120,12 @@ export function vistaEscaner() {
   const btnCamara = h("button", { class: "btn", type: "button", onclick: () => (activo ? detener() : activar()) }, icono("camara", 18), "Activar cámara");
   const btnLinterna = h("button", { class: "btn suave", type: "button", hidden: true, style: "margin-left:.5rem", onclick: alternarLinterna }, "Linterna");
 
-  const entrada = h("input", { id: "codigo-manual", placeholder: " ", autocomplete: "off", spellcheck: "false", autocapitalize: "off" });
+  const entrada = h("input", { id: "codigo-manual", placeholder: " ", autocomplete: "off", spellcheck: "false", autocapitalize: "off" });   // sin inputmode numérico: también se escribe el código largo
   const form = h("form", { novalidate: true, onsubmit: async (e) => {
     e.preventDefault();
     const b = form.querySelector("button");
     await conCarga(b, () => enviar(entrada.value)); entrada.value = ""; entrada.focus();
-  } }, h("div", { class: "field" }, entrada, h("label", { for: "codigo-manual" }, "Código escrito o de lector USB")),
+  } }, h("div", { class: "field" }, entrada, h("label", { for: "codigo-manual" }, "PIN de 6 dígitos, código escrito o lector USB")),
     h("button", { class: "btn suave block", type: "submit" }, "Validar código"));
 
   async function cargarBitacora() {

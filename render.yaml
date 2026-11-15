@@ -39,3 +39,11 @@ services:
         value: "0"              # en producción NO hay pagos de mentira
       - key: PAGOS_INSTRUCCIONES
         sync: false
+      - key: CONJUNTO_NOMBRE          # v3.5 · página pública del pase de visitante (todo opcional)
+        sync: false
+      - key: CONJUNTO_DIRECCION       # p. ej. Calle 10 # 5-20, Facatativá
+        sync: false
+      - key: CONJUNTO_LATITUD         # con latitud y longitud, «Cómo llegar» apunta al punto exacto de la portería
+        sync: false
+      - key: CONJUNTO_LONGITUD
+        sync: false

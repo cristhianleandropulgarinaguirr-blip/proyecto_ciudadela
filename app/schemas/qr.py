@@ -39,9 +39,11 @@ class CodigoResponse(BaseModel):
     propietario_id: int
     propietario_nombre: str
     apartamento: Optional[str] = None
+    pin: Optional[str] = None        # v3.5 · PIN de 6 dígitos (solo pases de visitante que aún sirven)
+    enlace: Optional[str] = None     # v3.5 · ruta de la página pública del pase, ej. /pase/<token> (solo pases de visitante)
 
     model_config = ConfigDict(json_schema_extra={"example": {
-        "id": 7, "tipo": "Visitante", "estado": "Activo", "payload": "CD1:Qm9...",
+        "id": 7, "tipo": "Visitante", "estado": "Activo", "payload": "CD1:Qm9...", "pin": "482913", "enlace": "/pase/Qm9...",
         "nombre_visitante": "Carlos Pérez", "placa": "XYZ123", "valido_hasta": "2026-11-08T22:00:00",
         "fecha_creacion": "2026-11-08T10:00:00", "propietario_id": 3, "propietario_nombre": "Ana Residente",
         "apartamento": "Torre 1 Apt 101"}})
@@ -50,6 +52,10 @@ class CodigoResponse(BaseModel):
 class EscaneoRequest(BaseModel):
     codigo: str = Field(..., min_length=5, max_length=200, description="Texto leído del QR (empieza por `CD1:`).",
                         examples=["CD1:Qm9sYV9kZV9wcnVlYmFfZGVsX3Rva2Vu"])
+
+
+class PinRequest(BaseModel):
+    pin: str = Field(..., pattern=r"^[0-9]{6}$", description="PIN de 6 dígitos del pase de visitante.", examples=["482913"])
 
 
 class PersonaQR(BaseModel):

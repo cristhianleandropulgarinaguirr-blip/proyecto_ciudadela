@@ -108,3 +108,19 @@ IA_LIMITE_DIARIO_GLOBAL = _entero("IA_LIMITE_DIARIO_GLOBAL", 100)
 # Chat (v3.2): tiene topes propios para que una conversación larga no gaste las consultas de los borradores.
 IA_LIMITE_CHAT_USUARIO = _entero("IA_LIMITE_CHAT_USUARIO", 30)
 IA_LIMITE_CHAT_GLOBAL = _entero("IA_LIMITE_CHAT_GLOBAL", 300)
+
+
+# Versión 3.5 — datos del conjunto para la página pública del pase de visitante (/pase/<token>).
+# Con LATITUD y LONGITUD el visitante ve los botones «Cómo llegar» (Google Maps y Waze) apuntando al punto exacto de la portería;
+# sin coordenadas se usa la dirección escrita; sin ninguna de las dos, los botones no aparecen.
+def _decimal(nombre: str):
+    try:
+        return float(os.getenv(nombre, "").strip().replace(",", "."))
+    except ValueError:
+        return None
+
+
+CONJUNTO_NOMBRE = os.getenv("CONJUNTO_NOMBRE", "").strip() or "Ciudadela Digital"
+CONJUNTO_DIRECCION = os.getenv("CONJUNTO_DIRECCION", "").strip()
+CONJUNTO_LATITUD = _decimal("CONJUNTO_LATITUD")
+CONJUNTO_LONGITUD = _decimal("CONJUNTO_LONGITUD")

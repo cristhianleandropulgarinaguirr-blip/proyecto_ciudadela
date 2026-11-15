@@ -2,7 +2,7 @@
 // Endpoints: POST /reservas/registrar · GET /reservas/mis-reservas · GET /reservas/listar (admin/guardia)
 //            PATCH /reservas/cambiar-estado/{id} (admin) · PATCH /reservas/{id}/cancelar (dueño/admin)
 import { api } from "../api.js";
-import { h, icono, badge, estadoVacio, toast, conCarga, confirmar, deLocal, fmtHora, fmtFechaLarga } from "../ui.js";
+import { h, icono, badge, estadoVacio, toast, conCarga, confirmar, deLocal, fmtHora, fmtFechaLarga, diaLocal } from "../ui.js";
 import { cabecera, filtros, bloqueFecha } from "./comun.js";
 import { calendario, textoDia } from "./calendario.js";
 
@@ -14,6 +14,12 @@ const ZONAS = [
   { nombre: "Cancha múltiple", detalle: "Fútbol y baloncesto" },
   { nombre: "Sala de juegos", detalle: "Hasta 15 personas" },
 ];
+
+// Administración y portería no necesitan descargar años de historial cada vez: se piden los últimos 90 días y todo lo futuro.
+const DIAS_ATRAS = 90;
+const pedirLista = (verTodas) => verTodas
+  ? api("/reservas/listar", { params: { desde: diaLocal(new Date(Date.now() - DIAS_ATRAS * 864e5)) } })
+  : api("/reservas/mis-reservas");
 
 const HORAS = Array.from({ length: 17 }, (_, i) => i + 6).map((h24) => [`${String(h24).padStart(2, "0")}:00`, `${((h24 + 11) % 12) + 1}:00 ${h24 < 12 ? "a. m." : "p. m."}`]);   // 6:00 a. m. a 10:00 p. m.
 
@@ -33,7 +39,7 @@ export async function render(ctx) {
   const esAdmin = usuario.rol === "Administrador";
   const puedeReservar = usuario.rol !== "Guardia";
   const [lista, perfil] = await Promise.all([
-    api(esAdmin || usuario.rol === "Guardia" ? "/reservas/listar" : "/reservas/mis-reservas"),
+    pedirLista(esAdmin || usuario.rol === "Guardia"),
     ctx.actualizarUsuario(),
   ]);
   const veQuien = esAdmin || usuario.rol === "Guardia";
@@ -42,7 +48,7 @@ export async function render(ctx) {
   const contenedor = h("div", { class: "lista" });
 
   async function accion(btn, fn, msg) {
-    try { await conCarga(btn, fn); toast(msg); datos = await api(esAdmin || usuario.rol === "Guardia" ? "/reservas/listar" : "/reservas/mis-reservas"); pintar(); }
+    try { await conCarga(btn, fn); toast(msg); datos = await pedirLista(esAdmin || usuario.rol === "Guardia"); pintar(); }
     catch (e) { toast(e.message, "error"); }
   }
 
@@ -95,7 +101,7 @@ export async function render(ctx) {
       try {
         await conCarga(enviar, () => api("/reservas/registrar", { metodo: "POST", json: { zona_comun: zona, fecha_reserva: `${diaElegido}T${hora.value}:00` } }));
         toast("Solicitud enviada. La administración la revisará."); diaElegido = null; resumenSel(); cal.limpiar();
-        datos = await api(esAdmin ? "/reservas/listar" : "/reservas/mis-reservas"); pintar();
+        datos = await pedirLista(esAdmin); pintar();
       } catch (err) { toast(err.message, "error"); }
     } },
       h("div", { class: "card-titulo" }, h("h2", {}, "Nueva reserva")),

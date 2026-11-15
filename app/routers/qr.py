@@ -15,12 +15,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session, aliased
 
+from app import limitador
 from app.constantes import MAX_VISITAS_INQUILINO, EstadoQR, RolNombre, TipoQR
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
 from app.models import CodigoQR, EscaneoQR, Usuario, VehiculoVisitante, ahora_utc
 from app.schemas.qr import (
-    CodigoResponse, EscaneoItem, EscaneoRequest, EscaneoResponse, PersonaQR, VisitanteCreate, VisitanteQR,
+    CodigoResponse, EscaneoItem, EscaneoRequest, EscaneoResponse, PersonaQR, PinRequest, VisitanteCreate, VisitanteQR,
 )
 
 TAG = "Códigos QR"
@@ -48,15 +49,38 @@ def _estado_visible(c: CodigoQR) -> str:
     return c.estado
 
 
+def pase_sirve(c: CodigoQR) -> bool:
+    """¿El pase de visitante todavía puede usarse? (Activo y dentro de plazo, o ya dentro: la salida siempre se permite.)"""
+    return c.tipo == TipoQR.VISITANTE.value and _estado_visible(c) in (EstadoQR.ACTIVO.value, EstadoQR.DENTRO.value)
+
+
 def _vista(c: CodigoQR, dueno: Usuario) -> CodigoResponse:
+    es_visita = c.tipo == TipoQR.VISITANTE.value
     return CodigoResponse(id=c.id, tipo=c.tipo, estado=_estado_visible(c), payload=_payload(c.token),
                           nombre_visitante=c.nombre_visitante, placa=c.placa, valido_hasta=c.valido_hasta,
                           fecha_creacion=c.fecha_creacion, propietario_id=dueno.id,
-                          propietario_nombre=dueno.nombre_completo, apartamento=dueno.apartamento)
+                          propietario_nombre=dueno.nombre_completo, apartamento=dueno.apartamento,
+                          pin=c.pin if pase_sirve(c) else None, enlace=f"/pase/{c.token}" if es_visita else None)
 
 
 def _nuevo_token() -> str:
     return secrets.token_urlsafe(24)   # 192 bits de azar: imposible de adivinar
+
+
+def _vigentes_con_pin(db: Session):
+    """Pases de visitante que aún pueden usarse (y por tanto «reservan» su PIN)."""
+    return (db.query(CodigoQR).filter(CodigoQR.tipo == TipoQR.VISITANTE.value, CodigoQR.pin.isnot(None),
+                                      CodigoQR.estado.in_([EstadoQR.ACTIVO.value, EstadoQR.DENTRO.value]),
+                                      (CodigoQR.estado == EstadoQR.DENTRO.value) | CodigoQR.valido_hasta.is_(None) | (CodigoQR.valido_hasta >= ahora_utc())))
+
+
+def _nuevo_pin(db: Session) -> str:
+    """6 dígitos al azar (criptográficamente seguros) que no estén en uso por otro pase vigente: así un PIN identifica UN solo pase."""
+    for _ in range(30):
+        pin = f"{secrets.randbelow(1_000_000):06d}"
+        if not _vigentes_con_pin(db).filter(CodigoQR.pin == pin).first():
+            return pin
+    raise HTTPException(status_code=503, detail="No se pudo generar un PIN libre. Inténtalo de nuevo.")   # prácticamente imposible
 
 
 def _obtener_propio(db: Session, codigo_id: int, usuario: Usuario) -> CodigoQR:
@@ -110,7 +134,7 @@ def crear_pase(datos: VisitanteCreate, db: Session = Depends(get_db),
                         (CodigoQR.valido_hasta.is_(None)) | (CodigoQR.valido_hasta >= ahora_utc())).scalar())
     if vigentes >= tope:
         raise HTTPException(status_code=400, detail=f"Ya tienes {tope} pases vigentes. Revoca alguno para crear otro.")
-    c = CodigoQR(usuario_id=usuario.id, tipo=TipoQR.VISITANTE.value, token=_nuevo_token(),
+    c = CodigoQR(usuario_id=usuario.id, tipo=TipoQR.VISITANTE.value, token=_nuevo_token(), pin=_nuevo_pin(db),
                  nombre_visitante=datos.nombre_visitante, placa=datos.placa.upper(),
                  valido_hasta=ahora_utc() + timedelta(hours=datos.horas_validez))
     db.add(c)
@@ -188,7 +212,32 @@ def escanear(datos: EscaneoRequest, db: Session = Depends(get_db),
     codigo = db.query(CodigoQR).filter(CodigoQR.token == _token_de(datos.codigo)).first()
     if codigo is None:
         return _rechazo(db, None, personal, "Código no reconocido. Puede ser falso o de otro sistema.")
+    return _procesar(db, codigo, personal)
 
+
+@router.post("/escanear-pin", response_model=EscaneoResponse, summary="Registrar ingreso o salida con el PIN del pase",
+             description="Roles: **Guardia**, **Administrador**. Plan B cuando la cámara o la luz de la portería fallan: el visitante dicta el PIN de 6 dígitos "
+                         "de su pase y funciona exactamente igual que escanear el QR (primera vez = ingreso, segunda = salida).\n\n"
+                         "Seguridad: 8 PIN incorrectos en 10 minutos bloquean al guardia unos minutos (**429**); los intentos fallidos quedan en la bitácora "
+                         "sin guardar el número probado.",
+             responses={429: {"description": "Demasiados PIN incorrectos"}})
+def escanear_pin(datos: PinRequest, db: Session = Depends(get_db), personal: Usuario = Depends(requiere_roles(GUARDIA, ADMIN))):
+    if limitador.PIN_FALLIDOS.agotada(personal.id):
+        raise HTTPException(status_code=429, detail="Demasiados PIN incorrectos. Espera unos minutos e inténtalo de nuevo.")
+    codigo = _vigentes_con_pin(db).filter(CodigoQR.pin == datos.pin).order_by(CodigoQR.id.desc()).first()
+    if codigo is None:
+        # ¿Es el PIN de un pase que ya venció? Entonces el guardia merece un mensaje claro y no cuenta como intento fallido.
+        vencido = (db.query(CodigoQR).filter(CodigoQR.pin == datos.pin, CodigoQR.tipo == TipoQR.VISITANTE.value,
+                                             CodigoQR.estado == EstadoQR.ACTIVO.value).order_by(CodigoQR.id.desc()).first())
+        if vencido is not None:
+            return _procesar(db, vencido, personal)
+        limitador.PIN_FALLIDOS.registrar(personal.id)
+        return _rechazo(db, None, personal, "PIN no reconocido o el pase ya no está vigente. Verifica el número con el visitante.")
+    return _procesar(db, codigo, personal)
+
+
+def _procesar(db: Session, codigo: CodigoQR, personal: Usuario) -> EscaneoResponse:
+    """Lo que ocurre cuando un código ya identificado llega a portería (por QR o por PIN): ver cada caso abajo."""
     dueno = db.get(Usuario, codigo.usuario_id)
     if dueno is None or not dueno.esta_activo:
         return _rechazo(db, codigo, personal, "El titular de este código está desactivado.")

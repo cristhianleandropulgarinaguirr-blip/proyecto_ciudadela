@@ -4,7 +4,7 @@
 import csv
 import io
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
@@ -119,9 +119,24 @@ def ocupacion(zona: str = Query(..., min_length=3, max_length=50), mes: str = Qu
 
 
 @router.get("/reservas/listar", response_model=list[ReservaResponse], tags=[TAG_RESERVAS],
-            summary="Listar todas las reservas", description="Roles: **Administrador**, **Guardia**. Incluye nombre y apartamento de quien reservó, para que portería valide quién llega a la zona.")
-def listar_todas_las_reservas(db: Session = Depends(get_db), _: Usuario = Depends(requiere_roles(ADMIN, GUARDIA))):
-    return _vista_reservas(db, db.query(Reserva).order_by(Reserva.fecha_reserva).all())
+            summary="Listar todas las reservas",
+            description="Roles: **Administrador**, **Guardia**. Incluye nombre y apartamento de quien reservó, para que portería valide quién llega a la zona.\n\n"
+                        "Filtros opcionales (sin ellos devuelve todo, como siempre): `estado`, `desde` y `hasta` (fechas `AAAA-MM-DD`, ambas incluidas) y `limite`. "
+                        "Las pantallas los usan para no descargar años de historial cada vez que se abren.")
+def listar_todas_las_reservas(estado: Optional[EstadoReserva] = Query(None), desde: Optional[date] = Query(None), hasta: Optional[date] = Query(None),
+                              limite: Optional[int] = Query(None, ge=1, le=5000), db: Session = Depends(get_db),
+                              _: Usuario = Depends(requiere_roles(ADMIN, GUARDIA))):
+    q = db.query(Reserva)
+    if estado is not None:
+        q = q.filter(Reserva.estado == estado.value)
+    if desde is not None:
+        q = q.filter(Reserva.fecha_reserva >= datetime(desde.year, desde.month, desde.day))
+    if hasta is not None:
+        q = q.filter(Reserva.fecha_reserva < datetime(hasta.year, hasta.month, hasta.day) + timedelta(days=1))   # «hasta» incluye todo ese día
+    q = q.order_by(Reserva.fecha_reserva)
+    if limite is not None:
+        q = q.limit(limite)
+    return _vista_reservas(db, q.all())
 
 
 @router.patch("/reservas/cambiar-estado/{reserva_id}", response_model=ReservaResponse, tags=[TAG_RESERVAS],

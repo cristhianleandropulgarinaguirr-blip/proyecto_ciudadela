@@ -1,0 +1,59 @@
+/* Página pública del pase. Pensada para verse bajo el sol y a la luz de una portería: texto grande, alto contraste y el QR
+   siempre en negro sobre blanco puro (el modo oscuro del celular NO invierte el código). Sin fuentes externas. */
+:root {
+  --azul: #053550; --azul-2: #1F5F82; --azul-100: #DCEAF2;
+  --fondo: #F4F5F3; --tinta: #1E2D3A; --tinta-2: #4F5F6B; --linea: #C9D6DE; --tarjeta: #FFFFFF;
+  --ok: #176B3A; --ok-100: #DDF3E4; --aviso: #8A5300; --aviso-100: #FBEBCB; --mal: #A63C23; --mal-100: #F9E0D8;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fondo: #081633; --tinta: #E4ECF5; --tinta-2: #A9B9CD; --linea: #25407A; --tarjeta: #0F2146; --azul-100: #14305A;
+          --ok: #7FE09B; --ok-100: #0E3A22; --aviso: #F3CB92; --aviso-100: #3A2C17; --mal: #F6A58E; --mal-100: #40241F; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--fondo); color: var(--tinta); min-height: 100vh;
+       font: 17px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.pase { max-width: 460px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+.cab { display: flex; gap: .75rem; align-items: center; background: var(--azul); color: #F2F7FA; border-radius: 18px 18px 0 0; padding: .9rem 1rem; }
+.cab h1 { margin: 0; font-size: 1.15rem; line-height: 1.2; }
+.cab .peq { color: #BFD6E4; margin: 0; }
+.logo { border-radius: 10px; }
+.peq { font-size: .85rem; color: var(--tinta-2); margin: 0 0 .35rem; }
+.tarjeta { background: var(--tarjeta); border: 1px solid var(--linea); border-top: 0; border-radius: 0 0 18px 18px; padding: 1.1rem 1rem 1.3rem; }
+.tarjeta[hidden], [hidden] { display: none !important; }
+.error { border-radius: 18px; border-top: 1px solid var(--linea); margin-top: 1rem; }
+.error h2 { margin: 0 0 .4rem; font-size: 1.2rem; color: var(--mal); }
+
+.estado { font-weight: 700; text-align: center; padding: .55rem .8rem; border-radius: 12px; margin-bottom: 1rem; background: var(--azul-100); color: var(--azul); }
+.estado.ok { background: var(--ok-100); color: var(--ok); }
+.estado.aviso { background: var(--aviso-100); color: var(--aviso); }
+.estado.mal { background: var(--mal-100); color: var(--mal); }
+
+.qr-caja { background: #FFFFFF; border-radius: 16px; padding: 14px; display: grid; place-items: center; border: 1px solid #D5DEE4; }
+.qr-caja img { width: min(100%, 300px); height: auto; aspect-ratio: 1; image-rendering: pixelated; }
+.qr-caja.apagado img { opacity: .15; }
+
+.pin-caja { text-align: center; margin: 1.1rem 0 .2rem; }
+.pin { margin: 0; font: 700 2.4rem/1.1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .28em; padding-left: .28em; color: var(--azul); }
+@media (prefers-color-scheme: dark) { .pin { color: #BFE0F4; } }
+
+.datos { margin: 1.1rem 0 .4rem; display: grid; gap: .55rem; }
+.datos div { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--linea); padding-bottom: .5rem; }
+.datos dt { color: var(--tinta-2); font-size: .9rem; }
+.datos dd { margin: 0; font-weight: 600; text-align: right; }
+.mono { font-family: ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; }
+
+.acciones, .mapas { display: grid; gap: .6rem; margin-top: 1rem; }
+.btn { appearance: none; border: 2px solid var(--azul); background: transparent; color: var(--azul); font: inherit; font-weight: 700;
+       padding: .85rem 1rem; border-radius: 14px; min-height: 52px; text-align: center; text-decoration: none; cursor: pointer; display: block; }
+.btn:active { transform: translateY(1px); }
+.btn[disabled] { opacity: .55; cursor: default; }
+.btn-fuerte { background: var(--azul); color: #F2F7FA; }
+.btn-claro { border-color: var(--linea); color: var(--tinta); font-weight: 600; }
+@media (prefers-color-scheme: dark) { .btn { border-color: #7DB9DC; color: #BFE0F4; } .btn-fuerte { background: #7DB9DC; color: #06122B; } }
+.mensaje { min-height: 1.4em; text-align: center; font-weight: 600; color: var(--ok); margin: .6rem 0 0; }
+.mensaje.mal { color: var(--mal); }
+.direccion { text-align: center; margin-top: .8rem; }
+.pie { text-align: center; margin-top: 1.2rem; }

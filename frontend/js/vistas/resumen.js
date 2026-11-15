@@ -1,6 +1,6 @@
 // Pantalla de inicio: cambia según el rol de quien ingresó.
 import { api } from "../api.js";
-import { h, icono, badge, estadoVacio, kpi, toast, dinero, deUtc, hace, placa, deLocal, conCarga } from "../ui.js";
+import { h, icono, badge, estadoVacio, kpi, toast, dinero, deUtc, hace, placa, deLocal, conCarga, diaLocal } from "../ui.js";
 import { cabecera, hoyLargo, mapaUsuarios, nombreDe } from "./comun.js";
 import { itemReserva } from "./reservas.js";
 import { cartelaResumen } from "./anuncios.js";
@@ -11,7 +11,7 @@ const esHoy = (r) => deLocal(r.fecha_reserva).toDateString() === new Date().toDa
 
 // ---------- Administrador ----------
 async function admin(ctx) {
-  const [usuarios, reservas, danios, dentro, avisos, comercio, paq, todasPqrs, porAprobar] = await Promise.all([api("/usuarios/"), api("/reservas/listar"), api("/mantenimiento/listar-danios"), api("/porteria/vehiculos-dentro"), api("/anuncios/"), api("/comercio/resumen"), api("/paquetes/", { params: { estado: "En porteria" } }), api("/pqrs/", { params: { limite: 300 } }), api("/arrendamientos/", { params: { estado: "Pendiente" } })]);
+  const [usuarios, reservas, danios, dentro, avisos, comercio, paq, todasPqrs, porAprobar] = await Promise.all([api("/usuarios/"), api("/reservas/listar", { params: { estado: "Pendiente" } }), api("/mantenimiento/listar-danios"), api("/porteria/vehiculos-dentro"), api("/anuncios/"), api("/comercio/resumen"), api("/paquetes/", { params: { estado: "En porteria" } }), api("/pqrs/", { params: { limite: 300 } }), api("/arrendamientos/", { params: { estado: "Pendiente" } })]);
   const mapa = mapaUsuarios(usuarios);
   const residentes = usuarios.filter((u) => u.rol === "Residente");
   const pendientes = reservas.filter((r) => r.estado === "Pendiente");
@@ -107,7 +107,7 @@ async function inquilino(ctx) {
 
 // ---------- Guardia ----------
 async function guardia(ctx) {
-  const [dentro, reservas, avisos, paq, aPie] = await Promise.all([api("/porteria/vehiculos-dentro"), api("/reservas/listar"), api("/anuncios/"), api("/paquetes/", { params: { estado: "En porteria" } }), api("/visitantes-autorizados/dentro")]);
+  const [dentro, reservas, avisos, paq, aPie] = await Promise.all([api("/porteria/vehiculos-dentro"), api("/reservas/listar", { params: { estado: "Aprobada", desde: diaLocal(), hasta: diaLocal() } }), api("/anuncios/"), api("/paquetes/", { params: { estado: "En porteria" } }), api("/visitantes-autorizados/dentro")]);
   const deHoy = reservas.filter((r) => r.estado === "Aprobada" && esHoy(r));
   return h("div", {},
     cabecera(`Hola, ${primerNombre(ctx.usuario.nombre_completo)}`, "Resumen del turno.", { saludo: hoyLargo() }),

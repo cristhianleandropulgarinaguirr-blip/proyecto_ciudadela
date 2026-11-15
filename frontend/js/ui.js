@@ -113,6 +113,8 @@ export const dinero = (n) => cop.format(n ?? 0);
 // La API guarda created/ingreso en UTC sin "Z": se la agregamos para convertir a hora local.
 export const deUtc = (s) => new Date(/Z|[+-]\d\d:\d\d$/.test(s) ? s : s + "Z");
 export const deLocal = (s) => new Date(s);
+// Fecha LOCAL como AAAA-MM-DD (para los filtros `desde`/`hasta` de la API). toISOString() usaría UTC y en la noche daría el día siguiente.
+export const diaLocal = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export const fmtHora = (d) => d.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" });
 export const fmtFechaLarga = (d) => d.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
 export const fmtFechaCorta = (d) => d.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" });

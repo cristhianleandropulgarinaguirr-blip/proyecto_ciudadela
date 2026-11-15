@@ -63,14 +63,33 @@ export async function pestanaCarnet(ctx) {
 }
 
 // ---------------------------------------------------------------- pases de visitante
+// v3.5 · El pase se comparte como ENLACE público (/pase/<token>): el visitante lo abre y ve su QR grande, su PIN, «Cómo llegar»
+// y los botones «Estoy en camino» / «Ya llegué». La imagen del QR sigue disponible por si prefieren enviarla como foto.
+const urlPase = (p) => `${location.origin}${p.enlace}`;
+
+async function compartirEnlace(p) {
+  const url = urlPase(p);
+  if (navigator.share) {
+    try { await navigator.share({ title: "Tu pase de ingreso", text: `Hola ${p.nombre_visitante}, este es tu pase de ingreso. Ábrelo desde tu celular al llegar:`, url }); } catch { /* el usuario canceló */ }
+  } else { await copiarEnlace(p); }
+}
+async function copiarEnlace(p) {
+  try { await navigator.clipboard.writeText(urlPase(p)); toast("Enlace copiado. Pégalo en WhatsApp o donde prefieras."); }
+  catch { toast("No se pudo copiar. Mantén presionado el enlace para copiarlo.", "error"); }
+}
+
 function mostrarPase(p) {
   const { nodo, blob } = imagenQR(p);
   const texto = `Pase de ingreso para ${p.nombre_visitante} (${p.placa}). Muéstrale este QR al guardia al llegar y al salir. Válido hasta ${fmtFechaHora(deUtc(p.valido_hasta))}.`;
   modal(`Pase de ${p.nombre_visitante}`, h("div", { class: "pase-modal" }, nodo,
     h("div", { class: "pase-datos" }, placa(p.placa), h("span", { class: "small muted" }, `Sirve para ingresar hasta ${fmtFechaHora(deUtc(p.valido_hasta))}`)),
+    p.pin ? h("div", { class: "pase-pin" }, h("small", {}, "PIN de respaldo (si falla la cámara o la luz de la portería)"), h("b", { class: "mono" }, p.pin)) : null,
     h("div", { class: "acciones-fila" },
-      h("button", { class: "btn", onclick: () => compartir(blob, `pase-${p.placa}.png`, texto) }, icono("compartir", 16), "Compartir"),
-      h("button", { class: "btn suave", onclick: () => descargar(blob, `pase-${p.placa}.png`) }, icono("descarga", 16), "Descargar"))));
+      p.enlace ? h("button", { class: "btn", onclick: () => compartirEnlace(p) }, icono("compartir", 16), "Compartir enlace") : null,
+      p.enlace ? h("button", { class: "btn suave", onclick: () => copiarEnlace(p) }, "Copiar enlace") : null,
+      h("button", { class: "btn suave", onclick: () => compartir(blob, `pase-${p.placa}.png`, texto) }, icono("compartir", 16), "Enviar imagen"),
+      h("button", { class: "btn suave", onclick: () => descargar(blob, `pase-${p.placa}.png`) }, icono("descarga", 16), "Descargar")),
+    p.enlace ? h("p", { class: "small muted" }, "El enlace le muestra a tu visita su QR, el PIN y cómo llegar, y le deja avisarte cuando va en camino o llega.") : null));
 }
 
 export async function pestanaVehiculo(ctx) {

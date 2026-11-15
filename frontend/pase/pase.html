@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#053550">
+  <title>Tu pase de ingreso</title>
+  <link rel="icon" type="image/png" href="/app/img/favicon.png">
+  <!-- Página pública del pase de visitante. Sin fuentes ni librerías externas: carga rápido incluso con datos móviles lentos. -->
+  <link rel="stylesheet" href="/app/pase/pase.css">
+</head>
+<body>
+  <main class="pase" id="pase" aria-live="polite">
+    <header class="cab">
+      <img class="logo" src="/app/img/logo-crema.png" alt="" width="40" height="40">
+      <div>
+        <p class="peq" id="conjunto-etiqueta">Pase de ingreso</p>
+        <h1 id="conjunto">Cargando…</h1>
+      </div>
+    </header>
+
+    <section class="tarjeta" id="tarjeta" hidden>
+      <div class="estado" id="estado" role="status"></div>
+
+      <div class="qr-caja" id="qr-caja">
+        <img id="qr" alt="Código QR de tu pase. Muéstraselo al guardia al llegar y al salir." width="280" height="280">
+      </div>
+
+      <div class="pin-caja" id="pin-caja" hidden>
+        <p class="peq">¿No lee el QR? Dicta este PIN en portería</p>
+        <p class="pin" id="pin" aria-label="PIN de seis dígitos"></p>
+      </div>
+
+      <dl class="datos">
+        <div><dt>Visitante</dt><dd id="visitante"></dd></div>
+        <div><dt>Placa</dt><dd id="placa" class="mono"></dd></div>
+        <div><dt>Destino</dt><dd id="destino"></dd></div>
+        <div><dt>Puedes ingresar hasta</dt><dd id="validez"></dd></div>
+      </dl>
+
+      <div class="acciones" id="acciones">
+        <button class="btn" type="button" id="btn-camino">Estoy en camino</button>
+        <button class="btn btn-fuerte" type="button" id="btn-llegue">Ya llegué a la portería</button>
+      </div>
+      <p class="mensaje" id="mensaje" role="status"></p>
+
+      <div class="mapas" id="mapas" hidden>
+        <a class="btn btn-claro" id="mapa-google" target="_blank" rel="noopener noreferrer">Cómo llegar · Google Maps</a>
+        <a class="btn btn-claro" id="mapa-waze" target="_blank" rel="noopener noreferrer">Cómo llegar · Waze</a>
+      </div>
+      <p class="peq direccion" id="direccion"></p>
+    </section>
+
+    <section class="tarjeta error" id="error" hidden>
+      <h2 id="error-titulo">Este enlace no es válido</h2>
+      <p id="error-texto">Revisa que lo copiaste completo o pídele a quien te invitó que te envíe uno nuevo.</p>
+    </section>
+
+    <footer class="pie peq">Ciudadela Digital · Este enlace es personal, no lo reenvíes.</footer>
+  </main>
+  <script src="/app/pase/pase.js" defer></script>
+</body>
+</html>

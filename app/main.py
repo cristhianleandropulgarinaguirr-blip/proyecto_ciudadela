@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.routers import (
     anuncios, arrendamientos, asistente, auditoria, auth, comercio, documentos, emergencias, modulos, notificaciones, paquetes, pqrs, push, qr, reportes,
-    sincronizacion, usuarios, visitantes, votaciones,
+    publico, sincronizacion, usuarios, visitantes, votaciones,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -55,12 +55,13 @@ TAGS = [
     {"name": "Auditoría", "description": "Bitácora de quién hizo qué y cuándo (solo administrador)."},
     {"name": "Control de Parqueaderos", "description": "Portería: ingreso, salida e historial de vehículos visitantes, y sincronización de lo registrado sin internet."},
     {"name": "Arrendamientos (Inquilinos)", "description": "El propietario registra a su inquilino, el administrador lo aprueba y el acceso vence con el contrato."},
+    {"name": "Pase público (sin sesión)", "description": "La página que abre el visitante con el enlace de su pase: QR, PIN, «Cómo llegar» y avisos «Estoy en camino / Llegué». Sin sesión; protegida por un token imposible de adivinar y por límites de uso."},
     {"name": "Votaciones", "description": "Consultas y votaciones del conjunto: voto secreto, un voto por apartamento, resultados al cerrar."},
 ]
 
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="3.1.0", openapi_tags=TAGS)
+              version="3.5.0", openapi_tags=TAGS)
 
 app.include_router(auth.router)
 app.include_router(usuarios.router)
@@ -81,6 +82,7 @@ app.include_router(votaciones.router)
 app.include_router(arrendamientos.router)
 app.include_router(push.router)
 app.include_router(sincronizacion.router)
+app.include_router(publico.router)
 
 
 # Frontend (HTML/CSS/JS) servido por la misma API: así comparten origen y no hace falta configurar CORS.
@@ -93,7 +95,7 @@ _IMG_NUCLEO = {"icono.png", "icono-crema.png", "logo-crema.png", "favicon.png"}
 
 
 def _archivos_de_la_app() -> list[Path]:
-    return sorted(p for p in FRONTEND_DIR.rglob("*") if p.is_file() and p.name != "sw.js" and "vendor" not in p.parts
+    return sorted(p for p in FRONTEND_DIR.rglob("*") if p.is_file() and p.name != "sw.js" and "vendor" not in p.parts and "pase" not in p.parts
                   and (p.suffix in _EXT_NUCLEO or (p.parent.name == "img" and p.name in _IMG_NUCLEO)))
 
 
