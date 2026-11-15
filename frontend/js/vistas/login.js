@@ -35,6 +35,18 @@ export function vistaLogin(alIngresar) {
     boton,
     h("p", { class: "nota-cierre" }, "¿Olvidaste tu contraseña o aún no tienes cuenta? Pídela en la administración de tu conjunto."));
 
+  // Autocompletar del navegador: al recargar, Chrome/Edge rellenan correo y contraseña guardados, pero el CSS no se entera
+  // (el campo sigue «vacío» para :placeholder-shown) y la etiqueta quedaba encima del texto. Aquí marcamos el campo como «lleno».
+  const estaRelleno = (campo) => {
+    if (campo.value) return true;
+    for (const selector of [":-webkit-autofill", ":autofill"]) { try { if (campo.matches(selector)) return true; } catch { /* el navegador no conoce ese selector */ } }
+    return false;
+  };
+  const sincronizar = () => [email, clave].forEach((campo) => campo.parentElement?.classList.toggle("lleno", estaRelleno(campo)));
+  [email, clave].forEach((campo) => ["input", "change", "animationstart", "focus", "blur"].forEach((ev) => campo.addEventListener(ev, sincronizar)));
+  [0, 100, 300, 800, 1500, 3000].forEach((ms) => setTimeout(sincronizar, ms));   // el autocompletar llega unos instantes después de pintar
+  window.addEventListener("pageshow", sincronizar);
+
   function fallar(texto) {
     error.textContent = texto; error.hidden = false;
     form.classList.remove("shake"); void form.offsetWidth; form.classList.add("shake");

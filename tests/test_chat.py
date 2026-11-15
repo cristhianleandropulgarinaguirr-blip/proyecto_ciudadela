@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import pytest
 
 from app import chat_datos, config, ia
-from app.models import Reserva, UsoAsistente, Usuario
+from app.models import Auditoria, Reserva, UsoAsistente, Usuario
 
 ANA, CEL, ADM = "ana@conjunto.com", "celador@conjunto.com", "admin@conjunto.com"
 
@@ -96,6 +96,15 @@ def test_con_ia_la_respuesta_trae_grafico_calculado_por_el_servidor(client, auth
     assert "Zona BBQ: 6 reservas" in entrada and "sábado 4" in entrada
     assert "Ana" not in entrada and "conjunto.com" not in entrada            # sin datos de personas
     assert cuerpo["restantes"] == 29
+
+
+def test_el_chat_no_llena_la_auditoria_pero_si_cuenta_el_uso_diario(client, auth, reservas, proveedor, db):
+    """v3.9: usar el chat no deja filas en la bitácora; el tope diario sigue funcionando con UsoAsistente."""
+    for _ in range(3):
+        assert preguntar(client, auth).status_code == 200
+    assert db.query(Auditoria).filter(Auditoria.entidad == "Asistente").count() == 0
+    assert db.query(UsoAsistente).filter(UsoAsistente.funcion == "chat").count() == 3
+    assert preguntar(client, auth).json()["restantes"] == 26
 
 
 def test_la_ia_no_puede_inventar_zonas_ni_acciones_ni_enlaces(client, auth, reservas, proveedor):

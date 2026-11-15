@@ -1196,3 +1196,58 @@ html[data-texto="grande"] { font-size: 112.5%; }
 .etiquetas { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
 .trasteo p { margin: .25rem 0; }
 .chip[disabled] { opacity: .45; cursor: not-allowed; }
+
+
+/* ==========================================================================
+   v3.9 · Correcciones de interfaz
+   1) Menú lateral con scroll (Indicadores, Auditoría y Usuarios quedaban cortados y no se podía bajar).
+   2) Modo oscuro por rol: las tarjetas conservaban el color CLARO del modo claro y las letras (también claras) no se veían.
+   3) Autocompletar del navegador: la etiqueta ahora sube sola y no se monta sobre el correo/contraseña.
+   4) Botones y óvalos con borde visible en modo claro.
+   5) Botones de la tabla de Cartera alineados en columnas.
+   ========================================================================== */
+
+/* 1) Menú lateral (escritorio): si hay más opciones que alto de pantalla, el menú se desplaza solo. */
+@media (min-width: 1024px) {
+  .sidebar { overflow: hidden; }
+  .sidebar .logo { flex: none; }
+  .nav.nav-lateral { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(242, 247, 250, .3) transparent; padding-bottom: .5rem; }
+  .nav.nav-lateral::-webkit-scrollbar { width: 6px; }
+  .nav.nav-lateral::-webkit-scrollbar-thumb { background: rgba(242, 247, 250, .3); border-radius: 6px; }
+}
+
+/* 2) Modo oscuro de Residente, Guardia e Inquilino: tarjetas oscuras con el tono de su rol (antes quedaban claras y el texto claro desaparecía). */
+:root[data-rol="Residente"][data-tema="oscuro"] { --tarjeta: #0E3532; --tarjeta-borde: #3F8E87; --campo: #07252A; --linea: #1B4A48; }
+:root[data-rol="Guardia"][data-tema="oscuro"]   { --tarjeta: #2F2309; --tarjeta-borde: #A9792A; --campo: #1D1503; --linea: #4A3813; }
+:root[data-rol="Inquilino"][data-tema="oscuro"] { --tarjeta: #251B42; --tarjeta-borde: #7C64B5; --campo: #170F2B; --linea: #3A2D63; }
+
+/* 3) Autocompletar: la etiqueta sube cuando el navegador rellena el campo (el placeholder sigue «vacío» para el CSS). */
+.field input:-webkit-autofill + label { transform: translateY(-.62rem) scale(.78); color: var(--tinta-2); max-width: calc((100% - 1.9rem) / .78); }
+.field input:autofill + label { transform: translateY(-.62rem) scale(.78); color: var(--tinta-2); max-width: calc((100% - 1.9rem) / .78); }
+.field.lleno label { transform: translateY(-.62rem) scale(.78); color: var(--tinta-2); max-width: calc((100% - 1.9rem) / .78); }
+.field input:-webkit-autofill { -webkit-text-fill-color: var(--tinta); caret-color: var(--tinta); -webkit-box-shadow: 0 0 0 1000px var(--campo) inset; box-shadow: 0 0 0 1000px var(--campo) inset; transition: background-color 9999s ease-out 0s; }
+
+/* 4) Óvalos con borde visible: botones suaves, de peligro, fichas e insignias. */
+.btn.suave { border-width: 1.5px; border-color: var(--tarjeta-borde); background: var(--campo); }
+.btn.suave:hover { border-color: var(--bosque); }
+.btn.peligro { border-width: 1.5px; border-color: var(--arcilla); background: var(--arcilla-100); color: var(--arcilla-ink); }
+.btn.peligro:hover { background: var(--arcilla); color: var(--sobre-arcilla); }
+.chip { border-width: 1.5px; border-color: var(--tarjeta-borde); background: var(--campo); }
+.badge { background: var(--campo); box-shadow: inset 0 0 0 1px rgba(var(--rol-rgb), .35); }
+@supports (color: color-mix(in srgb, red 50%, transparent)) {
+  .badge { box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 40%, transparent); }
+}
+.segmentado, .tabs { box-shadow: inset 0 0 0 1px var(--tarjeta-borde); }
+
+/* 5) Cartera (administrador): acciones en columnas fijas, iguales en todas las filas. */
+.acciones-cartera { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem; width: 100%; align-items: stretch; }
+.acciones-cartera .btn { width: 100%; min-width: 0; min-height: 40px; justify-content: center; white-space: nowrap; }
+.acciones-cartera > :last-child { grid-column: 1 / -1; }
+@media (min-width: 768px) {
+  .acciones-cartera { grid-template-columns: 9.75rem 9.75rem 6rem; width: auto; margin-left: auto; justify-content: end; }
+  .acciones-cartera > :last-child { grid-column: auto; }
+}
+@media (min-width: 768px) and (max-width: 1279px) {
+  .acciones-cartera { grid-template-columns: 9.75rem 9.75rem; }
+  .acciones-cartera > :last-child { grid-column: 1 / -1; }
+}

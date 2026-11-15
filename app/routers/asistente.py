@@ -309,7 +309,7 @@ def chat(datos: MensajeChat, db: Session = Depends(get_db), usuario: Usuario = D
         limpia, _ = ia.limpiar_salida(" ".join(str(sug).split()), 70)
         if limpia and limpia not in sugerencias:
             sugerencias.append(limpia)
-    auditar(db, usuario, "Usó el chat de IA", "Asistente", None, "chat")     # sin guardar el texto
-    db.commit()
+    # v3.9: el chat ya NO se anota en la auditoría (era una fila por cada mensaje y llenaba la bitácora sin aportar nada al administrador).
+    # El conteo diario que limita el uso de la IA sigue en `UsoAsistente`, que es una tabla aparte y más liviana.
     return RespuestaChat(respuesta=respuesta, modo="ia", grafico=chat_datos.grafico(stats, zona), accion=chat_datos.accion_para(salida.accion),
                          sugerencias=sugerencias[:3], restantes=_restantes_chat(db, usuario))

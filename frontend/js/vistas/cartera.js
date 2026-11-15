@@ -134,9 +134,11 @@ async function vistaAdmin() {
       h("td", { "data-et": "Cuota" }, dinero(c.valor_administracion)),
       h("td", { "data-et": "Saldo", class: "der" }, h("b", {}, dinero(c.saldo_pendiente))),
       h("td", { "data-et": "Estado" }, c.esta_al_dia ? badge("Al día", "Al día") : badge("En mora", "En mora")),
-      h("td", { class: "ancho der" }, h("div", { class: "acciones" },
-        c.saldo_pendiente > 0 ? h("button", { class: "btn sm", onclick: () => registrarPago(u, c) }, "Registrar pago") : null,
-        c.saldo_pendiente === 0 ? h("button", { class: "btn suave sm", title: "Generar el paz y salvo con QR", onclick: (e) => generarPaz(e.currentTarget, { usuarioId: u.id }) }, icono("escudo", 16), "Paz y salvo") : null,
+      h("td", { class: "ancho der" }, h("div", { class: "acciones-cartera" },
+        // Columna 1: «Registrar pago» (si debe) o «Paz y salvo» (si está al día) · Columna 2: «Registrar saldo» · Columna 3: «PDF». Así todas las filas quedan alineadas.
+        c.saldo_pendiente > 0
+          ? h("button", { class: "btn sm", onclick: () => registrarPago(u, c) }, "Registrar pago")
+          : h("button", { class: "btn suave sm", title: "Generar el paz y salvo con QR", onclick: (e) => generarPaz(e.currentTarget, { usuarioId: u.id }) }, icono("escudo", 16), "Paz y salvo"),
         h("button", { class: "btn suave sm", onclick: () => editarDeuda(u, c) }, "Registrar saldo"),
         h("button", { class: "btn suave sm", title: "Estado de cuenta en PDF", "aria-label": `Estado de cuenta de ${u.nombre_completo} en PDF`, onclick: (e) => descargar(e.currentTarget, `/reportes/estado-cuenta/${u.id}.pdf`, `estado_de_cuenta_${(c.apartamento ?? u.id).toString().replace(/\s+/g, "_")}.pdf`) }, icono("descarga", 16), "PDF"))))));
   }
