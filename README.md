@@ -76,6 +76,15 @@ uvicorn app.main:app --reload
 - `js/tema.js`: tema claro / oscuro / automático y preferencias (fondo, animaciones, tamaño de texto), guardadas en el navegador. `img/` trae el logo (versión clara y crema para fondos oscuros) y los dos fondos ilustrados.
 - `js/vistas/configuracion.js`: perfil y apariencia (se abre tocando el avatar).
 - `iniciar.bat` (Windows): respalda la base de datos en `respaldos/`, aplica migraciones y arranca la app con un doble clic.
+- `iniciar-demo.bat` (Windows): abre la landing comercial/demo en `/`. La app real sigue disponible en `/app/`.
+
+### Entrar a la app real o a la demo
+
+- **App real:** ejecuta `iniciar.bat` y entra a `http://127.0.0.1:8000/app/`.
+- **App real desde celular:** ejecuta `iniciar-celular.bat` y abre `http://IP_DEL_COMPUTADOR:8000/app/` desde el mismo Wi-Fi.
+- **Demo/landing comercial:** ejecuta `iniciar-demo.bat` y entra a `http://127.0.0.1:8000/`.
+
+Antes de cambiar entre scripts, detén el servidor anterior con `Ctrl+C`. La demo/landing es la presentación comercial; no cambia los datos reales de la base de datos.
 
 **Novedades de la versión 2.1** (recuerda correr `alembic upgrade head`):
 - **Historial de portería:** cada entrada y salida queda guardada con hora, duración y quién la registró; se puede filtrar y el administrador lo exporta a Excel (CSV).

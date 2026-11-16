@@ -3,6 +3,7 @@ rem Inicia Ciudadela Digital para probarla desde un celular conectado al MISMO W
 rem Es igual a iniciar.bat, pero deja la app visible en tu red local. Usala solo en un Wi-Fi de confianza (tu casa).
 cd /d %~dp0
 call venv\Scripts\activate
+set LANDING_ACTIVA=0
 if exist propiedad_horizontal.db (
   powershell -NoProfile -Command "New-Item -ItemType Directory -Force respaldos | Out-Null; Copy-Item propiedad_horizontal.db ('respaldos\propiedad_horizontal_' + (Get-Date -Format 'yyyyMMdd_HHmm') + '.db')"
   echo Respaldo de la base de datos guardado en la carpeta respaldos.
@@ -15,5 +16,5 @@ echo   (el celular debe estar en el mismo Wi-Fi que este computador)
 echo   Si Windows pregunta por el Firewall, elige "Redes privadas" y Permitir.
 echo ================================================================
 echo.
-start http://127.0.0.1:8000
+start http://127.0.0.1:8000/app/
 uvicorn app.main:app --reload --host 0.0.0.0
