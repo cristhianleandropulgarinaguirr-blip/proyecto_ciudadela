@@ -1,4 +1,4 @@
-// Instalar Ciudadela Digital como app (PWA): registra el service worker y maneja el botón «Instalar».
+// Instalar la app (Ciudadela Digital o la marca del cliente) como app (PWA): registra el service worker y maneja el botón «Instalar».
 // - Android / Chrome / Edge (celular y computador): el navegador avisa con `beforeinstallprompt` y nosotros lo guardamos.
 // - iPhone / iPad (Safari): no hay aviso automático; se explica «Compartir → Agregar a inicio».
 // Importante: instalar como app y el service worker exigen HTTPS (o localhost). Con http://192.168.x.x solo queda un acceso directo.

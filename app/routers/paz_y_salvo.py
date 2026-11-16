@@ -18,7 +18,7 @@ from reportlab.platypus import Image, Paragraph, SimpleDocTemplate, Spacer, Tabl
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app import arrendamientos as reglas_arr, config
+from app import arrendamientos as reglas_arr, config, marca
 from app.auditoria import auditar
 from app.constantes import Delegacion, RolNombre
 from app.database import get_db
@@ -198,6 +198,6 @@ def pdf(paz_id: int, request: Request, db: Session = Depends(get_db), actual: Us
     pie.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#BBBBBB")), ("LEFTPADDING", (0, 0), (-1, -1), 8)]))
     doc.build([Paragraph(esc(config.CONJUNTO_NOMBRE), titulo), Paragraph("Certificado de paz y salvo de administración", sub), tabla, Spacer(1, 22), Paragraph(texto, normal),
                Spacer(1, 26), pie, Spacer(1, 16),
-               Paragraph("Documento generado electrónicamente por Ciudadela Digital. Su autenticidad se comprueba con el código QR; no requiere firma manuscrita.", chico)])
+               Paragraph(f"Documento generado electrónicamente por {esc(marca.nombre())}. Su autenticidad se comprueba con el código QR; no requiere firma manuscrita.", chico)])
     nombre = f"paz_y_salvo_{folio(p)}.pdf"
     return Response(memoria.getvalue(), media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{nombre}"', "Cache-Control": "private, no-store"})

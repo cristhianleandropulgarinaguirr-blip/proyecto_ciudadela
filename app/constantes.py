@@ -183,3 +183,11 @@ MAX_TRASTEOS_ACTIVOS = 2          # solicitudes abiertas (pendientes, aprobadas 
 MAX_HORAS_TRASTEO = 12            # duración máxima de la ventana de un trasteo
 MAX_DIAS_ANTICIPACION = 60        # no se puede pedir un trasteo para dentro de más de 60 días
 HORAS_ANTES_PERMITIDAS = 2        # el guardia puede iniciar un trasteo hasta 2 h antes de la hora acordada
+
+
+# ---------- V4.0 · Fase 4 (presentación comercial): solicitudes de demo ----------
+class EstadoDemo(str, Enum):
+    NUEVA = "Nueva"              # llegó desde la landing y nadie la ha atendido
+    CONTACTADA = "Contactada"    # ya se habló con la persona
+    AGENDADA = "Agendada"        # hay fecha para la demostración
+    DESCARTADA = "Descartada"    # no avanzó (o era un envío de prueba)

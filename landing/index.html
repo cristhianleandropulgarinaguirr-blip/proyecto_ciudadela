@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>__MARCA_NOMBRE__ · Administración de propiedad horizontal</title>
+  <meta name="description" content="__MARCA_DESCRIPCION__ Pide una demostración.">
+  <meta name="theme-color" content="__MARCA_COLOR_TEMA__">
+  <!-- Los datos de la marca (nombre, color, WhatsApp de ventas) los escribe el servidor aquí; landing.js los lee. -->
+  <meta name="marca" content="__MARCA_JSON__">
+  <link rel="icon" type="image/png" href="/app/img/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Instrument+Sans:wght@400..700&display=swap">
+  <link rel="stylesheet" href="/landing/landing.css">
+  <!-- Colores del cliente (white-label): van DESPUÉS de landing.css para ganarle; vacío si no hay MARCA_COLOR. -->
+  __MARCA_ESTILO__
+</head>
+<body>
+  <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+  <header class="barra">
+    <a class="marca" href="/" aria-label="__MARCA_NOMBRE__, inicio">
+      <img src="/app/img/icono-crema.png" alt="" width="26" height="40">
+      <span>__MARCA_NOMBRE__</span>
+    </a>
+    <nav class="barra-enlaces" aria-label="Secciones">
+      <a href="#funciones">Funciones</a>
+      <a href="#empezar">Cómo empezar</a>
+      <a href="#preguntas">Preguntas</a>
+    </nav>
+    <div class="barra-acciones">
+      <a class="btn-texto" href="/app/">Ingresar</a>
+      <a class="btn btn-laton" href="#demo">Solicitar demo</a>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <!-- ============================================================ HERO -->
+    <section class="hero">
+      <div class="hero-texto">
+        <h1>La administración del conjunto cabe en el celular de cada vecino</h1>
+        <p class="hero-sub">Reservas, cartera, paquetes, visitas y portería en una sola aplicación. Administrador, residente, inquilino y guardia entran con su cuenta y ven solo lo que les corresponde.</p>
+        <div class="hero-acciones">
+          <a class="btn btn-laton btn-grande" href="#demo">Solicitar demo</a>
+          <a class="btn-texto btn-texto-claro" href="/app/">Ya tengo cuenta: ingresar</a>
+        </div>
+        <p class="hero-nota">Se abre en el navegador y se instala en la pantalla de inicio. No hay tienda de aplicaciones de por medio.</p>
+      </div>
+
+      <!-- Maqueta de la portería: lo que ve un visitante en su celular y lo que recibe el residente. Es un dibujo (ejemplo), no datos reales. -->
+      <div class="escena" aria-hidden="true">
+        <div class="celular">
+          <div class="celular-cab">
+            <img src="/app/img/icono-crema.png" alt="" width="18" height="28">
+            <div><small>Pase de ingreso</small><strong>__MARCA_CONJUNTO__</strong></div>
+          </div>
+          <div class="celular-estado">Pase válido: muéstraselo al guardia</div>
+          <div class="qr-caja"><svg class="qr-svg" viewBox="-1 -1 27 27" role="img" aria-label="Ejemplo de código QR de un pase de visitante" shape-rendering="crispEdges"><rect x="-1" y="-1" width="27" height="27" fill="#fff"/><path fill="#10202b" d="M0 0h7v1h-7zM8 0h1v1h-1zM11 0h1v1h-1zM14 0h1v1h-1zM18 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM9 1h3v1h-3zM14 1h1v1h-1zM18 1h1v1h-1zM24 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM10 2h2v1h-2zM13 2h4v1h-4zM18 2h1v1h-1zM20 2h3v1h-3zM24 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM8 3h2v1h-2zM15 3h2v1h-2zM18 3h1v1h-1zM20 3h3v1h-3zM24 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM12 4h4v1h-4zM18 4h1v1h-1zM20 4h3v1h-3zM24 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM10 5h1v1h-1zM13 5h2v1h-2zM16 5h1v1h-1zM18 5h1v1h-1zM24 5h1v1h-1zM0 6h7v1h-7zM9 6h2v1h-2zM13 6h3v1h-3zM18 6h7v1h-7zM9 7h4v1h-4zM14 7h1v1h-1zM16 7h1v1h-1zM0 8h1v1h-1zM2 8h1v1h-1zM4 8h4v1h-4zM10 8h1v1h-1zM12 8h2v1h-2zM16 8h1v1h-1zM18 8h2v1h-2zM21 8h4v1h-4zM1 9h1v1h-1zM3 9h2v1h-2zM9 9h2v1h-2zM13 9h2v1h-2zM17 9h1v1h-1zM21 9h3v1h-3zM0 10h1v1h-1zM2 10h1v1h-1zM5 10h2v1h-2zM8 10h2v1h-2zM13 10h1v1h-1zM15 10h7v1h-7zM23 10h2v1h-2zM5 11h3v1h-3zM11 11h1v1h-1zM15 11h1v1h-1zM17 11h1v1h-1zM0 12h1v1h-1zM4 12h1v1h-1zM9 12h1v1h-1zM12 12h1v1h-1zM17 12h1v1h-1zM20 12h1v1h-1zM22 12h1v1h-1zM24 12h1v1h-1zM2 13h1v1h-1zM7 13h3v1h-3zM11 13h2v1h-2zM15 13h1v1h-1zM17 13h1v1h-1zM19 13h2v1h-2zM24 13h1v1h-1zM1 14h2v1h-2zM8 14h6v1h-6zM16 14h1v1h-1zM19 14h3v1h-3zM23 14h1v1h-1zM1 15h1v1h-1zM3 15h4v1h-4zM8 15h3v1h-3zM12 15h1v1h-1zM18 15h5v1h-5zM24 15h1v1h-1zM0 16h2v1h-2zM6 16h1v1h-1zM9 16h1v1h-1zM12 16h2v1h-2zM16 16h1v1h-1zM21 16h1v1h-1zM23 16h1v1h-1zM11 17h1v1h-1zM17 17h1v1h-1zM20 17h3v1h-3zM0 18h7v1h-7zM9 18h1v1h-1zM11 18h1v1h-1zM13 18h2v1h-2zM16 18h2v1h-2zM0 19h1v1h-1zM6 19h1v1h-1zM8 19h2v1h-2zM11 19h1v1h-1zM17 19h2v1h-2zM21 19h1v1h-1zM0 20h1v1h-1zM2 20h3v1h-3zM6 20h1v1h-1zM9 20h1v1h-1zM13 20h1v1h-1zM16 20h1v1h-1zM21 20h1v1h-1zM23 20h1v1h-1zM0 21h1v1h-1zM2 21h3v1h-3zM6 21h1v1h-1zM9 21h4v1h-4zM15 21h3v1h-3zM20 21h1v1h-1zM22 21h3v1h-3zM0 22h1v1h-1zM2 22h3v1h-3zM6 22h1v1h-1zM9 22h2v1h-2zM12 22h1v1h-1zM14 22h1v1h-1zM16 22h2v1h-2zM19 22h3v1h-3zM23 22h2v1h-2zM0 23h1v1h-1zM6 23h1v1h-1zM14 23h1v1h-1zM18 23h2v1h-2zM21 23h1v1h-1zM24 23h1v1h-1zM0 24h7v1h-7zM8 24h1v1h-1zM10 24h2v1h-2zM13 24h1v1h-1zM15 24h2v1h-2zM18 24h2v1h-2zM23 24h1v1h-1z"/></svg></div>
+          <div class="pin-demo"><small>¿No lee el QR? Dicta este PIN</small><b>482 915</b></div>
+          <dl class="celular-datos">
+            <div><dt>Visitante</dt><dd>Camila Duarte</dd></div>
+            <div><dt>Destino</dt><dd>Torre 1 Apt 302</dd></div>
+          </dl>
+        </div>
+        <div class="aviso aviso-1"><b>Tu visita llegó</b><span>Camila Duarte está en la portería.</span></div>
+        <div class="aviso aviso-2"><b>Paz y salvo vigente</b><span>Apartamento al día. Certificado listo.</span></div>
+      </div>
+    </section>
+
+    <!-- ============================================================ ROLES -->
+    <section class="seccion" id="funciones">
+      <div class="cab-seccion">
+        <h2>Cada rol ve lo que le toca</h2>
+        <p>La app cambia de color según quién entró, para que nadie confunda el menú del administrador con el del guardia.</p>
+      </div>
+      <div class="roles">
+        <article class="rol rol-admin">
+          <h3>Administrador</h3>
+          <ul>
+            <li>Cartera por apartamento, con comprobantes y estados de cuenta en PDF</li>
+            <li>Carga masiva desde Excel o CSV, con vista previa antes de guardar</li>
+            <li>Indicadores de mora, zonas más reservadas y tiempos de respuesta</li>
+            <li>Auditoría de quién hizo qué y cuándo</li>
+          </ul>
+        </article>
+        <article class="rol rol-residente">
+          <h3>Residente</h3>
+          <ul>
+            <li>Reserva zonas comunes y consulta lo que debe</li>
+            <li>Crea pases QR con PIN para sus visitas y sigue si van en camino</li>
+            <li>Ve sus paquetes, radica PQRS y reporta daños con foto</li>
+            <li>Vota en las consultas del conjunto desde el celular</li>
+          </ul>
+        </article>
+        <article class="rol rol-inquilino">
+          <h3>Inquilino</h3>
+          <ul>
+            <li>Su acceso vence solo cuando termina el contrato</li>
+            <li>Reserva, recibe paquetes y reporta daños</li>
+            <li>Cartera y votos solo si su propietario se los delega</li>
+            <li>No ve actas ni estados financieros</li>
+          </ul>
+        </article>
+        <article class="rol rol-guardia">
+          <h3>Guardia</h3>
+          <ul>
+            <li>Escanea el QR o recibe el PIN de cada visitante</li>
+            <li>Registra paquetes y vehículos, incluso sin internet</li>
+            <li>Ve los trasteos aprobados y arranca o cierra cada uno</li>
+            <li>Recibe un aviso cuando una visita llega</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============================================================ DIFERENCIALES -->
+    <section class="seccion seccion-papel">
+      <div class="cab-seccion">
+        <h2>Tres cosas que evitan las discusiones de siempre</h2>
+      </div>
+
+      <div class="fila">
+        <div class="fila-texto">
+          <h3>Paz y salvo que cualquiera puede verificar</h3>
+          <p>El certificado en PDF solo sale si el apartamento está al día. Quien lo recibe, sea un banco o una empresa de trasteos, escanea el QR y comprueba en el servidor que es auténtico y sigue vigente.</p>
+          <p>Si el apartamento vuelve a deber, el certificado deja de valer solo. Y un trasteo de salida no se aprueba sin paz y salvo.</p>
+        </div>
+        <figure class="ficha" aria-label="Ejemplo de verificación de paz y salvo">
+          <figcaption>Así responde la verificación</figcaption>
+          <div class="ficha-estado ficha-ok">Vigente</div>
+          <dl>
+            <div><dt>Folio</dt><dd>PS-2026-0148</dd></div>
+            <div><dt>Apartamento</dt><dd>Torre 2 Apt 405</dd></div>
+            <div><dt>Válido hasta</dt><dd>15 dic 2026</dd></div>
+          </dl>
+        </figure>
+      </div>
+
+      <div class="fila fila-inversa">
+        <div class="fila-texto">
+          <h3>Votaciones con voto secreto y coeficiente</h3>
+          <p>Un voto por apartamento y nadie puede unir quién votó con qué votó. Para las decisiones de asamblea, cada voto pesa según el coeficiente de copropiedad del apartamento (Ley 675 de 2001) y la app muestra el quórum.</p>
+          <p>Puedes exigir estar al día para votar, y el inquilino solo vota si su propietario se lo permite.</p>
+        </div>
+        <figure class="ficha" aria-label="Ejemplo de resultado de votación">
+          <figcaption>Resultado de ejemplo, por coeficiente</figcaption>
+          <div class="barras">
+            <div class="barra-fila"><span>Aprobar</span><div class="barra-pista"><i class="b-64"></i></div><b>64 %</b></div>
+            <div class="barra-fila"><span>Rechazar</span><div class="barra-pista"><i class="b-27"></i></div><b>27 %</b></div>
+            <div class="barra-fila"><span>En blanco</span><div class="barra-pista"><i class="b-9"></i></div><b>9 %</b></div>
+          </div>
+          <p class="ficha-pie">Quórum: 71 % del coeficiente</p>
+        </figure>
+      </div>
+
+      <div class="fila">
+        <div class="fila-texto">
+          <h3>Portería que no se detiene si se cae el internet</h3>
+          <p>El guardia sigue registrando visitas, vehículos y paquetes con la señal caída. Cuando vuelve la conexión, todo se envía solo y una operación repetida no se duplica.</p>
+          <p>Si el servidor rechaza algo (por ejemplo, porque otro guardia ya lo registró), la pantalla lo muestra en vez de esconderlo.</p>
+        </div>
+        <figure class="ficha" aria-label="Ejemplo de portería sin conexión">
+          <figcaption>Franja que ve el guardia</figcaption>
+          <div class="ficha-estado ficha-aviso">Sin conexión · 3 registros por enviar</div>
+          <p class="ficha-flecha">Vuelve la señal</p>
+          <div class="ficha-estado ficha-ok">Enviando 3 pendientes…</div>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============================================================ ADEMÁS -->
+    <section class="seccion">
+      <div class="cab-seccion">
+        <h2>Y también viene incluido</h2>
+      </div>
+      <ul class="ademas">
+        <li>Cartelera con confirmación de asistencia</li>
+        <li>PQRS con respuesta y seguimiento</li>
+        <li>Reportes de daños con foto</li>
+        <li>Trasteos con aprobación y alerta a portería</li>
+        <li>Directorio de emergencias</li>
+        <li>Documentos del conjunto en PDF</li>
+        <li>Directorio de negocios de los vecinos</li>
+        <li>Avisos al celular, aunque la app esté cerrada</li>
+        <li>Asistente de chat que orienta dentro de la app</li>
+        <li>Instalable como app, sin tienda</li>
+      </ul>
+    </section>
+
+    <!-- ============================================================ CÓMO EMPEZAR -->
+    <section class="seccion seccion-oscura" id="empezar">
+      <div class="cab-seccion">
+        <h2>Empiezas con el Excel que ya tienes</h2>
+        <p>No hay que digitar apartamento por apartamento.</p>
+      </div>
+      <ol class="pasos">
+        <li>
+          <h3>Sube el censo</h3>
+          <p>La planilla lleva nombre, correo, apartamento, cuota y coeficiente. Antes de guardar ves una vista previa con los errores fila por fila.</p>
+        </li>
+        <li>
+          <h3>Carga la cartera</h3>
+          <p>Importa el saldo de cada apartamento tal como sale de tu software contable (Siigo, World Office, Alegra) exportado a Excel o CSV.</p>
+        </li>
+        <li>
+          <h3>Entrega las cuentas</h3>
+          <p>Cada residente entra con su correo, acepta la política de datos y puede instalar la app en su celular.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============================================================ MARCA PROPIA -->
+    <section class="seccion marca-propia">
+      <div class="cab-seccion">
+        <h2>¿Administras varios conjuntos? Cada uno con su marca</h2>
+        <p>Nombre, color, logo y nombre del asistente se cambian con la configuración, sin programar. Al instalarla en el celular, la app sale con el nombre del conjunto.</p>
+      </div>
+    </section>
+
+    <!-- ============================================================ DEMO -->
+    <section class="demo" id="demo">
+      <div class="demo-texto">
+        <h2>Pide tu demostración</h2>
+        <p>Te mostramos la app con un conjunto de ejemplo de 30 apartamentos: cartera, portería, votaciones y el paso de Excel a cuentas.</p>
+        <ul class="demo-lista">
+          <li>Déjanos tus datos y te escribimos para acordar un horario.</li>
+          <li>Prefieres hablar ya: escríbenos por WhatsApp.</li>
+          <li>Tus datos solo se usan para contactarte sobre la demostración.</li>
+        </ul>
+        <p class="demo-correo" id="demo-correo" hidden>También puedes escribir a <a id="demo-correo-enlace" href="#"></a></p>
+      </div>
+
+      <form class="formulario" id="formulario" novalidate>
+        <div class="campo">
+          <label for="f-nombre">Tu nombre</label>
+          <input id="f-nombre" name="nombre" type="text" autocomplete="name" maxlength="80" required>
+        </div>
+        <div class="campo">
+          <label for="f-conjunto">Conjunto o administradora</label>
+          <input id="f-conjunto" name="conjunto" type="text" autocomplete="organization" maxlength="100" required>
+        </div>
+        <div class="campo">
+          <label for="f-celular">Celular</label>
+          <input id="f-celular" name="celular" type="tel" inputmode="tel" autocomplete="tel" placeholder="310 000 0000" maxlength="20" required>
+        </div>
+        <div class="campo">
+          <label for="f-correo">Correo <span class="opcional">(opcional)</span></label>
+          <input id="f-correo" name="correo" type="email" autocomplete="email" maxlength="120">
+        </div>
+        <div class="campo-doble">
+          <div class="campo">
+            <label for="f-ciudad">Ciudad <span class="opcional">(opcional)</span></label>
+            <input id="f-ciudad" name="ciudad" type="text" autocomplete="address-level2" maxlength="60">
+          </div>
+          <div class="campo">
+            <label for="f-aptos">Apartamentos <span class="opcional">(opcional)</span></label>
+            <input id="f-aptos" name="apartamentos" type="number" inputmode="numeric" min="1" max="5000">
+          </div>
+        </div>
+        <div class="campo">
+          <label for="f-mensaje">¿Algo que quieras ver en la demo? <span class="opcional">(opcional)</span></label>
+          <textarea id="f-mensaje" name="mensaje" rows="3" maxlength="500"></textarea>
+        </div>
+
+        <!-- Campo trampa: las personas no lo ven ni lo llenan; algunos robots sí. -->
+        <div class="trampa" aria-hidden="true">
+          <label for="f-sitio">Sitio web</label>
+          <input id="f-sitio" name="sitio_web" type="text" tabindex="-1" autocomplete="off">
+        </div>
+
+        <label class="consentimiento" for="f-acepto">
+          <input id="f-acepto" name="acepto_datos" type="checkbox" required>
+          <span>Autorizo el tratamiento de mis datos personales para que me contacten sobre esta demostración (Ley 1581 de 2012).</span>
+        </label>
+
+        <p class="estado-form" id="estado-form" role="status" aria-live="polite"></p>
+
+        <div class="formulario-acciones">
+          <button class="btn btn-laton btn-grande" type="submit" id="btn-enviar">Solicitar demo</button>
+          <button class="btn btn-contorno btn-grande" type="button" id="btn-whatsapp" hidden>Escribir por WhatsApp</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============================================================ PREGUNTAS -->
+    <section class="seccion" id="preguntas">
+      <div class="cab-seccion">
+        <h2>Preguntas frecuentes</h2>
+      </div>
+      <div class="faq">
+        <details>
+          <summary>¿Hay que instalar algo?</summary>
+          <p>No. Se abre en el navegador del celular o del computador. Si quieres, se instala en la pantalla de inicio y abre como cualquier otra app, sin pasar por una tienda.</p>
+        </details>
+        <details>
+          <summary>¿Los residentes pueden pagar en línea?</summary>
+          <p>Hoy el residente paga por transferencia y la administración registra el pago. La app deja el comprobante en PDF y actualiza el saldo y el paz y salvo al instante.</p>
+        </details>
+        <details>
+          <summary>¿Qué pasa con los datos de los residentes?</summary>
+          <p>Cada persona acepta la política de tratamiento de datos la primera vez que entra. Las contraseñas se guardan cifradas, la sesión se renueva sola mientras se usa y el administrador puede cerrarla. Todo cambio importante queda en la auditoría.</p>
+        </details>
+        <details>
+          <summary>¿Qué pasa si se cae el internet en la portería?</summary>
+          <p>El guardia puede seguir registrando visitas, vehículos y paquetes. Lo registrado se guarda en el celular y se envía solo cuando vuelve la conexión.</p>
+        </details>
+        <details>
+          <summary>¿Cuánto cuesta?</summary>
+          <p>Depende del tamaño del conjunto y de lo que quieras activar. Pide la demostración y te enviamos una propuesta.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="pie">
+    <div class="pie-marca">
+      <img src="/app/img/icono-crema.png" alt="" width="22" height="34">
+      <span>__MARCA_NOMBRE__</span>
+    </div>
+    <nav class="pie-enlaces" aria-label="Pie de página">
+      <a href="/app/">Ingresar a la app</a>
+      <a href="#demo">Solicitar demo</a>
+    </nav>
+    <p class="pie-nota">Los datos que dejas en este formulario solo se usan para contactarte sobre la demostración.</p>
+  </footer>
+
+  <script src="/landing/landing.js" defer></script>
+</body>
+</html>

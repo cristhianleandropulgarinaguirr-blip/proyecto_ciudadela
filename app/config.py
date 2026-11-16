@@ -130,3 +130,32 @@ CONJUNTO_LONGITUD = _decimal("CONJUNTO_LONGITUD")
 # URL_PUBLICA solo hace falta si el QR saliera con una dirección interna (p. ej. detrás de un proxy raro); normalmente se deduce sola de la petición.
 PAZ_Y_SALVO_DIAS = max(1, min(365, int(os.getenv("PAZ_Y_SALVO_DIAS", "30") or "30")))
 URL_PUBLICA = os.getenv("URL_PUBLICA", "").strip().rstrip("/")
+
+
+# ==========================================================================================================
+# Versión 4.0 (Fase 4 · presentación comercial): WHITE-LABEL, landing y solicitud de demo.
+# Todo es opcional: sin ninguna de estas variables la app se ve exactamente igual que antes («Ciudadela Digital», azul marino).
+# Para entregarle la app a OTRO conjunto o empresa basta con cambiar variables de entorno (y, si quieres, soltar sus logos en la carpeta marca/).
+# ==========================================================================================================
+from pathlib import Path as _Path   # noqa: E402
+
+MARCA_NOMBRE_POR_DEFECTO = "Ciudadela Digital"
+MARCA_NOMBRE = os.getenv("MARCA_NOMBRE", "").strip()[:60] or MARCA_NOMBRE_POR_DEFECTO                     # nombre del producto: pestaña, menú, PDF, correos, chat
+MARCA_NOMBRE_CORTO = os.getenv("MARCA_NOMBRE_CORTO", "").strip()[:14] or (                                 # nombre bajo el icono del celular
+    "Ciudadela" if MARCA_NOMBRE == MARCA_NOMBRE_POR_DEFECTO else MARCA_NOMBRE.split()[0][:14])
+MARCA_ESLOGAN = os.getenv("MARCA_ESLOGAN", "").strip()[:80] or "Tu conjunto, siempre en orden."            # titular de la pantalla de ingreso
+MARCA_DESCRIPCION = os.getenv("MARCA_DESCRIPCION", "").strip()[:200] or "Reservas, mantenimiento, cartera y portería de tu conjunto residencial en un solo lugar."
+MARCA_COLOR = os.getenv("MARCA_COLOR", "").strip()                                                         # «#RRGGBB»: color principal (login, administrador y landing). Vacío = azul de siempre
+# Carpeta con los logos del cliente (opcional). Si un archivo con el MISMO nombre que los de frontend/img existe aquí, se usa este.
+MARCA_DIR = _Path(os.getenv("MARCA_DIR", "").strip() or (_Path(__file__).resolve().parent.parent / "marca"))
+
+# Landing comercial en «/». En «0» la raíz lleva directo a la app (lo que querrás en la app de un cliente ya contratado).
+LANDING_ACTIVA = os.getenv("LANDING_ACTIVA", "1").strip() not in ("0", "false", "False", "no", "NO")
+# WhatsApp de ventas (con indicativo de país, solo dígitos; 10 dígitos que empiecen en 3 se asumen colombianos y se les antepone 57).
+DEMO_WHATSAPP = "".join(ch for ch in os.getenv("DEMO_WHATSAPP", "") if ch.isdigit())
+if len(DEMO_WHATSAPP) == 10 and DEMO_WHATSAPP.startswith("3"):
+    DEMO_WHATSAPP = "57" + DEMO_WHATSAPP
+if not 11 <= len(DEMO_WHATSAPP) <= 15:
+    DEMO_WHATSAPP = ""              # número inválido = sin botón de WhatsApp (nunca un enlace roto)
+DEMO_CORREO = os.getenv("DEMO_CORREO", "").strip()[:120]                                                   # correo de ventas que se muestra en la landing (opcional)
+MARCA_ASISTENTE = os.getenv("MARCA_ASISTENTE", "").strip()[:30] or "Ciudabot"                               # nombre del asistente de chat

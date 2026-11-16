@@ -16,6 +16,14 @@
   }
   // Color por rol: el último rol de la sesión se recuerda para pintar bien desde el primer cuadro (sin parpadeo al recargar).
   var ROLES = { Administrador: ["#07304A", "#06122B"], Residente: ["#053B38", "#04201F"], Guardia: ["#4A3000", "#241800"], Inquilino: ["#2E1F4D", "#1A1230"] };
+  // v4.0 · white-label: el color de la barra del navegador para la identidad base sale de <meta name="marca"> (si el cliente puso su color).
+  function marcaColores() {
+    try {
+      var m = JSON.parse(document.querySelector('meta[name="marca"]').content);
+      if (m.tema_claro && m.tema_oscuro) return [m.tema_claro, m.tema_oscuro];
+    } catch (e) {}
+    return ROLES.Administrador;
+  }
   function rolGuardado() { try { var r = localStorage.getItem("ciudadela.rol") || sessionStorage.getItem("ciudadela.rol"); return ROLES[r] ? r : ""; } catch (e) { return ""; } }
   function aplicar() {
     var oscuro = guardada() === "oscuro";
@@ -23,7 +31,7 @@
     h.dataset.tema = oscuro ? "oscuro" : "claro";
     h.dataset.fondo = p.fondo; h.dataset.anim = p.anim; h.dataset.texto = p.texto;
     if (rol) h.dataset.rol = rol; else delete h.dataset.rol;
-    var col = ROLES[rol] || ROLES.Administrador;
+    var col = ROLES[rol] || marcaColores();
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", oscuro ? col[1] : col[0]);
   }

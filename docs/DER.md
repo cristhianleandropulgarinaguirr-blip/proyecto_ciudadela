@@ -7,6 +7,13 @@ Versión en Mermaid (GitHub la dibuja automáticamente):
 ```mermaid
 erDiagram
     ROLES ||--o{ USUARIOS : "tiene"
+    SOLICITUDES_DEMO {
+        int id PK
+        string nombre
+        string conjunto
+        string celular
+        string estado "Nueva, Contactada, Agendada o Descartada"
+    }
     USUARIOS ||--o{ RESERVAS : "solicita"
     USUARIOS ||--o{ REPORTES_DANIOS : "reporta"
     USUARIOS ||--o{ ANUNCIOS : "publica"

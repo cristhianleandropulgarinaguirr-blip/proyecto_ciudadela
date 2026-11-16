@@ -22,7 +22,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app import config, limitador
+from app import config, limitador, marca
 from app.constantes import EstadoQR, RolNombre, TipoQR
 from app.database import get_db
 from app.models import CodigoQR, PazSalvo, Usuario, ahora_utc
@@ -81,7 +81,7 @@ def _mapas() -> dict | None:
 @router.get("/pase/{token}", response_class=HTMLResponse, include_in_schema=False)
 def pagina_del_pase(token: str):
     """La página en sí es siempre la misma; ella pide sus datos a /pase-publico/<token>. Un token malo muestra «enlace no válido» ahí."""
-    return HTMLResponse(PAGINA.read_text(encoding="utf-8"), headers=CABECERAS_PAGINA)
+    return HTMLResponse(marca.aplicar_a_html(PAGINA.read_text(encoding="utf-8")), headers=CABECERAS_PAGINA)
 
 
 @router.get("/pase-publico/{token}", summary="Datos del pase para la página pública",
@@ -155,7 +155,7 @@ def avisar(token: str, datos: AvisoRequest, request: Request, response: Response
 # saldo) NO se detallan: «No vigente» no revela datos financieros de nadie.
 @router.get("/verificar/{codigo}", response_class=HTMLResponse, include_in_schema=False)
 def pagina_de_verificacion(codigo: str):
-    return HTMLResponse(PAGINA_VERIFICAR.read_text(encoding="utf-8"), headers=CABECERAS_PAGINA)
+    return HTMLResponse(marca.aplicar_a_html(PAGINA_VERIFICAR.read_text(encoding="utf-8")), headers=CABECERAS_PAGINA)
 
 
 @router.get("/verificacion-publica/{codigo}", summary="Verificar un paz y salvo (página pública)",

@@ -11,12 +11,12 @@ from typing import Iterable, Optional
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
-from app import config, push
+from app import config, marca, push
 from app.constantes import RolNombre
 from app.models import Notificacion, Rol, Usuario
 
 logger = logging.getLogger("conjunto")
-PIE_CORREO = "\n\nIngresa a Ciudadela Digital para ver los detalles. Este es un aviso automático; no respondas a este correo."
+PIE_CORREO = f"\n\nIngresa a {marca.nombre()} para ver los detalles. Este es un aviso automático; no respondas a este correo."
 
 
 def correo_activo() -> bool:

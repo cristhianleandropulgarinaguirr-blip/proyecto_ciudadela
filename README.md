@@ -422,5 +422,8 @@ Rendimiento de reservas, enlace público del pase de visitante, PIN de 6 dígito
 ## Versión 3.6
 Carga masiva por Excel/CSV (censo y cartera), paz y salvo con QR de verificación, indicadores (KPIs) y cartera en una sola petición. Ver `PASOS_V3.6.md`.
 
+## Versión 4.0
+Fase 4 (presentación comercial): **white-label** (nombre, color, logos y asistente por variables de entorno), **landing en `/`** con la app en `/app/`, botón **«Solicitar demo»** (guarda el contacto o abre WhatsApp) y **`seed_demo.py`** con un conjunto de ejemplo de 30 apartamentos. Requiere `alembic upgrade head` (migración 0020). Ver `PASOS_V4.0.md`.
+
 ## Versión 3.8
 Fase 3 (legal y operativo): coeficiente de copropiedad, votación ponderada con quórum (Ley 675) y flujo de trasteos con validación de paz y salvo, aprobación y alerta a la portería. Ver `PASOS_V3.8.md`.

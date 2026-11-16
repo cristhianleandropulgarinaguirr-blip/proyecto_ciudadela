@@ -78,3 +78,5 @@ LECTURAS_PUBLICAS = Ventana(maximo=90, segundos=60)
 AVISOS_PUBLICOS = Ventana(maximo=10, segundos=60)
 # PIN de portería: solo cuentan los FALLOS; 8 en 10 minutos bloquea al guardia unos minutos (1 millón de combinaciones).
 PIN_FALLIDOS = Ventana(maximo=8, segundos=600)
+# V4.0 · «Solicitar demo» de la landing (sin sesión): máximo 5 envíos por IP cada 10 minutos.
+SOLICITUDES_DEMO = Ventana(maximo=5, segundos=600)

@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app import chat_datos, config, ia
+from app import chat_datos, config, ia, marca
 from app.auditoria import auditar
 from app.constantes import RolNombre, TipoAnuncio, TipoPQRS
 from app.database import get_db
@@ -231,6 +231,8 @@ Responde SOLO con un objeto JSON con estas claves:
 - zona: si tu respuesta trata de la demanda de UNA zona concreta, su nombre exacto (Salón Comunal, Zona BBQ, Piscina, Gimnasio, Cancha múltiple o Sala de juegos); si no, null.
 - accion: la sección de la app a la que conviene ir (reservas, pqrs, mantenimiento, votaciones, anuncios, cartera, paquetes, emergencias) o null.
 - sugerencias: de 2 a 3 preguntas de seguimiento muy cortas (máximo 60 caracteres) que la persona podría hacerte a continuación. Varíalas: que cubran distintos temas de la app y del conjunto (reservas, pagos, paquetes, visitas, votaciones, eventos), no solo el tema de la conversación."""
+# v4.0 · White-label: el asistente se presenta con el nombre y la marca del cliente (por defecto «Ciudabot» de «Ciudadela Digital», igual que antes).
+SISTEMA_CHAT = SISTEMA_CHAT.replace("Ciudabot", config.MARCA_ASISTENTE).replace("Ciudadela Digital", marca.nombre())
 
 ESQUEMA_CHAT = {"type": "OBJECT", "required": ["respuesta"], "properties": {
     "respuesta": {"type": "STRING"}, "zona": {"type": "STRING", "nullable": True},

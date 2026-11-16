@@ -13,6 +13,7 @@ from fastapi.responses import Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app import marca
 from app.auditoria import auditar
 from app.archivos import borrar_imagen, guardar_imagen_validada, leer_imagen
 from app.config import INSTRUCCIONES_PAGO
@@ -240,7 +241,7 @@ def contacto(anuncio_id: int, db: Session = Depends(get_db), usuario: Usuario = 
     if a.propietario_id != usuario.id:   # los clics del propio dueño no inflan la métrica
         a.contactos = (a.contactos or 0) + 1
         db.commit()
-    texto = quote(f"Hola, vi tu anuncio «{a.titulo}» en Ciudadela Digital.")
+    texto = quote(f"Hola, vi tu anuncio «{a.titulo}» en {marca.nombre()}.")
     return ContactoResponse(whatsapp_url=f"https://wa.me/57{a.whatsapp}?text={texto}")
 
 

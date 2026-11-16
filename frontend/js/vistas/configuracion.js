@@ -2,6 +2,7 @@
 import { h, icono, toast, conCarga, deUtc, hace, confirmar } from "../ui.js";
 import { cabecera } from "./comun.js";
 import { api } from "../api.js";
+import { marca } from "../marca.js";
 import { activarPush, desactivarPush, estadoPush, probarPush } from "../push.js";
 import { modalCambiarClave } from "./clave.js";
 import { alCambiarInstalacion, ayudaInstalar, instalar, puedeInstalar, yaInstalada } from "../instalar.js";
@@ -26,7 +27,7 @@ const fila = (titulo, texto, control) => h("div", { class: "opcion" }, h("div", 
 function filaInstalar() {
   const control = h("div");
   const pintar = () => control.replaceChildren(puedeInstalar()
-    ? h("button", { class: "btn sm", onclick: async () => { if (await instalar()) toast("¡Listo! Ciudadela quedó en tu pantalla principal."); } }, icono("descarga", 16), "Instalar")
+    ? h("button", { class: "btn sm", onclick: async () => { if (await instalar()) toast(`¡Listo! ${marca.corto} quedó en tu pantalla principal.`); } }, icono("descarga", 16), "Instalar")
     : h("span", { class: "small muted", style: "max-width:18rem;display:block;text-align:right" }, yaInstalada() ? "Instalada ✓" : ""));
   pintar();
   alCambiarInstalacion(pintar);

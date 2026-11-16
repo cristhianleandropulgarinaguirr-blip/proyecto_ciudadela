@@ -5,13 +5,14 @@ import logging
 
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import RedirectResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from app import config, marca
 from app.routers import (
-    anuncios, arrendamientos, asistente, auditoria, auth, comercio, dashboard, documentos, emergencias, importaciones, modulos, notificaciones, paquetes, paz_y_salvo, pqrs, push, qr, reportes,
+    anuncios, arrendamientos, asistente, auditoria, auth, comercio, dashboard, demo, documentos, emergencias, importaciones, modulos, notificaciones, paquetes, paz_y_salvo, pqrs, push, qr, reportes,
     publico, sincronizacion, trasteos, usuarios, visitantes, votaciones,
 )
 
@@ -61,11 +62,12 @@ TAGS = [
     {"name": "Paz y salvo", "description": "Certificado en PDF con código QR de verificación: se emite solo si el apartamento está al día y cualquiera puede comprobar su autenticidad escaneando el QR."},
     {"name": "Votaciones", "description": "Consultas y votaciones del conjunto: voto secreto, un voto por apartamento, resultados al cerrar. Opción de votar por coeficiente de copropiedad (Ley 675) con quórum."},
     {"name": "Trasteos", "description": "Mudanzas: el residente solicita, el sistema valida el paz y salvo (en las salidas), el administrador aprueba, se alerta a la portería y el guardia registra el inicio y el fin."},
+    {"name": "Presentación comercial (demo)", "description": "El botón «Solicitar demo» de la landing: guarda el contacto (sin sesión, muy limitado contra abuso) y el administrador lo gestiona."},
 ]
 
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="3.9.0", openapi_tags=TAGS)
+              version="4.0.0", openapi_tags=TAGS)
 
 app.include_router(auth.router)
 app.include_router(usuarios.router)
@@ -91,6 +93,7 @@ app.include_router(importaciones.router)
 app.include_router(dashboard.router)
 app.include_router(paz_y_salvo.router)
 app.include_router(trasteos.router)
+app.include_router(demo.router)
 
 
 # Frontend (HTML/CSS/JS) servido por la misma API: así comparten origen y no hace falta configurar CORS.
@@ -111,6 +114,7 @@ def _service_worker() -> str:
     """sw.js con la lista de archivos y un código de versión que cambia SOLO cuando cambia algún archivo del frontend.
     Así nadie tiene que acordarse de subir un número a mano: cada despliegue con cambios renueva la caché de todos."""
     huella = hashlib.sha256()
+    huella.update(marca.huella().encode())       # v4.0: si cambia el nombre, el color o un logo del cliente, todos los celulares descargan la versión nueva
     for p in sorted(q for q in FRONTEND_DIR.rglob("*") if q.is_file()):      # TODOS los archivos: si cambia cualquiera, cambia la versión
         huella.update(p.relative_to(FRONTEND_DIR).as_posix().encode())
         huella.update(p.read_bytes())
@@ -119,7 +123,8 @@ def _service_worker() -> str:
         rel = p.relative_to(FRONTEND_DIR).as_posix()
         rutas.append("./" if rel == "index.html" else rel)
     plantilla = (FRONTEND_DIR / "sw.js").read_text(encoding="utf-8")
-    return plantilla.replace("__VERSION__", huella.hexdigest()[:12]).replace("__ARCHIVOS__", json.dumps(sorted(set(rutas))))
+    return (plantilla.replace("__VERSION__", huella.hexdigest()[:12]).replace("__ARCHIVOS__", json.dumps(sorted(set(rutas))))
+            .replace("__NOMBRE__", json.dumps(marca.nombre(), ensure_ascii=False).replace("<", "\\u003c")))
 
 
 _sw_cache: dict[str, str] = {}
@@ -133,7 +138,39 @@ def service_worker():
     return Response(_sw_cache["sw"], media_type="application/javascript", headers={"Service-Worker-Allowed": "/app/"})
 
 
-app.mount("/app", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
+# v4.0 · White-label: la página de la app y el manifest se arman al vuelo con la marca del cliente (nombre, color, textos).
+# Van ANTES del montaje estático para tener prioridad sobre frontend/index.html y frontend/manifest.webmanifest.
+@app.get("/app/", include_in_schema=False)
+@app.get("/app/index.html", include_in_schema=False)
+def pagina_de_la_app():
+    return HTMLResponse(marca.aplicar_a_html((FRONTEND_DIR / "index.html").read_text(encoding="utf-8")))
+
+
+@app.get("/app/manifest.webmanifest", include_in_schema=False)
+def manifest_de_la_app():
+    return Response(marca.manifest((FRONTEND_DIR / "manifest.webmanifest").read_text(encoding="utf-8")), media_type="application/manifest+json")
+
+
+class AppEstatica(StaticFiles):
+    """Igual que StaticFiles, pero si el cliente puso su logo en la carpeta marca/ (mismo nombre que en frontend/img), se sirve ese."""
+
+    async def get_response(self, path: str, scope):
+        path_url = path.replace("\\", "/")        # en Windows Starlette entrega «img\\icono.png» (barra invertida): se normaliza para que funcione igual en todos los sistemas
+        if path_url.startswith("img/"):
+            propio = marca.ruta_imagen_personalizada(path_url[len("img/"):])
+            if propio is not None:
+                if scope["method"] not in ("GET", "HEAD"):
+                    raise HTTPException(status_code=405)
+                return FileResponse(propio)
+        return await super().get_response(path, scope)
+
+
+app.mount("/app", AppEstatica(directory=FRONTEND_DIR, html=True), name="frontend")
+
+# v4.0 · Landing comercial: la página está en landing/index.html y sus archivos (css/js) en landing/recursos/, servidos en /landing.
+LANDING_DIR = Path(__file__).resolve().parent.parent / "landing"
+LANDING_PAGINA = LANDING_DIR / "index.html"
+app.mount("/landing", StaticFiles(directory=LANDING_DIR / "recursos"), name="landing")
 
 
 class GZipSelectivo:
@@ -152,6 +189,9 @@ class GZipSelectivo:
         await self.gzip(scope, receive, send)
 
 
+# La landing hace lo mismo que la app (fuentes de Google, nada inline en JS) y además puede abrir WhatsApp (es un enlace, no una carga).
+CSP_LANDING = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; "
+               "img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
 CSP_APP = ("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
            "font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; "
            "worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'")
@@ -170,6 +210,9 @@ async def cabeceras_de_seguridad(request: Request, call_next):
     if request.url.path.startswith("/app"):
         # Política de contenido: solo se ejecuta JavaScript propio. Si alguna vez se colara código ajeno en la página, el navegador lo bloquea.
         respuesta.headers.setdefault("Content-Security-Policy", CSP_APP)
+    if request.url.path == "/" or request.url.path.startswith("/landing"):
+        respuesta.headers.setdefault("Content-Security-Policy", CSP_LANDING)
+        respuesta.headers["Cache-Control"] = "no-cache"
     # Toda la app (html, js, css) se revalida en cada carga: si no cambió responde 304 (rápido); si cambió, llega la versión nueva.
     if request.url.path.startswith("/app"):
         # Imágenes de la interfaz (logos, fondos, iconos): casi nunca cambian → una semana en caché. El resto se revalida.
@@ -186,8 +229,12 @@ app.add_middleware(GZipSelectivo)
 
 @app.get("/", include_in_schema=False)
 def inicio():
-    """La raíz lleva a la aplicación web. La documentación de la API sigue en /docs."""
-    return RedirectResponse(url="/app/")
+    """v4.0 · La raíz muestra la landing comercial (con «Solicitar demo»); la aplicación vive en /app/ y la documentación de la API en /docs.
+    Con LANDING_ACTIVA=0 (la app de un cliente ya contratado) la raíz lleva directo a la aplicación, como antes."""
+    if not config.LANDING_ACTIVA or not LANDING_PAGINA.is_file():
+        return RedirectResponse(url="/app/")
+    extra = {"whatsapp": config.DEMO_WHATSAPP, "correo_ventas": config.DEMO_CORREO}
+    return HTMLResponse(marca.aplicar_a_html(LANDING_PAGINA.read_text(encoding="utf-8"), extra))
 
 
 @app.get("/salud", tags=["Estado"], summary="Verificar que el servidor está corriendo")

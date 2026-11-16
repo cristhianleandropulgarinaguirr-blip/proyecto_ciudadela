@@ -51,3 +51,19 @@ services:
         sync: false
       - key: URL_PUBLICA              # v3.6 · opcional: dirección pública de la app para el QR del paz y salvo
         sync: false
+      - key: LANDING_ACTIVA           # v4.0 · «1» = la raíz (/) muestra la landing comercial; «0» = lleva directo a la app (app de un cliente ya contratado)
+        value: "1"
+      - key: DEMO_WHATSAPP            # v4.0 · WhatsApp de ventas para el botón «Escribir por WhatsApp» (vacío = sin botón)
+        sync: false
+      - key: DEMO_CORREO              # v4.0 · correo de ventas que se muestra junto al formulario (opcional)
+        sync: false
+      - key: MARCA_NOMBRE             # v4.0 · white-label (todo opcional: sin ellas la app es «Ciudadela Digital»)
+        sync: false
+      - key: MARCA_NOMBRE_CORTO
+        sync: false
+      - key: MARCA_ESLOGAN
+        sync: false
+      - key: MARCA_COLOR              # #RRGGBB
+        sync: false
+      - key: MARCA_ASISTENTE
+        sync: false

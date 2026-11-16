@@ -553,3 +553,28 @@ class Trasteo(Base):
     inicio_real = Column(DateTime, nullable=True)
     fin_real = Column(DateTime, nullable=True)
     fecha_creacion = Column(DateTime, default=ahora_utc)
+
+
+# ==========================================
+#   V4.0 · PRESENTACIÓN COMERCIAL: SOLICITUDES DE DEMO
+# ==========================================
+class SolicitudDemo(Base):
+    """Contacto que dejó alguien en la landing («Solicitar demo») o que tocó «Escribir por WhatsApp». Lo ve y lo gestiona el administrador.
+    No guarda la IP ni nada del dispositivo: solo lo que la persona escribió y que autorizó el tratamiento de sus datos (Ley 1581 de 2012)."""
+    __tablename__ = "solicitudes_demo"
+    __table_args__ = (Index("ix_solicitudes_demo_estado_fecha", "estado", "fecha_creacion"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(80), nullable=False)
+    conjunto = Column(String(100), nullable=False)            # nombre del conjunto o de la administradora
+    celular = Column(String(15), nullable=False, index=True)  # solo dígitos
+    correo = Column(String(120), nullable=True)
+    ciudad = Column(String(60), nullable=True)
+    apartamentos = Column(Integer, nullable=True)             # cuántas unidades tiene (sirve para dimensionar la propuesta)
+    mensaje = Column(String(500), nullable=True)
+    origen = Column(String(12), nullable=False, default="formulario")   # formulario | whatsapp
+    estado = Column(String(12), nullable=False, default="Nueva", index=True)   # Nueva | Contactada | Agendada | Descartada
+    nota = Column(String(300), nullable=True)                 # seguimiento interno del administrador
+    acepto_datos = Column(DateTime, nullable=False, default=ahora_utc)
+    fecha_creacion = Column(DateTime, default=ahora_utc, nullable=False, index=True)
+    fecha_actualizacion = Column(DateTime, default=ahora_utc, onupdate=ahora_utc)

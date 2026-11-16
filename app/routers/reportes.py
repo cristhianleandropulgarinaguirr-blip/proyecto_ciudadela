@@ -19,7 +19,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 from sqlalchemy.orm import Session, aliased
 
 from app.auditoria import auditar
-from app import arrendamientos as reglas_arr
+from app import arrendamientos as reglas_arr, config, marca
 from app.constantes import Delegacion, RolNombre
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
@@ -161,7 +161,7 @@ def estado_cuenta_pdf(usuario_id: int, db: Session = Depends(get_db), actual: Us
     esc = lambda s: (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")   # noqa: E731
     memoria = io.BytesIO()
     doc = SimpleDocTemplate(memoria, pagesize=letter, leftMargin=2.2 * cm, rightMargin=2.2 * cm, topMargin=2 * cm, bottomMargin=2 * cm,
-                            title=f"Estado de cuenta - {u.apartamento or u.nombre_completo}", author="Ciudadela Digital")
+                            title=f"Estado de cuenta - {u.apartamento or u.nombre_completo}", author=marca.nombre())
     tabla = Table([["Residente", esc(u.nombre_completo)], ["Apartamento", esc(u.apartamento) or "—"], ["Cuota mensual de administración", cop(u.valor_administracion)],
                    ["Saldo pendiente", cop(u.saldo_pendiente)], ["Estado", "Al día" if al_dia else "En mora"]], colWidths=[7 * cm, 9 * cm])
     tabla.setStyle(TableStyle([("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 11), ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#444444")),
@@ -169,7 +169,7 @@ def estado_cuenta_pdf(usuario_id: int, db: Session = Depends(get_db), actual: Us
                                ("FONTNAME", (1, 3), (1, 3), "Helvetica-Bold"), ("TEXTCOLOR", (1, 4), (1, 4), colors.HexColor("#2E7D32" if al_dia else "#B3541E"))]))
     nota = ("Con corte a la fecha de este documento, el apartamento se encuentra <b>a paz y salvo</b> por concepto de cuotas de administración."
             if al_dia else f"Con corte a la fecha de este documento, el apartamento registra un saldo pendiente de <b>{cop(u.saldo_pendiente)}</b>.")
-    doc.build([Paragraph("Ciudadela Digital", titulo), Paragraph("Estado de cuenta de administración", estilos["Heading3"]),
+    doc.build([Paragraph(esc(config.CONJUNTO_NOMBRE), titulo), Paragraph("Estado de cuenta de administración", estilos["Heading3"]),
                Paragraph(f"Generado el {ahora:%d/%m/%Y} a las {ahora:%H:%M} (hora de Colombia)", normal), Spacer(1, 18), tabla, Spacer(1, 18), Paragraph(nota, normal), Spacer(1, 30),
                Paragraph("Documento informativo generado por la aplicación. La validez como certificado requiere la firma del administrador.",
                          ParagraphStyle("p", parent=normal, fontSize=9, textColor=colors.HexColor("#777777")))])
@@ -197,14 +197,14 @@ def recibo_pdf(pago_id: int, db: Session = Depends(get_db), actual: Usuario = De
     normal = ParagraphStyle("n", parent=estilos["Normal"], fontSize=11, leading=16)
     memoria = io.BytesIO()
     doc = SimpleDocTemplate(memoria, pagesize=letter, leftMargin=2.2 * cm, rightMargin=2.2 * cm, topMargin=2 * cm, bottomMargin=2 * cm,
-                            title=f"Comprobante {numero}", author="Ciudadela Digital")
+                            title=f"Comprobante {numero}", author=marca.nombre())
     tabla = Table([["Comprobante N.º", numero], ["Fecha y hora", f"{cuando:%d/%m/%Y %H:%M} (hora de Colombia)"], ["Residente", esc(u.nombre_completo)],
                    ["Apartamento", esc(u.apartamento) or "—"], ["Concepto", "Pago de cuota de administración"], ["Saldo antes del pago", cop(pago.saldo_anterior)],
                    ["Valor pagado", cop(pago.valor)], ["Saldo después del pago", cop(pago.saldo_posterior)]], colWidths=[7 * cm, 9 * cm])
     tabla.setStyle(TableStyle([("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 11), ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#444444")),
                                ("LINEBELOW", (0, 0), (-1, -1), 0.5, colors.HexColor("#CCCCCC")), ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
                                ("FONTNAME", (1, 6), (1, 6), "Helvetica-Bold"), ("TEXTCOLOR", (1, 6), (1, 6), colors.HexColor("#2E7D32"))]))
-    doc.build([Paragraph("Ciudadela Digital", titulo), Paragraph("Comprobante de pago", estilos["Heading3"]), Spacer(1, 14), tabla, Spacer(1, 22),
+    doc.build([Paragraph(esc(config.CONJUNTO_NOMBRE), titulo), Paragraph("Comprobante de pago", estilos["Heading3"]), Spacer(1, 14), tabla, Spacer(1, 22),
                Paragraph("Documento informativo generado por la aplicación al registrar el pago. No reemplaza la factura ni el recibo de caja oficial de la administración.",
                          ParagraphStyle("p", parent=normal, fontSize=9, textColor=colors.HexColor("#777777")))])
     return Response(content=memoria.getvalue(), media_type="application/pdf",

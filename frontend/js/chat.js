@@ -5,6 +5,9 @@
 // Endpoints: GET /asistente/chat/estado · POST /asistente/chat
 import { api } from "./api.js";
 import { h, icono, badge, deUtc, hace } from "./ui.js";
+import { marca } from "./marca.js";
+
+const BOT = marca.asistente;           // «Ciudabot» o el nombre que el cliente le haya puesto (white-label)
 
 const CORTO = { lunes: "lun", martes: "mar", miércoles: "mié", jueves: "jue", viernes: "vie", sábado: "sáb", domingo: "dom" };
 const INICIALES = ["¿Cómo reservo una zona?", "¿Qué días suele estar más congestionado el BBQ?", "¿Hay votaciones abiertas?", "¿Qué eventos hay próximamente?"];
@@ -66,7 +69,7 @@ const quitarSugerencias = () => cuerpo?.querySelectorAll(".chat-chips").forEach(
 const bajar = () => requestAnimationFrame(() => cuerpo?.scrollTo({ top: cuerpo.scrollHeight, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }));
 
 function escribiendo() {
-  return h("div", { class: "chat-msg bot chat-escribiendo", role: "status", "aria-label": "Ciudabot está escribiendo" },
+  return h("div", { class: "chat-msg bot chat-escribiendo", role: "status", "aria-label": `${BOT} está escribiendo` },
     h("span", { class: "chat-avatar", "aria-hidden": "true" }, icono("chispa", 16)),
     h("div", { class: "chat-burbuja" }, h("i"), h("i"), h("i")));
 }
@@ -74,11 +77,11 @@ function escribiendo() {
 function bienvenida() {
   cuerpo.replaceChildren();
   const primero = nombre.split(" ")[0] || "";
-  agregarBot({ respuesta: `¡Hola${primero ? `, ${primero}` : ""}! Soy **Ciudabot** y te ayudo con todo lo relacionado con la app y nuestro conjunto: reservas, pagos, paquetes, visitas, votaciones, eventos y más. ¿Qué quieres saber?`, sugerencias: INICIALES });
+  agregarBot({ respuesta: `¡Hola${primero ? `, ${primero}` : ""}! Soy **${BOT}** y te ayudo con todo lo relacionado con la app y nuestro conjunto: reservas, pagos, paquetes, visitas, votaciones, eventos y más. ¿Qué quieres saber?`, sugerencias: INICIALES });
 }
 
 function actualizarPie() {
-  const aviso = "Ciudabot puede equivocarse. No escribas cédulas, teléfonos ni claves.";
+  const aviso = `${BOT} puede equivocarse. No escribas cédulas, teléfonos ni claves.`;
   const quedan = estado && estado.ia && estado.restantes != null ? ` · ${estado.restantes} mensajes con IA hoy` : "";
   pie.textContent = aviso + quedan;
   subtitulo.textContent = estado ? (estado.ia ? "Con IA · responde con datos de reservas" : "Modo básico · datos de reservas") : "Datos reales de reservas";
@@ -161,22 +164,22 @@ export function montarChat(usuario) {
   nombre = usuario?.nombre_completo ?? "";
   subtitulo = h("span", { class: "chat-sub" }, "Datos reales de reservas");
   cuerpo = h("div", { class: "chat-cuerpo", role: "log", "aria-live": "polite", "aria-relevant": "additions" });
-  campo = h("textarea", { class: "chat-campo", rows: "1", maxlength: "400", placeholder: "Escribe tu pregunta…", "aria-label": "Escribe tu pregunta para Ciudabot", enterkeyhint: "send",
+  campo = h("textarea", { class: "chat-campo", rows: "1", maxlength: "400", placeholder: "Escribe tu pregunta…", "aria-label": `Escribe tu pregunta para ${BOT}`, enterkeyhint: "send",
     oninput: ajustarCampo, onkeydown: (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); enviar(); } } });
   enviarBtn = h("button", { class: "chat-enviar", type: "submit", "aria-label": "Enviar mensaje", disabled: true }, icono("flecha", 20));
   pie = h("p", { class: "chat-pie" });
 
-  panel = h("section", { class: "chat-panel", id: "chat-panel", role: "dialog", "aria-label": "Chat con Ciudabot", hidden: true },
+  panel = h("section", { class: "chat-panel", id: "chat-panel", role: "dialog", "aria-label": `Chat con ${BOT}`, hidden: true },
     h("header", { class: "chat-cab" },
       h("span", { class: "chat-logo", "aria-hidden": "true" }, icono("chispa", 22)),
-      h("div", { class: "chat-titulo" }, h("b", {}, "Ciudabot"), subtitulo),
+      h("div", { class: "chat-titulo" }, h("b", {}, BOT), subtitulo),
       h("button", { class: "chat-ico", type: "button", title: "Nueva conversación", "aria-label": "Nueva conversación", onclick: reiniciar }, icono("editar", 18)),
       h("button", { class: "chat-ico", type: "button", title: "Cerrar chat", "aria-label": "Cerrar chat", onclick: cerrar }, icono("x", 18))),
     cuerpo,
     h("form", { class: "chat-form", novalidate: true, onsubmit: (e) => { e.preventDefault(); enviar(); } }, campo, enviarBtn),
     pie);
-  fab = h("button", { class: "chat-fab", type: "button", "aria-label": "Abrir chat con Ciudabot", "aria-expanded": "false", "aria-controls": "chat-panel", onclick: abrir },
-    icono("chat", 26), h("span", { class: "chat-fab-texto" }, "Pregúntale a Ciudabot"));
+  fab = h("button", { class: "chat-fab", type: "button", "aria-label": `Abrir chat con ${BOT}`, "aria-expanded": "false", "aria-controls": "chat-panel", onclick: abrir },
+    icono("chat", 26), h("span", { class: "chat-fab-texto" }, `Pregúntale a ${BOT}`));
   document.body.append(fab, panel);
   bienvenida(); actualizarPie();
 }

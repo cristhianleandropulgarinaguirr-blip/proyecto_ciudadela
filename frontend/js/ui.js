@@ -1,5 +1,6 @@
 // Utilidades de interfaz: crear DOM de forma segura, iconos, formatos, toasts y modales.
 // h() usa textContent / setAttribute: nunca innerHTML con datos del usuario (evita XSS).
+import { marca } from "./marca.js";
 
 export function h(tag, attrs, ...hijos) {
   const el = document.createElement(tag);
@@ -102,11 +103,11 @@ export function logo(sobreOscuro = false) {
   const wrap = h("span", { class: "logo" });
   if (sobreOscuro) wrap.append(h("img", { class: "logo-img crema fija", src: "img/icono-crema.png", alt: "" }));
   else wrap.append(h("img", { class: "logo-img claro", src: "img/icono.png", alt: "" }), h("img", { class: "logo-img crema", src: "img/icono-crema.png", alt: "" }));
-  wrap.append(h("span", { class: "logo-texto" }, "Ciudadela Digital"));
+  wrap.append(h("span", { class: "logo-texto" }, marca.nombre));
   return wrap;
 }
 // Logo completo (celular + conjunto + nombre), versión crema para fondos oscuros.
-export const logoCompleto = () => h("img", { class: "logo-completo", src: "img/logo-crema.png", alt: "Ciudadela Digital · Control Residencial" });
+export const logoCompleto = () => h("img", { class: "logo-completo", src: "img/logo-crema.png", alt: `${marca.nombre} · Control Residencial` });
 
 // ---------- Formatos ----------
 const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });

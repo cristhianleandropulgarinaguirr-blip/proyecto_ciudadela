@@ -9,6 +9,7 @@ import { red } from "./red.js";
 import { iniciarOffline, limpiarAlSalir, hayPendientes, alCambiarCola, sincronizar, conflictos, descartarConflictos } from "./offline.js";
 import { reasociarPush, liberarPushAlSalir, soportaPush } from "./push.js";
 import { avisoCamara } from "./foto.js";
+import { marca } from "./marca.js";
 
 const A = "Administrador", R = "Residente", G = "Guardia", I = "Inquilino";
 // Cada ruta declara qué roles la ven: el menú se arma solo con lo permitido (la API igual valida con 403).
@@ -30,6 +31,7 @@ const RUTAS = [
   { id: "documentos", texto: "Documentos", icono: "archivo", roles: [A, R, G, I], cargar: () => import("./vistas/documentos.js") },
   { id: "emergencias", texto: "Emergencias", icono: "telefono", roles: [A, R, G, I], cargar: () => import("./vistas/emergencias.js") },
   { id: "indicadores", texto: "Indicadores", icono: "grafico", roles: [A], cargar: () => import("./vistas/indicadores.js") },
+  { id: "demos", texto: "Solicitudes de demo", icono: "megafono", roles: [A], requiere: "landing", cargar: () => import("./vistas/demos.js") },   // v4.0: solo si la landing está activa
   { id: "importar", texto: "Cargar datos", icono: "subir", roles: [A], cargar: () => import("./vistas/importar.js") },
   { id: "auditoria", texto: "Auditoría", icono: "escudo", roles: [A], cargar: () => import("./vistas/auditoria.js") },
   { id: "residentes", texto: "Usuarios", icono: "usuarios", roles: [A], cargar: () => import("./vistas/residentes.js") },
@@ -40,7 +42,7 @@ const etiqueta = (r, rol) => (typeof r.texto === "string" ? r.texto : r.texto[ro
 
 // Barra inferior del celular: máximo 5 botones (4 + «Más»). Lo demás vive en «Más», con botones grandes.
 // ¿Esta ruta es para este usuario? Además del rol: al inquilino solo se le muestran Cartera y Votaciones si su propietario se las delegó.
-const permitida = (r, u) => r.roles.includes(u?.rol) && (u?.rol !== I || !r.delegado || (u.delegaciones ?? []).includes(r.delegado));
+const permitida = (r, u) => r.roles.includes(u?.rol) && (!r.requiere || marca[r.requiere]) && (u?.rol !== I || !r.delegado || (u.delegaciones ?? []).includes(r.delegado));
 
 const BARRA = {
   [R]: ["resumen", "reservas", "paquetes", "cartera"],

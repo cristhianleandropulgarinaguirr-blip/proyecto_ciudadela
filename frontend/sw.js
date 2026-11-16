@@ -1,4 +1,4 @@
-// Service worker de Ciudadela Digital (versión 3.1).
+// Service worker de la app (versión 3.1; el nombre de la marca lo pone el servidor, v4.0).
 // Objetivo: que la app abra al instante y siga siendo segura con los datos.
 //  - Archivos de la app (/app/…): se guardan TODOS al instalar y se sirven desde el celular (cache-first) → abre en milisegundos, incluso sin internet.
 //    El servidor entrega este archivo con un código de versión calculado a partir de los archivos: si algo cambia, la versión cambia
@@ -8,6 +8,7 @@
 const VERSION = "ciudadela-__VERSION__";
 const ARCHIVOS = __ARCHIVOS__;
 const CACHE_FUENTES = "ciudadela-fuentes";
+const NOMBRE = __NOMBRE__;          // el servidor lo reemplaza por el nombre de la marca (white-label)
 
 self.addEventListener("install", (e) => {
   // «reload»: salta la caché HTTP del navegador para guardar siempre la copia fresca del servidor.
@@ -57,14 +58,14 @@ self.addEventListener("fetch", (e) => {
 // El servidor envía {titulo, mensaje, enlace, etiqueta}. Si la app está abierta y a la vista, el aviso ya se ve en la campana: no se duplica.
 self.addEventListener("push", (e) => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch { d = { titulo: "Ciudadela Digital", mensaje: e.data ? e.data.text() : "" }; }
+  try { d = e.data ? e.data.json() : {}; } catch { d = { titulo: NOMBRE, mensaje: e.data ? e.data.text() : "" }; }
   e.waitUntil((async () => {
     const abiertas = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     if (abiertas.some((c) => c.visibilityState === "visible")) {
       abiertas.forEach((c) => c.postMessage({ tipo: "push", enlace: d.enlace }));     // la app refresca la campana
       return;
     }
-    await self.registration.showNotification(d.titulo || "Ciudadela Digital", {
+    await self.registration.showNotification(d.titulo || NOMBRE, {
       body: d.mensaje || "", icon: "img/pwa-192.png", badge: "img/favicon.png", tag: d.etiqueta || "ciudadela",
       renotify: true, data: { enlace: d.enlace || "#/" },
     });
