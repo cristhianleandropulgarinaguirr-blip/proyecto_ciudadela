@@ -20,8 +20,8 @@ from sqlalchemy import event  # noqa: E402
 from app.constantes import RolNombre  # noqa: E402
 from app.database import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import (Anuncio, Auditoria, CodigoQR, EscaneoQR, Notificacion, Paquete, PQRS, Reserva, Rol,  # noqa: E402
-                        Usuario, VehiculoVisitante, ahora_utc)
+from app.models import (AccesoVisitante, Anuncio, Auditoria, CodigoQR, EscaneoQR, Notificacion, Paquete, PQRS, Reserva, Rol,  # noqa: E402
+                        Usuario, VehiculoVisitante, VisitanteAutorizado, ahora_utc)
 from app.security import encriptar_password  # noqa: E402
 from app.seed import asegurar_roles  # noqa: E402
 
@@ -65,6 +65,17 @@ def sembrar() -> None:
             codigos.append(c)
         db.commit()
         db.add_all([EscaneoQR(codigo_id=random.choice(codigos).id, escaneado_por=2, resultado="Ingreso registrado") for _ in range(3000)])
+        db.commit()
+        # Fase 5: datos que alimentan los indicadores (si no existen, la medición del dashboard sale artificialmente barata)
+        db.add_all([PQRS(usuario_id=random.choice(ids), tipo="Queja", asunto="Respondida", descripcion="x" * 80, estado="Resuelta",
+                         fecha_creacion=ahora - timedelta(days=random.randint(3, 80)), fecha_respuesta=ahora - timedelta(days=random.randint(0, 2)))
+                    for _ in range(2000)])
+        db.add(VisitanteAutorizado(usuario_id=ids[0], nombre="Visita frecuente", documento="1"))
+        db.commit()
+        vid = db.query(VisitanteAutorizado).first().id
+        for _ in range(20000):      # entradas a pie de los últimos 30 días; todas con su salida (en la vida real casi nadie está «dentro» a la vez)
+            entro = ahora - timedelta(minutes=random.randint(120, 30 * 24 * 60))
+            db.add(AccesoVisitante(visitante_id=vid, fecha_ingreso=entro, fecha_salida=entro + timedelta(hours=1)))
         db.commit()
 
 
@@ -120,7 +131,7 @@ def medir() -> list[tuple]:
 
 if __name__ == "__main__":
     sembrar()
-    print(f"Datos: {N_RESIDENTES} residentes · 3000 reservas · 4000 vehículos · 3000 paquetes · 4000 notificaciones · 5000 auditorías\n")
+    print(f"Datos: {N_RESIDENTES} residentes · 3000 reservas · 4000 vehículos · 3000 paquetes · 4000 notificaciones · 5000 auditorías · 2000 PQRS respondidas · 20000 accesos a pie\n")
     print(f"{'rol':9} {'ruta':36} {'HTTP':>4} {'SQL':>5} {'ms':>8} {'KB':>7}")
     for rol, ruta, st, n, ms, tam in sorted(medir(), key=lambda f: -f[3]):
         marca = "  <-- N+1?" if n > 15 else ""

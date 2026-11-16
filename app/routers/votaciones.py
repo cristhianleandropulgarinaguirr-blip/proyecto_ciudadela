@@ -6,7 +6,7 @@ import re
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -234,7 +234,7 @@ def anular(votacion_id: int, db: Session = Depends(get_db), admin: Usuario = Dep
 def participacion(votacion_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
     v = _obtener(db, votacion_id)
     ya = {c for (c,) in db.query(VotacionParticipacion.clave).filter(VotacionParticipacion.votacion_id == v.id).all()}
-    peso_ya = sum(p or 0.0 for (p,) in db.query(VotacionParticipacion.peso).filter(VotacionParticipacion.votacion_id == v.id).all())
+    peso_ya = float(db.query(func.coalesce(func.sum(VotacionParticipacion.peso), 0.0)).filter(VotacionParticipacion.votacion_id == v.id).scalar() or 0.0)   # la suma la hace la base
     participaron, pendientes_ = {}, {}
     residentes = _residentes(db)
     for r in residentes:

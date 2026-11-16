@@ -42,26 +42,28 @@ def _calcular(db: Session) -> dict:
              .group_by(Reserva.zona_comun).order_by(func.count(Reserva.id).desc(), Reserva.zona_comun).limit(8).all())
     pendientes = db.query(func.count(Reserva.id)).filter(Reserva.estado == "Pendiente").scalar()
 
-    # --- PQRS: promedio de horas entre radicar y responder (solo las respondidas en la ventana)
+    # --- PQRS: promedio de horas entre radicar y responder (solo las respondidas en la ventana). Lo calcula la base de datos:
+    # «epoch» = segundos desde 1970, así la resta funciona igual en SQLite y en PostgreSQL (restar fechas directamente no es portable).
     desde = ahora - timedelta(days=DIAS_PQRS)
-    tiempos = db.query(PQRS.fecha_creacion, PQRS.fecha_respuesta).filter(PQRS.fecha_respuesta.isnot(None), PQRS.fecha_respuesta >= desde).limit(5000).all()
-    horas = [(r - c).total_seconds() / 3600 for c, r in tiempos if c and r and r >= c]
+    respondidas, seg_promedio = (db.query(func.count(PQRS.id), func.avg(func.extract("epoch", PQRS.fecha_respuesta) - func.extract("epoch", PQRS.fecha_creacion)))
+                                 .filter(PQRS.fecha_respuesta.isnot(None), PQRS.fecha_respuesta >= desde, PQRS.fecha_creacion.isnot(None),
+                                         PQRS.fecha_respuesta >= PQRS.fecha_creacion).one())
     abiertas = db.query(func.count(PQRS.id)).filter(PQRS.estado.in_(["Radicada", "En tramite"])).scalar()
 
-    # --- visitantes por hora local: se traen SOLO las fechas (sin más columnas) y se reparten en 24 casillas
+    # --- visitantes por hora local: la base agrupa por hora UTC (máximo 24 filas por tabla) y aquí solo se pasa a hora de Colombia
     desde_v = ahora - timedelta(days=DIAS_VISITANTES)
     por_hora = [0] * 24
     for modelo in (VehiculoVisitante, AccesoVisitante):
-        for (f,) in db.query(modelo.fecha_ingreso).filter(modelo.fecha_ingreso >= desde_v).limit(50000).all():
-            if f:
-                por_hora[(f.hour - 5) % 24] += 1          # UTC → hora de Colombia
+        hora = func.extract("hour", modelo.fecha_ingreso)
+        for h, n in db.query(hora, func.count()).filter(modelo.fecha_ingreso >= desde_v).group_by(hora).all():
+            por_hora[(int(h) - 5) % 24] += n          # UTC → hora de Colombia
     total_v = sum(por_hora)
 
     return {
         "generado": ahora.isoformat(), "cartera": cartera,
         "reservas": {"dias": DIAS_RESERVAS, "por_zona": [{"zona": z, "total": n} for z, n in zonas], "pendientes": pendientes},
-        "pqrs": {"abiertas": abiertas, "respondidas": len(horas), "dias": DIAS_PQRS,
-                 "horas_promedio_respuesta": round(sum(horas) / len(horas), 1) if horas else None},
+        "pqrs": {"abiertas": abiertas, "respondidas": respondidas, "dias": DIAS_PQRS,
+                 "horas_promedio_respuesta": round(float(seg_promedio) / 3600, 1) if respondidas and seg_promedio is not None else None},
         "visitantes": {"dias": DIAS_VISITANTES, "por_hora": por_hora, "total": total_v, "hora_pico": por_hora.index(max(por_hora)) if total_v else None},
         "operacion": {"vehiculos_dentro": db.query(func.count(VehiculoVisitante.id)).filter(VehiculoVisitante.estado == "Dentro").scalar(),
                       "paquetes_sin_entregar": db.query(func.count(Paquete.id)).filter(Paquete.estado == "En porteria").scalar(),
