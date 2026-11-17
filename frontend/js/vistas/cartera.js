@@ -1,6 +1,6 @@
 // Cartera / recaudo de administración.
 // Endpoints: GET /administracion/estado-cuenta/{id} · PATCH /administracion/registrar-deuda/{id}?saldo_pendiente=
-//            POST /administracion/simular-pago-pasarela?valor_pagado=   (solo demostración: PAGOS_SIMULADOS=1)
+//            Pago en línea de PRUEBAS (tipo Wompi/PSE, solo con PAGOS_SIMULADOS=1): ver pasarela.js  →  POST /pagos-simulados · /{ref}/pagar · GET /{ref}
 //            POST /administracion/registrar-pago/{id}?valor_pagado=&referencia=   (administrador: pago real recibido)
 //            GET  /administracion/config-pagos · GET /administracion/cartera (administrador: todos los residentes en UNA petición)
 //            POST /paz-y-salvo · GET /paz-y-salvo · GET /paz-y-salvo/{id}/pdf   (paz y salvo con QR de verificación)
@@ -8,6 +8,7 @@ import { api, apiBlob } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, dinero, kpi, deUtc, fmtFechaHora } from "../ui.js";
 import { cabecera } from "./comun.js";
 import { descargar, guardarBlob, hoyArchivo } from "../descargas.js";
+import { abrirPasarela } from "./pasarela.js";
 
 // ---------- Paz y salvo con QR (residente, inquilino con permiso y administrador) ----------
 const ESTADO_PAZ = { Vigente: "bosque", Vencido: "borde", Revocado: "laton", "No vigente": "laton" };
@@ -69,7 +70,7 @@ async function vistaResidente(ctx) {
       h("div", { class: "rapidos" },
         h("button", { type: "button", class: "chip", onclick: () => { monto.value = cuenta.saldo_pendiente; } }, `Todo · ${dinero(cuenta.saldo_pendiente)}`),
         cuenta.saldo_pendiente > 1 ? h("button", { type: "button", class: "chip", onclick: () => { monto.value = Math.ceil(cuenta.saldo_pendiente / 2); } }, "La mitad") : null),
-      pagar, h("p", { class: "small muted", style: "margin-top:.8rem" }, "Pasarela de pagos simulada para la demostración."));
+      pagar, h("p", { class: "small muted", style: "margin-top:.8rem" }, "Modo de pruebas: eliges PSE, tarjeta o Nequi, pero no se cobra dinero real."));
 
     raiz.replaceChildren(
       h("section", { class: "cuenta" },
@@ -92,24 +93,17 @@ async function vistaResidente(ctx) {
           : estadoVacio("Aún no has hecho pagos aquí", "Cuando pagues, cada pago queda guardado con su comprobante en PDF.")));
   }
 
-  function iniciarPago(valor, boton) {
+  // v4.2: el pago en línea es una pasarela de PRUEBAS tipo Wompi/PSE (pasarela.js). Al cerrarla se recarga el saldo y la lista de pagos.
+  async function iniciarPago(valor, boton) {
     if (!Number.isInteger(valor) || valor <= 0) return toast("Ingresa un valor válido.", "error");
     if (valor > cuenta.saldo_pendiente) return toast(`El valor no puede superar tu saldo (${dinero(cuenta.saldo_pendiente)}).`, "error");
-    const cuerpo = h("div", { class: "pasarela" }, h("div", { class: "spinner" }), h("b", {}, "Procesando tu pago…"), h("p", { class: "muted small" }, "No cierres esta ventana."));
-    const m = modal("Pasarela segura", cuerpo);
-    document.getElementById("modal").addEventListener("cancel", (e) => e.preventDefault(), { once: true });
-    Promise.all([api("/administracion/simular-pago-pasarela", { metodo: "POST", params: { valor_pagado: valor } }), new Promise((r) => setTimeout(r, 1400))])
-      .then(async ([r]) => {
-        cuenta = await api(`/administracion/estado-cuenta/${ctx.usuario.id}`);
-        pagos = await api("/administracion/mis-pagos");
-        const visto = h("div", { class: "visto" });
-        visto.innerHTML = '<svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="30"/><path d="M19 33l9 9 17-19"/></svg>';
-        cuerpo.replaceChildren(visto, h("b", {}, r.status), h("p", { class: "muted", style: "margin:.4rem 0 1rem" }, r.mensaje),
-          r.pago_id ? botonComprobante({ id: r.pago_id, comprobante: `pago_${r.pago_id}` }, "btn suave block") : null,
-          h("button", { class: "btn block", style: "margin-top:.6rem", onclick: () => { m.cerrar(); pintar(); } }, "Listo"));
-        ctx.actualizarUsuario();
-      })
-      .catch((e) => { m.cerrar(); toast(e.message, "error"); });
+    await conCarga(boton, () => abrirPasarela({
+      valor,
+      alTerminar: async () => {
+        try { cuenta = await api(`/administracion/estado-cuenta/${ctx.usuario.id}`); pagos = await api("/administracion/mis-pagos"); ctx.actualizarUsuario(); } catch { /* se queda con lo que había */ }
+        pintar();
+      },
+    }));
   }
 
   pintar();

@@ -209,11 +209,16 @@ function crearBanner() {
   async function pintar() {
     const malos = (await conflictos()).length;
     const partes = [];
-    if (!red.enLinea) partes.push(h("span", { class: "txt" }, icono("sinred", 16), `Sin conexión${n ? ` · ${n} registro(s) por enviar` : ""}. Lo que registres se guarda en este equipo y se envía solo.`));
-    else if (n || f) partes.push(h("span", { class: "txt" }, `Enviando ${n + f} pendiente(s)…`), h("button", { class: "btn suave sm", onclick: () => sincronizar() }, "Enviar ahora"));
+    const sinEnviar = n + f;                                   // registros (y fotos) que SOLO existen en este equipo: aún no llegaron al servidor
+    const latido = () => h("span", { class: "punto-alerta", "aria-hidden": "true" });
+    if (!red.enLinea) partes.push(h("span", { class: "txt" }, icono("sinred", 16), "Sin conexión. Lo que registres se guarda en este equipo y se envía solo."),
+      sinEnviar ? h("span", { class: "chip-pendiente" }, latido(), `${sinEnviar} sin enviar`) : null);
+    else if (sinEnviar) partes.push(h("span", { class: "txt" }, latido(), h("b", {}, `${sinEnviar} registro(s) SIN ENVIAR`), " · están guardados solo en este equipo hasta que lleguen al servidor."),
+      h("button", { class: "btn suave sm", onclick: () => sincronizar() }, "Enviar ahora"));
     if (malos) partes.push(h("button", { class: "btn suave sm", onclick: verRechazados }, `${malos} registro(s) no se aceptaron`));
-    banner.replaceChildren(...partes); banner.hidden = !partes.length;
+    banner.replaceChildren(...partes.filter(Boolean)); banner.hidden = !partes.length;
     banner.classList.toggle("sin-red", !red.enLinea);
+    banner.classList.toggle("pendiente", sinEnviar > 0);        // ámbar fuerte y con latido: el guarda ve con certeza que aún queda algo por enviar
   }
   async function verRechazados() {
     const lista = await conflictos();

@@ -121,6 +121,7 @@ class EstadoChat(BaseModel):
     ia: bool                            # True si hay IA conectada; si no, el chat responde igual con los datos de reservas
     limite_diario: int
     restantes: int
+    sugerencias: list[str] = []         # v4.2 · las preguntas con las que arranca el chat, según el rol (y lo que el propietario delegó al inquilino)
 
 
 class SalidaChat(BaseModel):

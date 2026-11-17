@@ -578,3 +578,26 @@ class SolicitudDemo(Base):
     acepto_datos = Column(DateTime, nullable=False, default=ahora_utc)
     fecha_creacion = Column(DateTime, default=ahora_utc, nullable=False, index=True)
     fecha_actualizacion = Column(DateTime, default=ahora_utc, onupdate=ahora_utc)
+
+
+# ==========================================
+#   V4.2 · PASARELA DE PAGOS SIMULADA (tipo Wompi / PSE)
+# ==========================================
+class IntentoPago(Base):
+    """Un intento de pago en la pasarela de PRUEBAS (solo con PAGOS_SIMULADOS=1). Imita el recorrido de una pasarela real: la app crea el intento
+    (referencia), la pasarela decide el resultado y, si lo aprueba, recién ahí se descuenta del saldo. NUNCA guarda datos de tarjeta, documento ni celular."""
+    __tablename__ = "intentos_pago"
+
+    id = Column(Integer, primary_key=True, index=True)
+    referencia = Column(String(24), nullable=False, unique=True, index=True)          # SIM-XXXXXXXXXX
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)   # quien paga (el propietario o su inquilino con permiso)
+    titular_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)               # dueño de la deuda
+    valor = Column(Integer, nullable=False)
+    metodo = Column(String(10), nullable=True)                                            # PSE | Tarjeta | Nequi (se fija al pagar)
+    estado = Column(String(10), nullable=False, default="Creado", index=True)             # Creado | Pendiente | Aprobado | Rechazado | Expirado
+    mensaje = Column(String(200), nullable=True)                                          # lo que «dijo» la pasarela
+    pago_id = Column(Integer, ForeignKey("pagos.id"), nullable=True)                      # el pago real que quedó registrado si fue aprobado
+    resuelve_en = Column(DateTime, nullable=True)                                         # si quedó «Pendiente»: cuándo llega la confirmación
+    fecha_creacion = Column(DateTime, default=ahora_utc, nullable=False)
+    fecha_resolucion = Column(DateTime, nullable=True)
+

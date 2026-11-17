@@ -23,7 +23,7 @@
   --ok: #17702F; --ok-100: #DDF1DE; --aviso: #7A5214; --aviso-100: #FBEBCB;
   --f-display: "Fraunces", Georgia, "Times New Roman", serif;
   --f-ui: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --ancho: 1160px;
+  --ancho: 1200px;          /* ancho máximo del contenido (centrado): en pantallas ultra-anchas el texto no se estira */
   --r: 14px;
 }
 
@@ -216,3 +216,36 @@ a { color: inherit; }
 .pie-enlaces a { color: var(--crema); opacity: .85; }
 .pie-nota { margin: 0; font-size: .88rem; opacity: .65; max-width: 60ch; }
 @media (min-width: 800px) { .pie { grid-template-columns: auto 1fr; align-items: center; } .pie-enlaces { justify-content: flex-end; } .pie-nota { grid-column: 1 / -1; } }
+
+/* ---------- v4.2 · Guía de instalación de la app (PWA): pestañas + pasos dibujados con SVG propio ---------- */
+.instalar .cab-seccion { margin-bottom: 1.6rem; max-width: 68ch; }
+.ventajas { list-style: none; margin: 0 0 2rem; padding: 0; display: grid; gap: .6rem 2.5rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.ventajas li { padding-left: 1.4rem; position: relative; }
+.ventajas li::before { content: ""; position: absolute; left: 0; top: .65em; width: 8px; height: 8px; border-radius: 2px; background: var(--laton); }
+.pestanas { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: 1.6rem; }
+.pestana { font: 600 1rem/1 var(--f-ui); min-height: 46px; padding: .75rem 1.4rem; border-radius: 999px; border: 2px solid var(--bosque); background: transparent; color: var(--bosque); cursor: pointer; }
+.pestana:hover { background: var(--bosque-100); }
+.pestana[aria-selected="true"] { background: var(--bosque); color: var(--crema); }
+.panel-instalar[hidden] { display: none; }
+.pasos-instalar { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.paso-instalar { display: grid; gap: .45rem; justify-items: center; align-content: start; text-align: center; background: var(--papel); border: 1px solid var(--linea); border-radius: var(--r); padding: 1.2rem 1rem 1.4rem; }
+.paso-instalar b { font-size: 1.05rem; margin-top: .5rem; }
+.paso-instalar span { color: var(--tinta-2); font-size: .95rem; max-width: 30ch; }
+.fig { width: min(100%, 140px); height: auto; }
+.fig.ancha { width: min(100%, 250px); }
+.fig text { font: 600 8px var(--f-ui); fill: var(--tinta); }
+.fig .chico { font-size: 7px; }
+.fig .tel-marco { fill: var(--menu); }
+.fig .tel-pantalla, .fig .superficie, .fig .ventana { fill: var(--superficie); }
+.fig .ventana { stroke: var(--menu); stroke-width: 2; }
+.fig .tel-nota { fill: var(--tinta-2); }
+.fig .barra-dir { fill: var(--bosque-100); }
+.fig .menu-flotante { fill: #fff; stroke: var(--linea); stroke-width: 1.5; }
+.fig .linea { fill: var(--linea); }
+.fig .hl { fill: var(--rol-ambar-100); stroke: var(--laton); stroke-width: 2; }
+.fig .resalte { fill: none; stroke: var(--laton); stroke-width: 3; }
+.fig .punto { fill: var(--tinta); }
+.fig .icono { fill: none; stroke: var(--tinta); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.nota-instalar { margin: 1.4rem 0 0; font-weight: 600; color: var(--bosque); }
+.instalar-cta { margin: 1.6rem 0 0; }
+.oculto { position: absolute; width: 0; height: 0; overflow: hidden; }

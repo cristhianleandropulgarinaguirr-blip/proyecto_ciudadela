@@ -30,10 +30,6 @@ def corto() -> str:
     return config.MARCA_NOMBRE_CORTO
 
 
-def es_la_marca_por_defecto() -> bool:
-    return config.MARCA_NOMBRE == config.MARCA_NOMBRE_POR_DEFECTO and not color_valido()
-
-
 # ---------------------------------------------------------------- color
 def color_valido() -> str:
     """El color configurado en minúsculas, o «» si no hay o no es un «#RRGGBB» válido (un valor roto jamás debe romper la app)."""

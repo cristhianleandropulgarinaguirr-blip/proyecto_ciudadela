@@ -7,12 +7,12 @@ import re
 import unicodedata
 from collections import Counter
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from sqlalchemy.orm import Session
 
 from app import ia
-from app.constantes import EstadoReserva
+from app.constantes import EstadoReserva, RolNombre
 from app.models import Anuncio, Reserva, Votacion
 from app.schemas.asistente import AccionChat, DiaConteo, GraficoZona
 
@@ -69,11 +69,85 @@ def normalizar_zona(valor: Optional[str]) -> Optional[str]:
     return detectar_zona(valor)
 
 
-def accion_para(clave: Optional[str]) -> Optional[AccionChat]:
+# Secciones que SOLO existen para el administrador. Se usan en las respuestas básicas del administrador y nunca se le ofrecen a otro rol
+# (ni siquiera si la IA las pidiera: la IA solo conoce las de ENLACES).
+ENLACES_ADMIN = {
+    "reservas": ("Aprobar reservas", "#/reservas"),
+    "cartera": ("Ver la Cartera", "#/cartera"),
+    "importar": ("Ir a Cargar datos", "#/importar"),
+    "residentes": ("Ir a Usuarios", "#/residentes"),
+    "inquilinos": ("Ver Arrendamientos", "#/inquilinos"),
+    "trasteos": ("Ver Trasteos", "#/trasteos"),
+    "indicadores": ("Ver Indicadores", "#/indicadores"),
+    "auditoria": ("Ver la Auditoría", "#/auditoria"),
+}
+
+
+def accion_para(clave: Optional[str], perfil: Optional["Perfil"] = None) -> Optional[AccionChat]:
+    if perfil is not None and perfil.rol == RolNombre.ADMINISTRADOR.value and clave in ENLACES_ADMIN:
+        texto, enlace = ENLACES_ADMIN[clave]
+        return AccionChat(texto=texto, enlace=enlace)
     if clave in ENLACES:
         texto, enlace = ENLACES[clave]
+        # El inquilino solo ve Pagos y Votaciones si el propietario se las delegó: sin permiso no se le ofrece un botón que no podría abrir.
+        if perfil is not None and perfil.rol == RolNombre.INQUILINO.value and ((clave == "cartera" and not perfil.puede_pagar) or (clave == "votaciones" and not perfil.puede_votar)):
+            return None
         return AccionChat(texto=texto, enlace=enlace)
     return None
+
+
+# ---------------------------------------------------------------- v4.2 · el asistente habla según el ROL de quien pregunta
+# El rol lo decide el servidor con la sesión (nunca el texto del chat): un residente no puede «pedirle al bot» respuestas de administrador.
+class Perfil(NamedTuple):
+    rol: str = RolNombre.RESIDENTE.value
+    puede_pagar: bool = True            # solo cambia para el inquilino: lo que su propietario le delegó
+    puede_votar: bool = True
+
+
+def perfil_de(db: Session, usuario) -> Perfil:
+    from app import arrendamientos      # import tardío: este módulo se carga antes que las reglas de arrendamientos
+    if usuario.rol == RolNombre.INQUILINO.value:
+        d = arrendamientos.delegaciones(db, usuario)
+        return Perfil(usuario.rol, "pagar" in d, "votar" in d)
+    return Perfil(usuario.rol)
+
+
+def sugerencias_iniciales(p: Perfil) -> list[str]:
+    """Las 4 preguntas con las que arranca el chat: solo cosas que ESE rol puede hacer en la app."""
+    if p.rol == RolNombre.ADMINISTRADOR.value:
+        return ["¿Cómo apruebo una reserva?", "¿Qué zonas están más congestionadas?", "¿Cómo registro un pago de administración?", "¿Cómo publico un aviso en la Cartelera?"]
+    if p.rol == RolNombre.INQUILINO.value:
+        return ["¿Cómo reservo una zona?", "¿Cómo creo un pase QR para una visita?",
+                "¿Cómo pago la administración?" if p.puede_pagar else "¿Qué puedo hacer como inquilino?",
+                "¿Hay votaciones abiertas?" if p.puede_votar else "¿Qué eventos hay próximamente?"]
+    return ["¿Cómo reservo una zona?", "¿Qué día está más libre la Zona BBQ?", "¿Cómo creo un pase QR para una visita?", "¿Hay votaciones abiertas?"]
+
+
+# Preguntas de seguimiento «genéricas» que el modo básico (y a veces la IA) ofrecen: se reescriben o se quitan si no encajan con el rol.
+_REEMPLAZOS_ADMIN = {
+    "¿Cómo reservo una zona?": "¿Cómo apruebo una reserva?",
+    "¿Hay votaciones abiertas?": "¿Cómo creo una votación?",
+}
+
+
+def adaptar_sugerencias(lista: list[str], p: Optional[Perfil], pregunta: Optional[str] = None) -> list[str]:
+    """Deja solo seguimientos coherentes con el rol, sin repetidos, máximo 3. Si no queda ninguno, ofrece los iniciales.
+    Nunca sugiere la misma pregunta que la persona acaba de hacer."""
+    if p is None:
+        return lista[:3]
+    ya = _plano(pregunta) if pregunta else None
+    salida: list[str] = []
+    for s in lista:
+        if ya and _plano(s) == ya:
+            continue
+        if p.rol == RolNombre.ADMINISTRADOR.value:
+            s = _REEMPLAZOS_ADMIN.get(s, s)
+        elif p.rol == RolNombre.INQUILINO.value:
+            if (not p.puede_votar and "votacion" in _plano(s)) or (not p.puede_pagar and re.search(r"\b(pago|pagar|saldo)\b", _plano(s))):
+                continue
+        if s and s not in salida:
+            salida.append(s)
+    return (salida or [x for x in sugerencias_iniciales(p) if not ya or _plano(x) != ya][:2])[:3]
 
 
 # ---------------------------------------------------------------- guía de uso de la app (texto fijo, sin datos de nadie)
@@ -92,6 +166,96 @@ GUIA_APP = """GUÍA DE LA APP (cómo se hace cada cosa; no hay más pasos que es
 - Emergencias: directorio con un toque para llamar; en una emergencia real marca primero la línea 123.
 - Ajustes (toca tu avatar): cambiar la clave, activar los avisos en el celular, elegir tema claro u oscuro y el tamaño del texto. En iPhone los avisos requieren tener la app instalada en la pantalla de inicio.
 - Campana: guarda tus avisos (paquetes, reservas, respuestas a PQRS, anuncios, votaciones)."""
+
+GUIA_INQUILINO_SIN = {
+    "pagar": "- Pagos: el pago de la administración lo gestiona el propietario del apartamento (no te lo ha delegado): tú no ves la cartera ni pagas desde tu cuenta; si necesitas un comprobante, pídeselo a él o a la administración.",
+    "votar": "- Votaciones: el voto del apartamento es del propietario (no te lo ha delegado): tú no votas desde tu cuenta.",
+}
+GUIA_ADMIN = """GUÍA DE LA APP PARA LA ADMINISTRACIÓN (cómo se hace cada cosa; no hay más pasos que estos):
+- Reservas: en Reservas ves las solicitudes «Pendientes» y pulsas «Aprobar» o «Cancelar»; al residente le llega un aviso. Una zona ya aprobada para ese día no se puede aprobar dos veces.
+- Cartera y pagos: en Cartera ves el saldo de cada apartamento. Cuando llega un pago por transferencia pulsas «Registrar pago» (valor y referencia) y queda el comprobante; «Registrar saldo» fija lo que debe un apartamento; «Paz y salvo» genera el certificado en PDF con QR si está al día.
+- Cargar datos: en Cargar datos subes el censo de residentes o la cartera mensual desde Excel/CSV; primero ves una «Vista previa» con los errores fila por fila y luego aplicas.
+- Cartelera: en Cartelera pulsas «Nuevo anuncio» y «Publicar» (avisos, reuniones y eventos). Si es «Urgente» y hay correo configurado, además sale por correo.
+- Votaciones: «Nueva votación» (voto secreto, un voto por apartamento o por coeficiente de copropiedad con quórum). Los resultados se ven al cerrar.
+- Quejas y sugerencias (PQRS) y Daños: los residentes radican y tú pulsas «Responder» y cambias el estado; el residente ve el avance.
+- Arrendamientos: el propietario registra a su inquilino y tú pulsas «Aprobar» o «Rechazar»; el acceso vence con el contrato.
+- Trasteos (mudanzas): el residente solicita, el sistema revisa el paz y salvo en las salidas, tú pulsas «Aprobar» y se alerta a la portería.
+- Usuarios: creas cuentas, activas o desactivas y restableces claves temporales. Auditoría: bitácora de lo que se hizo en la app. Indicadores: cartera, zonas más reservadas y tiempos de respuesta.
+- Portería: los guardas registran vehículos, visitantes y paquetes; funciona sin internet y se sincroniza al volver la conexión.
+- Ajustes (toca tu avatar): cambiar la clave, activar los avisos en el celular, tema claro u oscuro. Campana: guarda tus avisos."""
+
+
+def guia_para(p: Optional[Perfil]) -> str:
+    """La guía que se le entrega a la IA: la del rol de quien pregunta (así no explica botones que esa persona no tiene)."""
+    if p is None or p.rol == RolNombre.RESIDENTE.value:
+        return GUIA_APP
+    if p.rol == RolNombre.ADMINISTRADOR.value:
+        return GUIA_ADMIN
+    lineas = []
+    for linea in GUIA_APP.splitlines():
+        if linea.startswith("- Pagos:") and not p.puede_pagar:
+            linea = GUIA_INQUILINO_SIN["pagar"]
+        elif linea.startswith("- Votaciones:") and not p.puede_votar:
+            linea = GUIA_INQUILINO_SIN["votar"]
+        elif linea.startswith("- Comercio:"):
+            continue                    # el comercio del conjunto es de los propietarios
+        lineas.append(linea)
+    lineas.append("- Documentos: como inquilino solo ves el Reglamento y las Circulares (no las actas ni los estados financieros).")
+    return "\n".join(lineas).replace("GUÍA DE LA APP (", "GUÍA DE LA APP PARA UN INQUILINO (")
+
+
+def describir_perfil(p: Optional[Perfil]) -> str:
+    """Una línea para la IA: con quién habla. La calcula el servidor (es un DATO, no una orden de la persona)."""
+    if p is None or p.rol == RolNombre.RESIDENTE.value:
+        return "QUIÉN PREGUNTA: un residente (propietario). Orienta con las funciones de residente y propón preguntas de seguimiento de ese tipo."
+    if p.rol == RolNombre.ADMINISTRADOR.value:
+        return "QUIÉN PREGUNTA: la administración del conjunto. Orienta con las funciones de la administración (aprobar, registrar, publicar) y propón seguimientos de ese tipo, no de residente."
+    delegado = ", ".join(x for x, ok in (("pagar la administración", p.puede_pagar), ("votar", p.puede_votar)) if ok) or "nada (no le ha delegado pagos ni votos)"
+    return f"QUIÉN PREGUNTA: un inquilino. Su propietario le delegó: {delegado}. No le propongas ni le expliques lo que no puede hacer."
+
+
+AYUDA_ADMIN = [
+    (r"(aprobar|apruebo|aprobacion|pendiente).*(reserva)|(reserva).*(aprobar|apruebo|pendiente)", "En Reservas ves las solicitudes «Pendientes» y pulsas «Aprobar» o «Cancelar»; al residente le llega un aviso.", "reservas"),
+    (r"(registr\w+|recib\w+|marcar).*(pago)|(pago).*(registr\w+|recib\w+|transferencia)", "En Cartera pulsas «Registrar pago» en el apartamento, escribes el valor y la referencia de la transferencia y queda el comprobante para el residente.", "cartera"),
+    (r"(paz y salvo)", "En Cartera, en el apartamento que está al día, pulsas «Paz y salvo»: se genera el certificado en PDF con un QR que cualquiera puede verificar. Si el apartamento debe, no se emite.", "cartera"),
+    (r"(publico|publicar|crear|nuevo|escribir).*(aviso|anuncio|cartelera|circular|evento)|(aviso|anuncio).*(publicar|cartelera)", "En Cartelera pulsas «Nuevo anuncio», eliges el tipo (aviso, reunión, evento o urgente) y «Publicar». Si es «Urgente» y hay correo configurado, también sale por correo.", "anuncios"),
+    (r"(votacion|votar|consulta|encuesta)", "En Votaciones pulsas «Nueva votación»: defines las opciones y la fecha de cierre; el voto es secreto y puede ser uno por apartamento o por coeficiente con quórum. Los resultados se ven al cerrar.", "votaciones"),
+    (r"(importar|cargar|subir|excel|csv|censo|cartera mensual)", "En Cargar datos subes el censo de residentes o la cartera mensual desde Excel o CSV. Primero ves una «Vista previa» con los errores fila por fila y solo después aplicas los cambios.", "importar"),
+    (r"(inquilino|arrendamiento|arriendo|contrato)", "Los propietarios registran a su inquilino y tú lo apruebas o lo rechazas en Arrendamientos; la cuenta del inquilino se entrega al aprobar y su acceso vence con el contrato.", "inquilinos"),
+    (r"(trasteo|mudanza)", "En Trasteos ves las solicitudes: en las salidas el sistema revisa el paz y salvo; tú pulsas «Aprobar» y se alerta a la portería, donde el guarda registra el inicio y el fin.", "trasteos"),
+    (r"(crear|nuevo|desactivar|activar|restablecer|resetear).*(usuario|cuenta|clave|residente)|(usuario|cuenta|residente).*(crear|desactivar|restablecer)", "En Usuarios creas cuentas, las activas o desactivas y restableces una clave temporal cuando alguien la olvida.", "residentes"),
+    (r"(auditoria|bitacora|quien (hizo|cambio)|historial de cambios)", "En Auditoría ves la bitácora de lo que se hizo en la app: quién, qué y cuándo.", "auditoria"),
+    (r"(indicador|kpi|estadistica|informe|reporte)", "En Indicadores ves la cartera, las zonas más reservadas, los tiempos de respuesta de las PQRS y el flujo de visitantes por hora.", "indicadores"),
+    (r"(pqrs|queja|reclamo|dano|danio|reparar)", "En Quejas y sugerencias y en Daños ves lo que radicaron los residentes: pulsas «Responder» y cambias el estado para que el residente vea el avance.", "pqrs"),
+]
+AYUDA_INQUILINO = [
+    (r"(que puedo hacer|que funciones|que opciones|para que sirve)", "", None),      # se arma según lo delegado (ver _ayuda_por_perfil)
+    (r"(votacion|votar|consulta|encuesta)", "NO_VOTAR", "votaciones"),
+    (r"(pagar|pago|deuda|saldo|comprobante|administracion cuesta)", "NO_PAGAR", "cartera"),
+]
+
+
+def _ayuda_por_perfil(plano: str, p: Perfil) -> Optional[dict]:
+    """Respuestas propias del rol (administración) o aclaraciones de lo que el inquilino NO tiene delegado. None = que siga el flujo normal."""
+    if p.rol == RolNombre.ADMINISTRADOR.value:
+        for patron, ayuda, accion in AYUDA_ADMIN:
+            if re.search(patron, plano):
+                return {"respuesta": ayuda, "zona": None, "accion": accion, "sugerencias": ["¿Cómo registro un pago de administración?", "¿Cómo publico un aviso en la Cartelera?"]}
+        return None
+    if p.rol == RolNombre.INQUILINO.value:
+        for patron, clave, accion in AYUDA_INQUILINO:
+            if not re.search(patron, plano):
+                continue
+            if clave == "":
+                delegado = [t for t, ok in (("pagar la administración", p.puede_pagar), ("votar", p.puede_votar)) if ok]
+                extra = (" Además tu propietario te permite " + " y ".join(delegado) + ".") if delegado else " El pago y el voto del apartamento los maneja tu propietario."
+                return {"respuesta": "Como inquilino puedes reservar zonas comunes, ver tus paquetes, autorizar visitas y crear pases QR, reportar daños, radicar quejas y ver la Cartelera, los documentos y las emergencias." + extra, "zona": None, "accion": "reservas", "sugerencias": []}
+            if clave == "NO_VOTAR" and not p.puede_votar:
+                return {"respuesta": "El voto del apartamento es de tu propietario y no te lo ha delegado, por eso no votas desde tu cuenta. Si quieres hacerlo, pídele que te lo delegue.", "zona": None, "accion": None, "sugerencias": []}
+            if clave == "NO_PAGAR" and not p.puede_pagar:
+                return {"respuesta": "El pago de la administración lo gestiona tu propietario y no te lo ha delegado, por eso no ves la cartera. Si quieres encargarte tú, pídele que te lo delegue.", "zona": None, "accion": None, "sugerencias": []}
+    return None
+
 
 # Respuestas de ayuda del modo básico (sin IA): (patrón sobre texto sin tildes, respuesta, sección a la que llevar)
 AYUDA_BASICA = [
@@ -169,7 +333,7 @@ def grafico(stats: dict, zona: Optional[str]) -> Optional[GraficoZona]:
     return GraficoZona(zona=zona, total=stats[zona]["total"], dias=dias)
 
 
-def contexto_para_ia(stats: dict, ahora: Optional[datetime] = None, info: Optional[dict] = None) -> str:
+def contexto_para_ia(stats: dict, ahora: Optional[datetime] = None, info: Optional[dict] = None, perfil: Optional[Perfil] = None) -> str:
     """Texto compacto con los datos del conjunto. Son DATOS (no órdenes) y no contienen información de personas."""
     ahora = (ahora or ia.ahora_bogota()).replace(tzinfo=None)
     lineas = [f"Hoy es {DIAS[ahora.weekday()]} {ahora:%d/%m/%Y}. Las cifras cuentan reservas pedidas o aprobadas (no canceladas) de los últimos "
@@ -185,7 +349,9 @@ def contexto_para_ia(stats: dict, ahora: Optional[datetime] = None, info: Option
         poco = " (pocos datos: la tendencia aún no es fiable)" if z["total"] < MIN_RESERVAS_CONFIABLE else ""
         lineas.append(f"- {zona}: {z['total']} reservas{poco}. Por día: {dias}. Franjas: {franjas}. Fechas ya aprobadas en los próximos 21 días: {ocupados}.")
     lineas.append(f"Zonas comunes y aforos: {DETALLE_ZONAS}.")
-    lineas.append(GUIA_APP)
+    if perfil is not None:
+        lineas.append(describir_perfil(perfil))
+    lineas.append(guia_para(perfil))
     if info is not None:
         lineas.append("PRÓXIMOS EVENTOS Y REUNIONES (Cartelera): " + ("; ".join(
             f"{e['titulo']} ({e['tipo']}) el {_fmt_fecha(e['fecha'])}" + (f" en {e['lugar']}" if e["lugar"] else "") for e in info["eventos"]) or "ninguno programado."))
@@ -201,9 +367,21 @@ def _lista(dias: list[str]) -> str:
     return dias[0] if len(dias) == 1 else ", ".join(dias[:-1]) + " y " + dias[-1]
 
 
-def responder_basico(texto: str, stats: dict, zona_previa: Optional[str] = None, info: Optional[dict] = None) -> dict:
-    """Responde con los datos reales cuando no hay IA (o falló). Devuelve {respuesta, zona, accion, sugerencias}."""
+def responder_basico(texto: str, stats: dict, zona_previa: Optional[str] = None, info: Optional[dict] = None, perfil: Optional[Perfil] = None) -> dict:
+    """Responde con los datos reales cuando no hay IA (o falló). Devuelve {respuesta, zona, accion, sugerencias}.
+    Con `perfil` (v4.2) las respuestas y los seguimientos son los de ese rol; sin él se comporta como siempre (residente)."""
+    r = _responder_basico(texto, stats, zona_previa, info, perfil)
+    if perfil is not None:
+        r["sugerencias"] = adaptar_sugerencias(r["sugerencias"], perfil, texto)
+    return r
+
+
+def _responder_basico(texto: str, stats: dict, zona_previa: Optional[str], info: Optional[dict], perfil: Optional[Perfil]) -> dict:
     plano = _plano(texto)
+    if perfil is not None and not pregunta_demanda_zona(plano, detectar_zona(texto) or zona_previa):
+        propia = _ayuda_por_perfil(plano, perfil)
+        if propia is not None:
+            return propia
     zona = detectar_zona(texto) or zona_previa
     quiere_libre = bool(re.search(r"\b(libre|libres|tranquil\w*|vacio|vacia|menos (?:concurrid|congestion|lleno|ocupad)\w*|mejor dia)\b", plano))
     pregunta_demanda = bool(re.search(r"(congestion|concurrid|lleno|llena|ocupad|mas visitad|mas usad|dias?|suele|cuando|horario|franja|tarde|noche|manana)", plano))

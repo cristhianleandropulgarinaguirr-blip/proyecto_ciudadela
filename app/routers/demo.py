@@ -42,6 +42,8 @@ def solicitar_demo(datos: SolicitudDemoCreate, request: Request, response: Respo
     response.headers.update({"Cache-Control": "no-store", "X-Robots-Tag": "noindex"})
     if not limitador.SOLICITUDES_DEMO.intentar(_ip(request)):
         raise HTTPException(status_code=429, detail="Enviaste varias solicitudes seguidas. Espera unos minutos e inténtalo de nuevo.")
+    if not limitador.SOLICITUDES_DEMO_TOTAL.intentar("global"):      # no depende de la IP (que se puede falsear con X-Forwarded-For)
+        raise HTTPException(status_code=429, detail="Estamos recibiendo muchas solicitudes. Inténtalo de nuevo en unos minutos o escríbenos por WhatsApp.")
     if datos.sitio_web.strip():
         return SolicitudDemoRespuesta(mensaje=MENSAJE_OK)           # un robot llenó el campo trampa: se le dice «ok» y no se guarda nada
     reciente = (db.query(SolicitudDemo.id)

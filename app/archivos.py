@@ -8,7 +8,7 @@ from fastapi import HTTPException, UploadFile, status
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.almacen import almacen
-from app.config import MAX_PDF_MB, MAX_UPLOAD_MB, UPLOAD_DIR
+from app.config import MAX_PDF_MB, MAX_UPLOAD_MB
 
 # formato real detectado por Pillow -> extensión con la que se guarda
 FORMATOS_PERMITIDOS = {"JPEG": ".jpg", "PNG": ".png", "WEBP": ".webp"}
@@ -104,13 +104,6 @@ def borrar_documento(nombre: str) -> None:
     almacen().borrar("documentos", nombre)
 
 
-def ruta_imagen(nombre: str) -> str:
-    return os.path.join(UPLOAD_DIR, os.path.basename(nombre))
-
-
-CARPETA_DOCUMENTOS = os.path.join(UPLOAD_DIR, "documentos")
-
-
 async def guardar_pdf_validado(archivo: UploadFile) -> tuple[str, int]:
     """Valida que sea un PDF real (tipo MIME, tamaño y firma «%PDF-») y lo guarda con nombre aleatorio.
     Devuelve (nombre_guardado, tamaño_en_bytes)."""
@@ -125,7 +118,3 @@ async def guardar_pdf_validado(archivo: UploadFile) -> tuple[str, int]:
     nombre = f"{uuid.uuid4().hex}.pdf"
     almacen().guardar("documentos", nombre, contenido)
     return nombre, len(contenido)
-
-
-def ruta_documento(nombre: str) -> str:
-    return os.path.join(CARPETA_DOCUMENTOS, os.path.basename(nombre))

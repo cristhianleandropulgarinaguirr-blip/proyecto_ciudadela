@@ -426,13 +426,15 @@ git push origin feature/seguridad-jwt        # luego Pull Request hacia main
 ```
 
 ## Versión 3.5
-Rendimiento de reservas, enlace público del pase de visitante, PIN de 6 dígitos y avisos «Estoy en camino / Llegué». Ver `PASOS_V3.5.md`.
+Rendimiento de reservas, enlace público del pase de visitante, PIN de 6 dígitos y avisos «Estoy en camino / Llegué». Ver `docs/historial/PASOS_V3.5.md`.
 
 ## Versión 3.6
-Carga masiva por Excel/CSV (censo y cartera), paz y salvo con QR de verificación, indicadores (KPIs) y cartera en una sola petición. Ver `PASOS_V3.6.md`.
+Carga masiva por Excel/CSV (censo y cartera), paz y salvo con QR de verificación, indicadores (KPIs) y cartera en una sola petición. Ver `docs/historial/PASOS_V3.6.md`.
 
 ## Versión 4.0
-Fase 4 (presentación comercial): **white-label** (nombre, color, logos y asistente por variables de entorno), **landing en `/`** con la app en `/app/`, botón **«Solicitar demo»** (guarda el contacto o abre WhatsApp) y **`seed_demo.py`** con un conjunto de ejemplo de 30 apartamentos. Requiere `alembic upgrade head` (migración 0020). Ver `PASOS_V4.0.md`.
+Fase 4 (presentación comercial): **white-label** (nombre, color, logos y asistente por variables de entorno), **landing en `/`** con la app en `/app/`, botón **«Solicitar demo»** (guarda el contacto o abre WhatsApp) y **`seed_demo.py`** con un conjunto de ejemplo de 30 apartamentos. Requiere `alembic upgrade head` (migración 0020). Ver `docs/historial/PASOS_V4.0.md`.
+
+Versión 4.2 (móvil, landing, asistente por rol, pagos de prueba y seguridad): aviso ámbar de «sin enviar» en portería, botón «Atrás» que cierra modales y chat, guía de instalación de la PWA en la landing, asistente coherente con cada rol, **pasarela de pagos de prueba tipo Wompi/PSE** y revisión de seguridad. Requiere `alembic upgrade head` (migración 0021). Ver `docs/historial/PASOS_V4.2.md`.
 
 ## Versión 3.8
-Fase 3 (legal y operativo): coeficiente de copropiedad, votación ponderada con quórum (Ley 675) y flujo de trasteos con validación de paz y salvo, aprobación y alerta a la portería. Ver `PASOS_V3.8.md`.
+Fase 3 (legal y operativo): coeficiente de copropiedad, votación ponderada con quórum (Ley 675) y flujo de trasteos con validación de paz y salvo, aprobación y alerta a la portería. Ver `docs/historial/PASOS_V3.8.md`.

@@ -6,16 +6,28 @@
 import { api } from "./api.js";
 import { h, icono, badge, deUtc, hace } from "./ui.js";
 import { marca } from "./marca.js";
+import { abrirCapa } from "./atras.js";
 
 const BOT = marca.asistente;           // «Ciudabot» o el nombre que el cliente le haya puesto (white-label)
 
 const CORTO = { lunes: "lun", martes: "mar", miércoles: "mié", jueves: "jue", viernes: "vie", sábado: "sáb", domingo: "dom" };
-const INICIALES = ["¿Cómo reservo una zona?", "¿Qué días suele estar más congestionado el BBQ?", "¿Hay votaciones abiertas?", "¿Qué eventos hay próximamente?"];
+// v4.2 · Preguntas con las que arranca el chat según el ROL (lo que ese rol sí puede hacer). Son las de primer pintado: al abrir el chat el servidor
+// manda las suyas (/asistente/chat/estado → sugerencias), que además tienen en cuenta lo que el propietario delegó al inquilino.
+const INICIALES = {
+  Administrador: ["¿Cómo apruebo una reserva?", "¿Qué zonas están más congestionadas?", "¿Cómo registro un pago de administración?", "¿Cómo publico un aviso en la Cartelera?"],
+  Inquilino: ["¿Cómo reservo una zona?", "¿Cómo creo un pase QR para una visita?", "¿Qué puedo hacer como inquilino?", "¿Qué eventos hay próximamente?"],
+  Residente: ["¿Cómo reservo una zona?", "¿Qué día está más libre la Zona BBQ?", "¿Cómo creo un pase QR para una visita?", "¿Hay votaciones abiertas?"],
+};
+const TEMAS = {       // lo que el asistente dice que puede ayudar a hacer: solo cosas de ese rol
+  Administrador: "reservas, cartera, cartelera, votaciones y la gestión del conjunto",
+  Inquilino: "reservas, paquetes, visitas, eventos y más",
+  Residente: "reservas, pagos, paquetes, visitas, votaciones, eventos y más",
+};
 const MAX_TURNOS = 8;
 
 let fab = null, panel = null, cuerpo = null, campo = null, enviarBtn = null, pie = null, subtitulo = null;
 let historial = [];            // [{ rol: "usuario" | "asistente", texto }] — lo que se manda como contexto
-let ocupado = false, abierto = false, estado = null, nombre = "";
+let ocupado = false, abierto = false, estado = null, nombre = "", rol = "Residente";
 
 // ---------------------------------------------------------------- texto seguro con **negrita**
 function formatear(texto) {
@@ -77,7 +89,8 @@ function escribiendo() {
 function bienvenida() {
   cuerpo.replaceChildren();
   const primero = nombre.split(" ")[0] || "";
-  agregarBot({ respuesta: `¡Hola${primero ? `, ${primero}` : ""}! Soy **${BOT}** y te ayudo con todo lo relacionado con la app y nuestro conjunto: reservas, pagos, paquetes, visitas, votaciones, eventos y más. ¿Qué quieres saber?`, sugerencias: INICIALES });
+  const sugeridas = estado?.sugerencias?.length ? estado.sugerencias : (INICIALES[rol] ?? INICIALES.Residente);
+  agregarBot({ respuesta: `¡Hola${primero ? `, ${primero}` : ""}! Soy **${BOT}** y te ayudo con todo lo relacionado con la app y nuestro conjunto: ${TEMAS[rol] ?? TEMAS.Residente}. ¿Qué quieres saber?`, sugerencias: sugeridas });
 }
 
 function actualizarPie() {
@@ -125,8 +138,10 @@ function reiniciar() {
 }
 
 // ---------------------------------------------------------------- abrir / cerrar
+let capaAtras = null;           // botón «Atrás» del celular: cierra el chat en vez de salir de la pantalla
 async function abrir() {
   if (abierto) return;
+  capaAtras = abrirCapa(() => cerrar());
   abierto = true; panel.hidden = false; fab.setAttribute("aria-expanded", "true"); fab.classList.add("oculto");
   document.addEventListener("keydown", alTeclear);
   window.visualViewport?.addEventListener("resize", ajustarTeclado);
@@ -135,11 +150,14 @@ async function abrir() {
   if (!estado) {
     try { estado = await api("/asistente/chat/estado"); } catch { estado = { ia: false, limite_diario: 0, restantes: 0 }; }
     actualizarPie();
+    // Si la persona aún no ha escrito nada, se cambian las preguntas de arranque por las del servidor (las que valen para su rol y sus permisos).
+    if (cuerpo && !cuerpo.querySelector(".chat-msg.usuario") && !historial.length) bienvenida();
   }
 }
 
 function cerrar() {
   if (!abierto) return;
+  capaAtras?.soltar(); capaAtras = null;
   abierto = false; panel.hidden = true; fab.setAttribute("aria-expanded", "false"); fab.classList.remove("oculto");
   document.removeEventListener("keydown", alTeclear);
   window.visualViewport?.removeEventListener("resize", ajustarTeclado);
@@ -162,6 +180,7 @@ function ajustarTeclado() {
 export function montarChat(usuario) {
   if (panel) return;                                  // ya está montado
   nombre = usuario?.nombre_completo ?? "";
+  rol = usuario?.rol ?? "Residente";
   subtitulo = h("span", { class: "chat-sub" }, "Datos reales de reservas");
   cuerpo = h("div", { class: "chat-cuerpo", role: "log", "aria-live": "polite", "aria-relevant": "additions" });
   campo = h("textarea", { class: "chat-campo", rows: "1", maxlength: "400", placeholder: "Escribe tu pregunta…", "aria-label": `Escribe tu pregunta para ${BOT}`, enterkeyhint: "send",
@@ -185,6 +204,7 @@ export function montarChat(usuario) {
 }
 
 export function quitarChat() {
+  capaAtras?.soltar(); capaAtras = null;
   document.removeEventListener("keydown", alTeclear);
   window.visualViewport?.removeEventListener("resize", ajustarTeclado);
   fab?.remove(); panel?.remove();

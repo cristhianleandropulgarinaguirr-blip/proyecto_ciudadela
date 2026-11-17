@@ -146,7 +146,7 @@ async function pedir(ruta, opc = {}) {
 // (por ejemplo, la cartelera en Inicio y luego en Cartelera). Cualquier escritura (POST/PUT/PATCH/DELETE) la vacía,
 // y lo que cambia sin parar (notificaciones, portería, sesión) nunca se guarda.
 const TTL_MS = 12000;
-const NO_CACHEAR = [/^\/notificaciones/, /^\/porteria/, /^\/usuarios\/me/, /^\/auth/, /^\/visitantes-autorizados\/(dentro|sincronizacion)/, /^\/push/, /^\/votaciones\/pendientes/];
+const NO_CACHEAR = [/^\/notificaciones/, /^\/porteria/, /^\/usuarios\/me/, /^\/auth/, /^\/visitantes-autorizados\/(dentro|sincronizacion)/, /^\/push/, /^\/votaciones\/pendientes/, /^\/pagos-simulados/];   // v4.2: el estado de un pago de prueba se consulta cada 2 s y nunca debe salir del caché
 const lecturas = new Map();            // clave → { t, promesa }
 export const vaciarCache = () => lecturas.clear();
 

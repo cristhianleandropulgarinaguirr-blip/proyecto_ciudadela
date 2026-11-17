@@ -133,7 +133,7 @@
     if (marca.whatsapp) {
       const a = document.createElement("a");
       a.className = "btn btn-contorno";
-      a.href = enlaceWhatsApp(`Hola, acabo de pedir una demostración de ${marca.nombre || "la app"}.`);
+      a.href = enlaceWhatsApp(`${saludo()}, acabo de pedir una demostración de ${marca.nombre || "la app"}.`);
       a.target = "_blank"; a.rel = "noopener noreferrer";
       a.textContent = "Escribir por WhatsApp";
       caja.append(a);
@@ -143,14 +143,16 @@
   }
 
   // ---------------------------------------------------------------- «Escribir por WhatsApp»
+  // El texto va codificado en la URL (encodeURIComponent): tildes, «¿», espacios y saltos de línea llegan bien a WhatsApp.
   function enlaceWhatsApp(texto) { return `https://wa.me/${marca.whatsapp}?text=${encodeURIComponent(texto)}`; }
+  const saludo = () => (marca.contacto ? `Hola ${marca.contacto}` : "Hola");
 
   btnWA.addEventListener("click", () => {
     if (!marca.whatsapp) return;
     limpiarErrores();
     const d = leer();
     const completo = Object.keys(validar(d, { exigirConsentimiento: false })).length === 0;
-    const partes = [`Hola, quiero una demostración de ${marca.nombre || "la app"}.`];
+    const partes = [`${saludo()}, revisé la demo de ${marca.nombre || "la app"} y me gustaría agendar una demostración para mi conjunto residencial.`];
     if (d.nombre) partes.push(`Soy ${d.nombre}${d.conjunto ? ` de ${d.conjunto}` : ""}.`);
     if (d.apartamentos) partes.push(`Son ${d.apartamentos} apartamentos.`);
     if (d.ciudad) partes.push(`Estamos en ${d.ciudad}.`);
@@ -166,6 +168,34 @@
       decir("Abrimos WhatsApp. No guardamos tus datos porque no marcaste la autorización.");
     }
   });
+
+
+  // ---------------------------------------------------------------- guía de instalación: pestañas (Android · iPhone · Computador)
+  // Sin JavaScript se ven las tres guías seguidas; con JavaScript se muestra la del dispositivo de la persona (se puede cambiar).
+  const pestanas = [...document.querySelectorAll(".pestana")];
+  function elegirPestana(id, enfocar) {
+    pestanas.forEach((p) => {
+      const activa = p.dataset.panel === id;
+      p.setAttribute("aria-selected", String(activa));
+      p.tabIndex = activa ? 0 : -1;
+      const panel = $(p.dataset.panel);
+      if (panel) panel.hidden = !activa;
+      if (activa && enfocar) p.focus();
+    });
+  }
+  if (pestanas.length) {
+    pestanas.forEach((p, i) => {
+      p.addEventListener("click", () => elegirPestana(p.dataset.panel));
+      p.addEventListener("keydown", (ev) => {                       // flechas ← → como en cualquier grupo de pestañas
+        const paso = { ArrowRight: 1, ArrowLeft: -1 }[ev.key];
+        if (!paso) return;
+        ev.preventDefault();
+        elegirPestana(pestanas[(i + paso + pestanas.length) % pestanas.length].dataset.panel, true);
+      });
+    });
+    const ua = navigator.userAgent || "";
+    elegirPestana(/iPhone|iPad|iPod/.test(ua) ? "ins-ios" : /Android/.test(ua) ? "ins-android" : "ins-escritorio");
+  }
 
   // Al corregir un campo se le quita el aviso de error.
   form.addEventListener("input", (ev) => {

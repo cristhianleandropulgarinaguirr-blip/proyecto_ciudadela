@@ -946,6 +946,12 @@ html[data-texto="grande"] { font-size: 112.5%; }
 .banner-red.sin-red { background: var(--tinta); color: var(--papel); }
 .banner-red .txt { display: inline-flex; align-items: center; gap: .45rem; }
 .banner-red .txt svg { width: 16px; height: 16px; flex: none; }
+/* v4.2 · Registros sin enviar (portería offline): ámbar fuerte + punto que late + texto. Nunca depende solo del color. */
+.banner-red.pendiente:not(.sin-red) { background: var(--laton); color: var(--tinta-fija); border-bottom: 2px solid var(--laton-ink); font-weight: 500; }
+.banner-red.pendiente:not(.sin-red) .btn { background: var(--tinta-fija); color: var(--laton); border-color: transparent; }
+.punto-alerta { width: .7rem; height: .7rem; border-radius: 50%; background: currentColor; flex: none; animation: latido 1.2s ease-in-out infinite; }
+.chip-pendiente { display: inline-flex; align-items: center; gap: .45rem; padding: .18rem .7rem; border-radius: 999px; background: var(--laton); color: var(--tinta-fija); font-weight: 700; }
+@keyframes latido { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .3; transform: scale(.75); } }
 .banner-red[hidden] { display: none; }
 .sin-conexion { text-align: center; max-width: 26rem; display: grid; gap: .9rem; justify-items: center; padding: 1.5rem; }
 .sin-conexion svg { color: var(--tinta-3); }
@@ -1251,3 +1257,31 @@ html[data-texto="grande"] { font-size: 112.5%; }
   .acciones-cartera { grid-template-columns: 9.75rem 9.75rem; }
   .acciones-cartera > :last-child { grid-column: 1 / -1; }
 }
+
+/* ---------- v4.2 · Pasarela de pagos de PRUEBAS (tipo Wompi / PSE) ---------- */
+.pp-prueba { display: flex; gap: .6rem; align-items: flex-start; padding: .7rem .9rem; margin-bottom: 1rem; border-radius: 10px; background: var(--laton-100); color: var(--laton-ink); border: 1px dashed var(--laton); font-size: .88rem; line-height: 1.35; }
+.pp-prueba svg { flex: none; margin-top: .1rem; }
+.pp-resumen { display: grid; gap: .1rem; padding: .9rem 1rem; margin-bottom: 1rem; border-radius: 12px; background: var(--bosque-100); }
+.pp-resumen span { font-size: .85rem; color: var(--tinta-2); }
+.pp-resumen b { font-size: 1.6rem; font-variant-numeric: tabular-nums; }
+.pp-resumen small { color: var(--tinta-2); font-variant-numeric: tabular-nums; }
+.pp-sub { margin: 0 0 .7rem; font-weight: 600; }
+.pp-metodos { display: grid; gap: .6rem; margin-bottom: 1rem; }
+.pp-metodo { display: grid; grid-template-columns: 2.2rem 1fr; grid-template-rows: auto auto; column-gap: .8rem; align-items: center; text-align: left; padding: .8rem 1rem; min-height: 56px; border-radius: 12px; border: 2px solid var(--linea); background: var(--superficie); color: var(--tinta); cursor: pointer; }
+.pp-metodo svg { grid-row: 1 / 3; color: var(--bosque); }
+.pp-metodo span { font-size: .85rem; color: var(--tinta-2); }
+.pp-metodo:hover, .pp-metodo:focus-visible { border-color: var(--bosque); background: var(--bosque-100); }
+.pp-atajos { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin: 0 0 1rem; font-size: .85rem; color: var(--tinta-2); }
+.pp-dos { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+.pp-resultado { text-align: center; }
+.pp-resultado h3 { margin: .2rem 0 .3rem; }
+.pp-ico { width: 64px; height: 64px; margin: 0 auto .6rem; border-radius: 50%; display: grid; place-items: center; animation: pop .4s var(--ease); }
+.pp-ico.ok { background: var(--primario); color: var(--sobre-primario); }
+.pp-ico.mal { background: var(--arcilla-100); color: var(--arcilla-ink); }
+.pp-ico.espera { background: var(--laton-100); color: var(--laton-ink); }
+.pp-saldo { font-weight: 600; margin: .2rem 0 .8rem; }
+.pp-detalle { display: grid; gap: .3rem; margin: 0 0 .8rem; padding: .8rem 1rem; border-radius: 12px; background: var(--papel); text-align: left; }
+.pp-detalle div { display: flex; justify-content: space-between; gap: 1rem; }
+.pp-detalle dt { color: var(--tinta-2); }
+.pp-detalle dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pp-resultado .btn { margin-top: .5rem; }

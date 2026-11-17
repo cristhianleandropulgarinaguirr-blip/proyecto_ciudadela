@@ -365,10 +365,6 @@ def crear(db, clave: str, semilla: int = 2026, forzar: bool = False) -> dict:
 
 
 # ---------------------------------------------------------------------------------------------- borrar
-def _tabla_de(modelo):
-    return modelo.__table__
-
-
 def borrar(db) -> int:
     """Elimina TODO lo de ejemplo: los usuarios @demo.example.com y cada fila que dependa de ellos (reservas, pagos, votaciones, accesos…),
     más los vehículos que registró el guardia de ejemplo y los contactos de emergencia reservados. No toca datos reales:

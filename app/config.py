@@ -151,11 +151,16 @@ MARCA_DIR = _Path(os.getenv("MARCA_DIR", "").strip() or (_Path(__file__).resolve
 
 # Landing comercial en «/». En «0» la raíz lleva directo a la app (lo que querrás en la app de un cliente ya contratado).
 LANDING_ACTIVA = os.getenv("LANDING_ACTIVA", "1").strip() not in ("0", "false", "False", "no", "NO")
+# Documentación interactiva de la API (/docs, /redoc y /openapi.json). En «1» (por defecto) sirve para la demostración y la revisión del
+# instructor; en la app de un cliente ya contratado ponla en «0»: así nadie ve la lista completa de rutas internas.
+DOCS_ACTIVAS = os.getenv("DOCS_ACTIVAS", "1").strip() not in ("0", "false", "False", "no", "NO")
 # WhatsApp de ventas (con indicativo de país, solo dígitos; 10 dígitos que empiecen en 3 se asumen colombianos y se les antepone 57).
 DEMO_WHATSAPP = "".join(ch for ch in os.getenv("DEMO_WHATSAPP", "") if ch.isdigit())
 if len(DEMO_WHATSAPP) == 10 and DEMO_WHATSAPP.startswith("3"):
     DEMO_WHATSAPP = "57" + DEMO_WHATSAPP
 if not 11 <= len(DEMO_WHATSAPP) <= 15:
     DEMO_WHATSAPP = ""              # número inválido = sin botón de WhatsApp (nunca un enlace roto)
+# v4.2 · Nombre de quien atiende ese WhatsApp (p. ej. «Cristhian»): el mensaje de la landing arranca con «Hola Cristhian, …». Vacío = «Hola, …».
+DEMO_CONTACTO = " ".join(os.getenv("DEMO_CONTACTO", "").split())[:40]
 DEMO_CORREO = os.getenv("DEMO_CORREO", "").strip()[:120]                                                   # correo de ventas que se muestra en la landing (opcional)
 MARCA_ASISTENTE = os.getenv("MARCA_ASISTENTE", "").strip()[:30] or "Ciudabot"                               # nombre del asistente de chat

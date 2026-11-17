@@ -1,6 +1,7 @@
 // Utilidades de interfaz: crear DOM de forma segura, iconos, formatos, toasts y modales.
 // h() usa textContent / setAttribute: nunca innerHTML con datos del usuario (evita XSS).
 import { marca } from "./marca.js";
+import { abrirCapa } from "./atras.js";
 
 export function h(tag, attrs, ...hijos) {
   const el = document.createElement(tag);
@@ -210,6 +211,8 @@ export function toast(texto, tipo = "ok") {
 }
 
 // ---------- Modal (<dialog> nativo: foco atrapado y Esc incluidos) ----------
+// Botón «Atrás» del celular: mientras el diálogo esté abierto hay UNA capa registrada (aunque se cambie su contenido con otro modal()).
+let capaModal = null;
 export function modal(titulo, contenido, { pie } = {}) {
   const d = document.getElementById("modal");
   const cerrar = () => d.close();
@@ -220,6 +223,11 @@ export function modal(titulo, contenido, { pie } = {}) {
     contenido, pie ? h("div", { class: "modal-pie" }, pie) : null));
   d.onclick = (e) => { if (e.target === d) cerrar(); };
   d.showModal();
+  if (!capaModal) {
+    capaModal = abrirCapa(() => { if (d.open) d.close(); });
+    // «close» se dispara de forma asíncrona: si en ese momento ya se abrió otro modal (cerrar y abrir seguidos), la capa se conserva.
+    d.addEventListener("close", () => { if (!d.open && capaModal) { capaModal.soltar(); capaModal = null; } }, { once: true });
+  }
   ubicarToasts();
   return { cerrar };
 }

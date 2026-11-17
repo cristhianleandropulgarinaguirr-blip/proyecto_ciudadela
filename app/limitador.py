@@ -58,10 +58,6 @@ class Ventana:
         self.registrar(clave)
         return True
 
-    def olvidar(self, clave: Hashable) -> None:
-        with self._cerrojo:
-            self._eventos.pop(clave, None)
-
     def reiniciar(self) -> None:
         with self._cerrojo:
             self._eventos.clear()
@@ -80,3 +76,9 @@ AVISOS_PUBLICOS = Ventana(maximo=10, segundos=60)
 PIN_FALLIDOS = Ventana(maximo=8, segundos=600)
 # V4.0 · «Solicitar demo» de la landing (sin sesión): máximo 5 envíos por IP cada 10 minutos.
 SOLICITUDES_DEMO = Ventana(maximo=5, segundos=600)
+# V4.2 · Tope GLOBAL (sin importar la IP). En Render uvicorn confía en la cabecera X-Forwarded-For, que quien envía la petición puede
+# escribir a su gusto: cambiando esa cabecera en cada envío evitaría el tope por IP. Este tope no depende de ella: 40 solicitudes por hora
+# en total (una demo real recibe unas pocas al día), así un robot no puede llenar la base ni la campana del administrador.
+SOLICITUDES_DEMO_TOTAL = Ventana(maximo=40, segundos=3600)
+# V4.2 · Pasarela de pruebas: por persona, 20 pasos (crear intento o pagar) cada 10 minutos. En la pasarela real esto frena a quien prueba tarjetas robadas.
+PAGOS_SIMULADOS_USUARIO = Ventana(maximo=20, segundos=600)
