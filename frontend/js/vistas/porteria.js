@@ -99,5 +99,7 @@ export async function render(ctx) {
     } catch (e) { toast(e.message, "error"); }
   }
   await mostrar("ahora");
-  return h("div", {}, cabecera("Portería", "Registra la entrada y salida de vehículos, escanea QR y consulta el historial completo."), tabs, panel);
+  return h("div", {}, cabecera("Portería", "Registra la entrada y salida de vehículos, escanea QR y consulta el historial completo."),
+    ctx.usuario.rol === "Guardia" ? h("a", { class: "btn cta-emergencia cta-emergencia-mini", href: "#/emergencias", "aria-label": "Teléfonos de emergencia" }, icono("telefono", 20), "Teléfonos de emergencia") : null,
+    tabs, panel);
 }

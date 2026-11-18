@@ -118,7 +118,9 @@ async function guardia(ctx) {
   const deHoy = reservas.filter((r) => r.estado === "Aprobada" && esHoy(r));
   return h("div", {},
     cabecera(`Hola, ${primerNombre(ctx.usuario.nombre_completo)}`, "Resumen del turno.", { saludo: hoyLargo() }),
-    h("a", { class: "btn block cta-escanear escalona", href: "#/porteria" }, icono("qr", 24), "Ir a portería y escanear"),
+    h("div", { class: "cta-guardia escalona" },
+      h("a", { class: "btn block cta-escanear", href: "#/porteria" }, icono("qr", 24), "Ir a portería y escanear"),
+      h("a", { class: "btn block cta-emergencia", href: "#/emergencias", "aria-label": "Teléfonos de emergencia" }, icono("telefono", 24), "Teléfonos de emergencia")),
     h("div", { class: "kpis escalona" }, kpi("Vehículos dentro", dentro.length, { destacado: true, href: "#/porteria" }), kpi("Visitantes a pie dentro", aPie.length, { marca: "identificacion" }), kpi("Paquetes sin entregar", paq.length, { href: "#/paquetes", marca: "caja" }), kpi("Reservas aprobadas hoy", deHoy.length, { href: "#/reservas", marca: "calendario" })),
     h("div", { class: "grid dos escalona" },
       h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "En el parqueadero")),

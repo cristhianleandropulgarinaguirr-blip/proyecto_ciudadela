@@ -22,7 +22,7 @@ const RUTAS = [
   { id: "votaciones", texto: "Votaciones", icono: "urna", roles: [A, R, I], delegado: "votar", cargar: () => import("./vistas/votaciones.js") },
   { id: "visitas", texto: { [R]: "Mis visitas", [I]: "Mis visitas", otro: "Visitas" }, icono: "identificacion", roles: [A, R, I], cargar: () => import("./vistas/visitas.js") },
   { id: "inquilinos", texto: { [A]: "Arrendamientos", otro: "Mis inquilinos" }, icono: "usuarios", roles: [A, R], cargar: () => import("./vistas/inquilinos.js") },
-  { id: "trasteos", texto: "Trasteos", icono: "carro", roles: [A, R, G, I], cargar: () => import("./vistas/trasteos.js") },
+  { id: "trasteos", texto: "Trasteos", icono: "camion", roles: [A, R, G, I], cargar: () => import("./vistas/trasteos.js") },
   { id: "porteria", texto: "Portería", icono: "carro", roles: [A, G], cargar: () => import("./vistas/porteria.js") },
   { id: "mantenimiento", texto: { [R]: "Reportar un daño", [I]: "Reportar un daño", otro: "Daños" }, icono: "llave", roles: [A, R, I], cargar: () => import("./vistas/mantenimiento.js") },
   { id: "pqrs", texto: { [R]: "Quejas y sugerencias", [I]: "Quejas y sugerencias", otro: "PQRS" }, icono: "mensaje", roles: [A, R, I], cargar: () => import("./vistas/pqrs.js") },
@@ -40,7 +40,7 @@ const RUTAS = [
 ];
 const etiqueta = (r, rol) => (typeof r.texto === "string" ? r.texto : r.texto[rol] ?? r.texto.otro);
 // Nombres cortos SOLO para la barra inferior del celular (los largos se cortaban con «…»). El texto completo queda en el aria-label.
-const CORTA = { paquetes: "Paquetes", cartera: { [R]: "Pagos", [I]: "Pagos", otro: "Cartera" }, emergencias: "Emergencia", visitas: "Visitas" };
+const CORTA = { paquetes: "Paquetes", cartera: { [R]: "Pagos", [I]: "Pagos", otro: "Cartera" }, visitas: "Visitas" };
 const etiquetaCorta = (r, rol) => { const c = CORTA[r.id]; return c === undefined ? etiqueta(r, rol) : typeof c === "string" ? c : c[rol] ?? c.otro; };
 
 // Barra inferior del celular: máximo 5 botones (4 + «Más»). Lo demás vive en «Más», con botones grandes.
@@ -49,7 +49,7 @@ const permitida = (r, u) => r.roles.includes(u?.rol) && (!r.requiere || marca[r.
 
 const BARRA = {
   [R]: ["resumen", "reservas", "paquetes", "cartera"],
-  [G]: ["resumen", "porteria", "paquetes", "emergencias"],
+  [G]: ["resumen", "porteria", "paquetes", "trasteos"],        // v4.4: Trasteos (lo que el guardia autoriza a diario); Emergencias sigue en «Más» y en el menú lateral
   [A]: ["resumen", "reservas", "cartera", "pqrs"],
   [I]: ["resumen", "reservas", "paquetes", "visitas"],
 };
@@ -69,7 +69,7 @@ const borrarPerfil = () => { try { localStorage.removeItem(PERFIL); } catch { /*
 // Chat «Ciudabot» (v3.2): se descarga con la app ya abierta (en un momento libre) para no retrasar el arranque.
 let chatMod = null;
 function iniciarChat() {
-  if (!usuario || usuario.rol === "Guardia") return;          // el guardia no tiene asistente; la API tampoco se lo permite
+  if (!usuario) return;                                        // v4.4: todos los roles tienen asistente (el del guardia habla de portería)
   const montar = () => import("./chat.js").then((m) => { chatMod = m; if (usuario) m.montarChat(usuario); }).catch(() => {});
   (window.requestIdleCallback ?? ((f) => setTimeout(f, 600)))(montar);
 }
@@ -183,20 +183,29 @@ async function cerrarSesion() {
   location.hash = ""; mostrarLogin();
 }
 
-// Menú del avatar: Ajustes y Cerrar sesión. El cierre de sesión ya no está a un toque suelto junto al avatar (se cerraba sin querer).
-function crearMenuUsuario() {
+// Menú de la cuenta: Ajustes y Cerrar sesión. El cierre de sesión ya no está a un toque suelto junto al avatar (se cerraba sin querer).
+// Dos presentaciones del MISMO menú (v4.4):
+//   · «barra»   → avatar (y nombre/rol si cabe) en la barra superior. Es la que se ve en celular y tableta.
+//   · «lateral» → bloque fijo al pie del menú izquierdo. Es la que se ve en computador (≥ 1024 px); el CSS muestra una u otra.
+function crearMenuUsuario(lateral = false) {
+  const nombre = propio(usuario.nombre_completo);
   const cerrar = () => { menu.hidden = true; boton.setAttribute("aria-expanded", "false"); };
-  const menu = h("div", { class: "menu-usuario", role: "menu", "aria-label": "Mi cuenta", hidden: true },
-    h("div", { class: "menu-usuario-cab" }, h("b", {}, propio(usuario.nombre_completo)), h("span", { class: "rol-insignia" }, usuario.rol)),
+  const alternar = () => { menu.hidden = !menu.hidden; boton.setAttribute("aria-expanded", String(!menu.hidden)); };
+  const menu = h("div", { class: `menu-usuario${lateral ? " menu-usuario-arriba" : ""}`, role: "menu", "aria-label": "Mi cuenta", hidden: true },
+    lateral ? null : h("div", { class: "menu-usuario-cab" }, h("b", {}, nombre), h("span", { class: "rol-insignia" }, usuario.rol)),     // en el menú lateral el nombre y el rol ya se ven en el botón
     h("a", { class: "menu-usuario-item", role: "menuitem", href: "#/configuracion", onclick: cerrar }, icono("ajustes", 18), "Ajustes"),
     h("button", { class: "menu-usuario-item peligro", type: "button", role: "menuitem", onclick: () => { cerrar(); cerrarSesion(); } }, icono("salir", 18), "Cerrar sesión"));
-  const boton = h("button", { class: "avatar avatar-enlace", type: "button", title: "Mi cuenta", "aria-label": "Abrir menú de mi cuenta", "aria-haspopup": "menu", "aria-expanded": "false",
-    onclick: () => { menu.hidden = !menu.hidden; boton.setAttribute("aria-expanded", String(!menu.hidden)); } }, iniciales(usuario.nombre_completo));
+  const boton = lateral
+    ? h("button", { class: "usuario-lateral", type: "button", title: "Mi cuenta", "aria-label": `Mi cuenta: ${nombre}, ${usuario.rol}`, "aria-haspopup": "menu", "aria-expanded": "false", onclick: alternar },
+      h("span", { class: "avatar", "aria-hidden": "true" }, iniciales(usuario.nombre_completo)),
+      h("span", { class: "usuario-lateral-datos" }, h("b", {}, nombre), h("span", { class: "rol-insignia" }, usuario.rol)),
+      icono("chevron", 18))
+    : h("button", { class: "avatar avatar-enlace", type: "button", title: "Mi cuenta", "aria-label": "Abrir menú de mi cuenta", "aria-haspopup": "menu", "aria-expanded": "false", onclick: alternar }, iniciales(usuario.nombre_completo));
   // Se cierra al tocar fuera o con Escape; si el menú ya no está en la página (cerró sesión), los oyentes se quitan solos.
   const fuera = (e) => { if (!menu.isConnected) { document.removeEventListener("click", fuera); document.removeEventListener("keydown", tecla); return; } if (!menu.hidden && !menu.contains(e.target) && !boton.contains(e.target)) cerrar(); };
   const tecla = (e) => { if (e.key === "Escape" && !menu.hidden) { cerrar(); boton.focus(); } };
   document.addEventListener("click", fuera); document.addEventListener("keydown", tecla);
-  return h("div", { class: "menu-usuario-caja" }, boton, menu);
+  return h("div", { class: `menu-usuario-caja${lateral ? " menu-usuario-caja-lateral" : ""}` }, boton, menu);
 }
 
 function construirShell() {
@@ -209,14 +218,14 @@ function construirShell() {
     (BARRA[usuario.rol] ?? []).map((id) => porId.get(id)).filter(Boolean).map((r) => enlace(r, true)), enlace(porId.get("mas")));
 
   raiz.replaceChildren(h("div", { class: "shell" },
-    h("aside", { class: "sidebar" }, logo(true), lateral, inferior),
+    h("aside", { class: "sidebar" }, logo(true), lateral, inferior, h("div", { class: "sidebar-usuario" }, crearMenuUsuario(true))),
     h("div", { class: "main" },
       crearBanner(),
       h("header", { class: "topbar" }, logo(false),
         h("div", { class: "topbar-acciones" }, crearCampana((ruta) => { location.hash = `#/${ruta}`; }), botonTema(),
         h("div", { class: "usuario-chip" },
-          h("div", { class: "datos" }, h("b", {}, usuario.nombre_completo), h("span", { class: "rol-insignia" }, usuario.rol)),
-          crearMenuUsuario()))),
+          h("div", { class: "datos" }, h("b", {}, propio(usuario.nombre_completo)), h("span", { class: "rol-insignia" }, usuario.rol)),
+          crearMenuUsuario(false)))),
       h("main", { id: "contenido", tabindex: "-1" }))));
 }
 

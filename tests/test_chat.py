@@ -150,7 +150,7 @@ def test_emergencia_y_estado_de_solicitudes_no_consultan_la_ia(client, auth, res
 
 
 def test_permisos_y_validacion(client, auth, reservas, proveedor):
-    assert preguntar(client, auth, quien=CEL).status_code == 403
+    assert preguntar(client, auth, quien=CEL).status_code == 200                      # v4.4: la guardia también tiene el chat (con funciones de portería)
     assert client.post("/asistente/chat", json={"mensaje": "hola"}).status_code == 401
     assert preguntar(client, auth, texto="a").status_code == 422
     assert preguntar(client, auth, quien=ADM).status_code == 200

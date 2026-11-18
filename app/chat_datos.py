@@ -83,7 +83,23 @@ ENLACES_ADMIN = {
 }
 
 
+# v4.4 · Secciones que el GUARDIA sí tiene (las mismas de su menú). Nunca se le ofrece Pagos, Votaciones, PQRS ni Daños: no podría abrirlas.
+ENLACES_GUARDIA = {
+    "porteria": ("Ir a Portería", "#/porteria"),
+    "paquetes": ("Ver paquetes", "#/paquetes"),
+    "trasteos": ("Ver Trasteos", "#/trasteos"),
+    "reservas": ("Ver reservas aprobadas", "#/reservas"),
+    "anuncios": ("Ver la Cartelera", "#/anuncios"),
+    "emergencias": ("Ver teléfonos de emergencia", "#/emergencias"),
+}
+
+
 def accion_para(clave: Optional[str], perfil: Optional["Perfil"] = None) -> Optional[AccionChat]:
+    if perfil is not None and perfil.rol == RolNombre.GUARDIA.value:
+        if clave in ENLACES_GUARDIA:
+            texto, enlace = ENLACES_GUARDIA[clave]
+            return AccionChat(texto=texto, enlace=enlace)
+        return None                                           # cualquier otra sección (aunque la IA la pida) no es del guardia
     if perfil is not None and perfil.rol == RolNombre.ADMINISTRADOR.value and clave in ENLACES_ADMIN:
         texto, enlace = ENLACES_ADMIN[clave]
         return AccionChat(texto=texto, enlace=enlace)
@@ -116,6 +132,8 @@ def sugerencias_iniciales(p: Perfil) -> list[str]:
     """Las 4 preguntas con las que arranca el chat: solo cosas que ESE rol puede hacer en la app."""
     if p.rol == RolNombre.ADMINISTRADOR.value:
         return ["¿Cómo apruebo una reserva?", "¿Qué zonas están más congestionadas?", "¿Cómo registro un pago de administración?", "¿Cómo publico un aviso en la Cartelera?"]
+    if p.rol == RolNombre.GUARDIA.value:
+        return ["¿Cómo registro el ingreso de un vehículo?", "¿Cómo valido el PIN de un pase?", "¿Cómo registro un paquete?", "¿Qué hago si no hay internet?"]
     if p.rol == RolNombre.INQUILINO.value:
         return ["¿Cómo reservo una zona?", "¿Cómo creo un pase QR para una visita?",
                 "¿Cómo pago la administración?" if p.puede_pagar else "¿Qué puedo hacer como inquilino?",
@@ -130,6 +148,9 @@ _REEMPLAZOS_ADMIN = {
 }
 
 
+_REEMPLAZOS_GUARDIA = {"reservar": "¿Cómo registro el ingreso de un vehículo?"}
+
+
 def adaptar_sugerencias(lista: list[str], p: Optional[Perfil], pregunta: Optional[str] = None) -> list[str]:
     """Deja solo seguimientos coherentes con el rol, sin repetidos, máximo 3. Si no queda ninguno, ofrece los iniciales.
     Nunca sugiere la misma pregunta que la persona acaba de hacer."""
@@ -142,6 +163,12 @@ def adaptar_sugerencias(lista: list[str], p: Optional[Perfil], pregunta: Optiona
             continue
         if p.rol == RolNombre.ADMINISTRADOR.value:
             s = _REEMPLAZOS_ADMIN.get(s, s)
+        elif p.rol == RolNombre.GUARDIA.value:
+            plano_s = _plano(s)
+            if re.search(r"(votacion|\b(pago|pagos|pagar|saldo)\b|queja|pqrs|\bdano|\bdanio)", plano_s):
+                continue                                        # nada de eso lo hace el guardia
+            if re.search(r"\b(reservo|reservar)\b", plano_s):
+                s = _REEMPLAZOS_GUARDIA["reservar"]
         elif p.rol == RolNombre.INQUILINO.value:
             if (not p.puede_votar and "votacion" in _plano(s)) or (not p.puede_pagar and re.search(r"\b(pago|pagar|saldo)\b", _plano(s))):
                 continue
@@ -164,7 +191,7 @@ GUIA_APP = """GUÍA DE LA APP (cómo se hace cada cosa; no hay más pasos que es
 - Documentos: reglamento, actas y circulares en PDF para descargar.
 - Comercio: directorio de negocios de los vecinos; contactas por WhatsApp. Para anunciar tu negocio eliges un plan, pagas por transferencia, pulsas «Ya pagué» y la administración confirma.
 - Emergencias: directorio con un toque para llamar; en una emergencia real marca primero la línea 123.
-- Ajustes (toca tu avatar): cambiar la clave, activar los avisos en el celular, elegir tema claro u oscuro y el tamaño del texto. En iPhone los avisos requieren tener la app instalada en la pantalla de inicio.
+- Ajustes (toca tu avatar o tu nombre): cambiar la clave, activar los avisos en el celular, elegir tema claro u oscuro y el tamaño del texto. En iPhone los avisos requieren tener la app instalada en la pantalla de inicio.
 - Campana: guarda tus avisos (paquetes, reservas, respuestas a PQRS, anuncios, votaciones)."""
 
 GUIA_INQUILINO_SIN = {
@@ -182,7 +209,21 @@ GUIA_ADMIN = """GUÍA DE LA APP PARA LA ADMINISTRACIÓN (cómo se hace cada cosa
 - Trasteos (mudanzas): el residente solicita, el sistema revisa el paz y salvo en las salidas, tú pulsas «Aprobar» y se alerta a la portería.
 - Usuarios: creas cuentas, activas o desactivas y restableces claves temporales. Auditoría: bitácora de lo que se hizo en la app. Indicadores: cartera, zonas más reservadas y tiempos de respuesta.
 - Portería: los guardas registran vehículos, visitantes y paquetes; funciona sin internet y se sincroniza al volver la conexión.
-- Ajustes (toca tu avatar): cambiar la clave, activar los avisos en el celular, tema claro u oscuro. Campana: guarda tus avisos."""
+- Ajustes (toca tu avatar o tu nombre): cambiar la clave, activar los avisos en el celular, tema claro u oscuro. Campana: guarda tus avisos."""
+
+# v4.4 · Guía del GUARDIA: solo lo que ve y hace en su menú (Portería, Paquetes, Trasteos, Reservas, Cartelera, Documentos, Emergencias).
+GUIA_GUARDIA = """GUÍA DE LA APP PARA PORTERÍA (cómo se hace cada cosa; no hay más pasos que estos):
+- Portería → Vehículos: escribes la placa (carro ABC123, moto ABC12D) y el apartamento de destino y pulsas «Registrar ingreso». Cuando el vehículo se va, lo buscas en «Dentro del conjunto» y pulsas «Registrar salida».
+- Portería → Escanear QR: apuntas la cámara al código del pase; si la cámara o la luz fallan, escribes el PIN de 6 dígitos. El primer escaneo es la entrada y el segundo la salida, y la pantalla dice si el pase es válido y a qué apartamento va.
+- Portería → Visitantes a pie: escribes al menos 3 caracteres del nombre o del documento; si la autorización está vigente pulsas «Registrar ingreso» y al salir «Registrar salida». Si no aparece, nadie lo autorizó: se llama al apartamento antes de dejarlo pasar.
+- Portería → Historial: ves las entradas y salidas de vehículos con quién las registró.
+- Paquetes: eliges el tipo (Paquete, Correspondencia o Domicilio), buscas al residente por nombre o apartamento y pulsas «Registrar llegada» (la foto es opcional). Al residente le llega un aviso. Cuando lo recogen pulsas «Entregar» y, si lo recoge otra persona, escribes su nombre. «Anular» es solo para registros hechos por error.
+- Trasteos (mudanzas): ves los aprobados por la administración; verificas el horario y el paz y salvo, pulsas «Autorizar entrada» (o «Autorizar salida») y al terminar «Registrar fin». Cuando la administración aprueba uno te llega un aviso.
+- Reservas: consultas quién tiene reservada cada zona común para validar a quien llega (el guardia no reserva ni aprueba).
+- Cartelera y Documentos: avisos, reuniones y eventos del conjunto; reglamento y circulares en PDF.
+- Emergencias: directorio con un toque para llamar; en una emergencia real marca primero la línea 123.
+- Sin internet: Portería sigue funcionando; lo que registres queda guardado en el equipo, marcado «Pendiente», y se envía solo al volver la conexión. El QR sí necesita internet para validarse: sin conexión se verifica la identidad de la persona y se registra a mano en Vehículos o Visitantes a pie.
+- Ajustes (toca tu avatar o tu nombre): cambiar la clave, activar los avisos en el celular, elegir tema claro u oscuro. Campana: guarda tus avisos."""
 
 
 def guia_para(p: Optional[Perfil]) -> str:
@@ -191,6 +232,8 @@ def guia_para(p: Optional[Perfil]) -> str:
         return GUIA_APP
     if p.rol == RolNombre.ADMINISTRADOR.value:
         return GUIA_ADMIN
+    if p.rol == RolNombre.GUARDIA.value:
+        return GUIA_GUARDIA
     lineas = []
     for linea in GUIA_APP.splitlines():
         if linea.startswith("- Pagos:") and not p.puede_pagar:
@@ -210,6 +253,9 @@ def describir_perfil(p: Optional[Perfil]) -> str:
         return "QUIÉN PREGUNTA: un residente (propietario). Orienta con las funciones de residente y propón preguntas de seguimiento de ese tipo."
     if p.rol == RolNombre.ADMINISTRADOR.value:
         return "QUIÉN PREGUNTA: la administración del conjunto. Orienta con las funciones de la administración (aprobar, registrar, publicar) y propón seguimientos de ese tipo, no de residente."
+    if p.rol == RolNombre.GUARDIA.value:
+        return ("QUIÉN PREGUNTA: el guardia de portería. Orienta con las funciones de portería (vehículos, QR y PIN, visitantes a pie, paquetes, trasteos) y propón seguimientos de ese tipo. "
+                "El guardia NO paga, NO vota, NO reserva y NO radica quejas: no se lo propongas ni se lo expliques.")
     delegado = ", ".join(x for x, ok in (("pagar la administración", p.puede_pagar), ("votar", p.puede_votar)) if ok) or "nada (no le ha delegado pagos ni votos)"
     return f"QUIÉN PREGUNTA: un inquilino. Su propietario le delegó: {delegado}. No le propongas ni le expliques lo que no puede hacer."
 
@@ -228,6 +274,17 @@ AYUDA_ADMIN = [
     (r"(indicador|kpi|estadistica|informe|reporte)", "En Indicadores ves la cartera, las zonas más reservadas, los tiempos de respuesta de las PQRS y el flujo de visitantes por hora.", "indicadores"),
     (r"(pqrs|queja|reclamo|dano|danio|reparar)", "En Quejas y sugerencias y en Daños ves lo que radicaron los residentes: pulsas «Responder» y cambias el estado para que el residente vea el avance.", "pqrs"),
 ]
+AYUDA_GUARDIA = [
+    (r"(votacion|votar|pagar|pagos?\b|saldo|cartera|queja|pqrs|dano|danio|comercio)", "Eso no hace parte de las funciones de portería: en tu cuenta no aparece. Si un residente lo necesita, que lo haga desde su propia cuenta o con la administración.", None),
+    (r"(internet|conexion|sin red|offline|se cayo|se fue la senal)", "Portería sigue funcionando sin internet: lo que registres queda guardado en este equipo, marcado «Pendiente», y se envía solo al volver la conexión. El QR sí necesita internet para validarse: sin conexión verifica la identidad de la persona y regístrala a mano en Vehículos o Visitantes a pie.", "porteria"),
+    (r"(\bpin\b|\bqr\b|escane|\bpase\b|camara|codigo)", "En Portería → Escanear QR apuntas la cámara al código del pase; si la cámara o la luz fallan, escribes el PIN de 6 dígitos. El primer escaneo es la entrada y el segundo la salida, y la pantalla te dice si el pase es válido.", "porteria"),
+    (r"(a pie|peaton|visitante|autorizad)", "En Portería → Visitantes a pie escribes al menos 3 caracteres del nombre o del documento. Si la autorización está vigente pulsas «Registrar ingreso» y al salir «Registrar salida». Si no aparece, nadie lo autorizó: llama al apartamento antes de dejarlo pasar.", "porteria"),
+    (r"(historial|quien (entro|salio|registro)|ultimos movimientos)", "En Portería → Historial ves todas las entradas y salidas de vehículos, con quién las registró.", "porteria"),
+    (r"(placa|vehiculo|carro|\bmoto\b|parqueadero|ingreso de un|registrar (el )?ingreso)", "En Portería → Vehículos escribes la placa (carro ABC123, moto ABC12D) y el apartamento de destino y pulsas «Registrar ingreso». Cuando el vehículo se va, lo buscas en «Dentro del conjunto» y pulsas «Registrar salida».", "porteria"),
+    (r"(paquete|correspondencia|domicilio|encomienda|entregar)", "En Paquetes eliges el tipo, buscas al residente por nombre o apartamento y pulsas «Registrar llegada» (la foto es opcional); al residente le llega un aviso. Cuando lo recogen pulsas «Entregar» y, si lo recoge otra persona, escribes su nombre.", "paquetes"),
+    (r"(trasteo|mudanza)", "En Trasteos ves los aprobados por la administración. Verifica el horario y el paz y salvo, pulsa «Autorizar entrada» (o «Autorizar salida») y, al terminar, «Registrar fin».", "trasteos"),
+    (r"(que puedo hacer|que funciones|que opciones|para que sirve)", "Como guardia puedes registrar vehículos y visitantes a pie, escanear pases QR (o validar el PIN), registrar y entregar paquetes, autorizar trasteos aprobados, consultar las reservas aprobadas y ver la Cartelera, los documentos y las emergencias.", "porteria"),
+]
 AYUDA_INQUILINO = [
     (r"(que puedo hacer|que funciones|que opciones|para que sirve)", "", None),      # se arma según lo delegado (ver _ayuda_por_perfil)
     (r"(votacion|votar|consulta|encuesta)", "NO_VOTAR", "votaciones"),
@@ -241,6 +298,11 @@ def _ayuda_por_perfil(plano: str, p: Perfil) -> Optional[dict]:
         for patron, ayuda, accion in AYUDA_ADMIN:
             if re.search(patron, plano):
                 return {"respuesta": ayuda, "zona": None, "accion": accion, "sugerencias": ["¿Cómo registro un pago de administración?", "¿Cómo publico un aviso en la Cartelera?"]}
+        return None
+    if p.rol == RolNombre.GUARDIA.value:
+        for patron, ayuda, accion in AYUDA_GUARDIA:
+            if re.search(patron, plano):
+                return {"respuesta": ayuda, "zona": None, "accion": accion, "sugerencias": ["¿Cómo registro un paquete?", "¿Qué hago si no hay internet?"]}
         return None
     if p.rol == RolNombre.INQUILINO.value:
         for patron, clave, accion in AYUDA_INQUILINO:
@@ -259,9 +321,9 @@ def _ayuda_por_perfil(plano: str, p: Perfil) -> Optional[dict]:
 
 # Respuestas de ayuda del modo básico (sin IA): (patrón sobre texto sin tildes, respuesta, sección a la que llevar)
 AYUDA_BASICA = [
-    (r"(clave|contrasena|password)", "Para cambiar tu clave toca tu avatar (arriba a la derecha) para abrir Ajustes y usa la opción de cambiar clave.", None),
-    (r"(notificacion|aviso|push|celular me avise|campana)", "En Ajustes (toca tu avatar) puedes activar los avisos en el celular. Todos tus avisos también quedan guardados en la campana de la barra superior. En iPhone necesitas tener la app instalada en la pantalla de inicio.", None),
-    (r"(modo oscuro|tema oscuro|oscuro|texto mas grande|tamano del texto)", "En Ajustes (toca tu avatar) eliges el tema claro, oscuro o automático y el tamaño del texto. También hay un botón de tema en la barra superior.", None),
+    (r"(clave|contrasena|password)", "Para cambiar tu clave toca tu avatar o tu nombre para abrir Ajustes y usa la opción de cambiar clave.", None),
+    (r"(notificacion|aviso|push|celular me avise|campana)", "En Ajustes (toca tu avatar o tu nombre) puedes activar los avisos en el celular. Todos tus avisos también quedan guardados en la campana de la barra superior. En iPhone necesitas tener la app instalada en la pantalla de inicio.", None),
+    (r"(modo oscuro|tema oscuro|oscuro|texto mas grande|tamano del texto)", "En Ajustes (toca tu avatar o tu nombre) eliges el tema claro, oscuro o automático y el tamaño del texto. También hay un botón de tema en la barra superior.", None),
     (r"(pagar|pago|deuda|saldo|comprobante|administracion cuesta)", "En Mis pagos ves cuánto debes, pagas la administración y descargas tus comprobantes.", "cartera"),
     (r"(paquete|correspondencia|domicilio|encomienda)", "Portería registra tus paquetes cuando llegan y te avisa la campana. En Mis paquetes ves solo los tuyos y cuándo los recogiste.", "paquetes"),
     (r"(visita|visitante|invitado|\bqr\b|pase)", "En Mis visitas autorizas a personas frecuentes; para una visita puntual con vehículo creas un pase QR que compartes por WhatsApp (primer escaneo entrada, segundo salida).", None),
@@ -356,9 +418,10 @@ def contexto_para_ia(stats: dict, ahora: Optional[datetime] = None, info: Option
         lineas.append("PRÓXIMOS EVENTOS Y REUNIONES (Cartelera): " + ("; ".join(
             f"{e['titulo']} ({e['tipo']}) el {_fmt_fecha(e['fecha'])}" + (f" en {e['lugar']}" if e["lugar"] else "") for e in info["eventos"]) or "ninguno programado."))
         lineas.append("AVISOS RECIENTES (Cartelera): " + ("; ".join(f"{a['titulo']} ({a['tipo']}): {a['resumen']}" for a in info["avisos"]) or "ninguno."))
-        lineas.append("VOTACIONES ABIERTAS: " + ("; ".join(
-            f"{v['titulo']} (cierra el {_fmt_fecha(v['cierra'])}; {'un voto por ' + v['un_voto_por']}{'; exige estar al día' if v['exige_al_dia'] else ''})"
-            for v in info["votaciones"]) or "ninguna en este momento."))
+        if perfil is None or perfil.rol != RolNombre.GUARDIA.value:           # v4.4: el guardia no vota ni ve Votaciones
+            lineas.append("VOTACIONES ABIERTAS: " + ("; ".join(
+                f"{v['titulo']} (cierra el {_fmt_fecha(v['cierra'])}; {'un voto por ' + v['un_voto_por']}{'; exige estar al día' if v['exige_al_dia'] else ''})"
+                for v in info["votaciones"]) or "ninguna en este momento."))
     return "\n".join(lineas)
 
 
@@ -436,6 +499,10 @@ def _responder_basico(texto: str, stats: dict, zona_previa: Optional[str], info:
         return {"respuesta": f"Las zonas con más demanda son: {top}. Dime de cuál quieres saber los días más congestionados.", "zona": None, "accion": None,
                 "sugerencias": [f"¿Qué días se congestiona {totales[0][1]}?"]}
 
+    if perfil is not None and perfil.rol == RolNombre.GUARDIA.value:
+        return {"respuesta": "¡Hola! Te ayudo con todo lo relacionado con la portería y nuestro conjunto: vehículos, pases QR, visitantes a pie, paquetes y trasteos. "
+                             "Por ahora estoy en modo básico, así que pregúntame algo concreto, por ejemplo «¿cómo registro un paquete?».",
+                "zona": None, "accion": None, "sugerencias": ["¿Cómo registro el ingreso de un vehículo?", "¿Cómo valido el PIN de un pase?", "¿Qué hago si no hay internet?"]}
     return {"respuesta": "¡Hola! Te ayudo con todo lo relacionado con la app y nuestro conjunto: reservas, pagos, paquetes, visitas, votaciones, eventos y más. "
                          "Por ahora estoy en modo básico, así que pregúntame algo concreto, por ejemplo «¿cómo reservo una zona?».",
             "zona": None, "accion": None, "sugerencias": ["¿Cómo reservo una zona?", "¿Hay votaciones abiertas?", "¿Qué días suele estar más congestionado el BBQ?"]}

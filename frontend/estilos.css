@@ -1403,3 +1403,90 @@ button.avatar { border: 0; padding: 0; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .kpi.alerta:not(.destacado)::before, .menu-usuario { animation: none; }
 }
+
+
+/* ==========================================================================
+   VERSIÓN 4.4 · Nombre y rol al pie del menú, tarjetas con transparencia ligera y menos carga en celulares
+   Este bloque va al final a propósito (gana a lo anterior sin tocarlo). Para revertir el diseño hay que borrarlo
+   Y deshacer el cambio de app.js (el bloque «sidebar-usuario»), porque ese HTML nuevo depende de estas reglas.
+   1) Bloque de usuario en el menú lateral (escritorio)   2) Menú largo con scroll   3) Tarjetas   4) Rendimiento
+   ========================================================================== */
+
+/* ---------- 1) Nombre y rol en el menú lateral (≥ 1024 px). En celular y tableta se queda el avatar de la barra superior ---------- */
+.sidebar-usuario { display: none; }
+@media (min-width: 1024px) {
+  .sidebar-usuario { display: block; flex: none; margin-top: .5rem; padding-top: .75rem; border-top: 1px solid rgba(245, 241, 232, .16); }
+  .usuario-chip { display: none; }                          /* arriba quedan solo la campana y el tema: ya no flota el nombre sobre la ilustración */
+}
+.menu-usuario-caja-lateral { position: relative; }
+.usuario-lateral {
+  display: flex; align-items: center; gap: .7rem; width: 100%; min-height: 58px; padding: .5rem .65rem;
+  border: 1px solid rgba(245, 241, 232, .18); border-radius: 14px; background: rgba(245, 241, 232, .07);
+  color: var(--crema); font: inherit; text-align: left; cursor: pointer;
+  transition: background .2s var(--ease), border-color .2s var(--ease);
+}
+.usuario-lateral:hover { background: rgba(245, 241, 232, .13); border-color: rgba(245, 241, 232, .32); }
+.usuario-lateral:focus-visible { outline: 2px solid var(--acento-rol); outline-offset: 2px; }
+.usuario-lateral .avatar { flex: none; }
+.usuario-lateral-datos { flex: 1 1 auto; min-width: 0; display: grid; justify-items: start; line-height: 1.2; }
+.usuario-lateral-datos b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .92rem; font-weight: 600; color: var(--crema); }
+.usuario-lateral .rol-insignia { margin-top: 3px; background: rgba(245, 241, 232, .16); color: var(--crema) !important; }   /* la insignia clara del modo claro no se ve sobre el menú oscuro */
+.usuario-lateral > svg { flex: none; opacity: .7; transition: transform .25s var(--ease); }
+.usuario-lateral[aria-expanded="true"] > svg { transform: rotate(180deg); }
+/* El menú se abre HACIA ARRIBA (el bloque está pegado al borde inferior de la pantalla) y ocupa el ancho del bloque */
+.menu-usuario-arriba { top: auto; bottom: calc(100% + .5rem); left: 0; right: 0; min-width: 0; transform-origin: 50% 100%; }
+
+/* ---------- 2) Menú con muchas opciones (administrador y residente): scroll propio + pista visual de que hay más ----------
+   Truco de «sombras de scroll»: las franjas con attachment «local» tapan la sombra cuando ya no hay más para ver; las «scroll» la dibujan. */
+@media (min-width: 1024px) {
+  .nav.nav-lateral {
+    background:
+      linear-gradient(var(--menu) 30%, transparent) top / 100% 26px no-repeat local,
+      linear-gradient(transparent, var(--menu) 70%) bottom / 100% 26px no-repeat local,
+      radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, .38), transparent) top / 100% 12px no-repeat scroll,
+      radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, .38), transparent) bottom / 100% 12px no-repeat scroll;
+  }
+}
+/* Pantallas bajas (portátiles de 768 px de alto): el menú se compacta para que quepan más opciones sin scroll */
+@media (min-width: 1024px) and (max-height: 760px) {
+  .sidebar { padding-top: 1.1rem; padding-bottom: .8rem; }
+  .sidebar .logo { margin-bottom: 1.1rem; }
+  .nav-lateral a { min-height: 42px; padding-top: .5rem; padding-bottom: .5rem; }
+  .sidebar-usuario { padding-top: .6rem; }
+  .usuario-lateral { min-height: 52px; }
+}
+
+/* ---------- 3) Tarjetas con transparencia SIMPLE (sin blur) ----------
+   Una capa semitransparente casi no cuesta nada; lo que pesa es `backdrop-filter: blur`, y aquí ya no se usa en tarjetas normales.
+   Cambia --vidrio (más alto = más opaca). Se deja en 90 %: se insinúa la ciudad de fondo sin perder contraste. */
+:root { --vidrio: 90%; }
+@supports (background: color-mix(in srgb, red 50%, transparent)) {
+  .card, .kpi:not(.destacado), .mas-tile, .vehiculo, .contacto, .anuncio-mini {
+    background-color: color-mix(in srgb, var(--tarjeta) var(--vidrio), transparent);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+}
+
+/* ---------- 4) Rendimiento ----------
+   El blur de las dos tarjetas destacadas sobre un fondo que se mueve obliga al navegador a repintar el difuminado en cada cuadro.
+   En celulares y tabletas (táctil o menos de 1024 px) se apaga el blur y el movimiento del fondo: se ve igual de bien y gasta menos batería. */
+@media (hover: none), (max-width: 1023px) {
+  .ciudad { animation: none; }
+  .cuenta, .kpi.destacado { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+/* Quien pide «reducir transparencia» en su sistema recibe tarjetas sólidas y sin blur */
+@media (prefers-reduced-transparency: reduce) {
+  :root { --vidrio: 100%; }
+  .cuenta, .kpi.destacado { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .usuario-lateral, .usuario-lateral > svg { transition: none; }
+}
+
+/* ===== VERSIÓN 4.5: botón de teléfonos de emergencia para el guardia ===== */
+.cta-guardia { display: grid; gap: .6rem; margin-bottom: 1rem; grid-template-columns: minmax(0, 1fr); }
+.cta-guardia .cta-escanear { margin-bottom: 0; }
+@media (min-width: 640px) { .cta-guardia { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.cta-emergencia { min-height: 58px; gap: .7rem; font-size: 1.05rem; font-weight: 700; border: 1.5px solid var(--arcilla); background: var(--arcilla-100); color: var(--arcilla-ink); box-shadow: none; }
+.cta-emergencia:hover { background: var(--arcilla); color: var(--sobre-arcilla); }
+.cta-emergencia-mini { min-height: 48px; margin-bottom: .9rem; font-size: .98rem; }

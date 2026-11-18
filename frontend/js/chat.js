@@ -17,11 +17,13 @@ const INICIALES = {
   Administrador: ["¿Cómo apruebo una reserva?", "¿Qué zonas están más congestionadas?", "¿Cómo registro un pago de administración?", "¿Cómo publico un aviso en la Cartelera?"],
   Inquilino: ["¿Cómo reservo una zona?", "¿Cómo creo un pase QR para una visita?", "¿Qué puedo hacer como inquilino?", "¿Qué eventos hay próximamente?"],
   Residente: ["¿Cómo reservo una zona?", "¿Qué día está más libre la Zona BBQ?", "¿Cómo creo un pase QR para una visita?", "¿Hay votaciones abiertas?"],
+  Guardia: ["¿Cómo registro el ingreso de un vehículo?", "¿Cómo valido el PIN de un pase?", "¿Cómo registro un paquete?", "¿Qué hago si no hay internet?"],      // v4.4
 };
 const TEMAS = {       // lo que el asistente dice que puede ayudar a hacer: solo cosas de ese rol
   Administrador: "reservas, cartera, cartelera, votaciones y la gestión del conjunto",
   Inquilino: "reservas, paquetes, visitas, eventos y más",
   Residente: "reservas, pagos, paquetes, visitas, votaciones, eventos y más",
+  Guardia: "vehículos, pases QR, visitantes a pie, paquetes y trasteos",
 };
 const MAX_TURNOS = 8;
 
@@ -97,7 +99,8 @@ function actualizarPie() {
   const aviso = `${BOT} puede equivocarse. No escribas cédulas, teléfonos ni claves.`;
   const quedan = estado && estado.ia && estado.restantes != null ? ` · ${estado.restantes} mensajes con IA hoy` : "";
   pie.textContent = aviso + quedan;
-  subtitulo.textContent = estado ? (estado.ia ? "Con IA · responde con datos de reservas" : "Modo básico · datos de reservas") : "Datos reales de reservas";
+  const tema = rol === "Guardia" ? "portería" : "datos de reservas";       // v4.4: al guardia no se le habla de reservas, sino de su trabajo
+  subtitulo.textContent = estado ? (estado.ia ? `Con IA · ${tema}` : `Modo básico · ${tema}`) : (rol === "Guardia" ? "Ayuda de portería" : "Datos reales de reservas");
 }
 
 // ---------------------------------------------------------------- envío

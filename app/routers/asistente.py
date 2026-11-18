@@ -28,7 +28,7 @@ from app.schemas.asistente import (
 
 TAG = "Asistente de IA"
 router = APIRouter(prefix="/asistente", tags=[TAG])
-ADMIN, RESIDENTE, INQUILINO = RolNombre.ADMINISTRADOR, RolNombre.RESIDENTE, RolNombre.INQUILINO
+ADMIN, RESIDENTE, INQUILINO, GUARDIA = RolNombre.ADMINISTRADOR, RolNombre.RESIDENTE, RolNombre.INQUILINO, RolNombre.GUARDIA
 RESPUESTA_INVALIDA = "El asistente no pudo preparar un borrador con ese mensaje. Intenta con otras palabras o usa el formulario normal."
 DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
 
@@ -236,7 +236,7 @@ SISTEMA_CHAT = SISTEMA_CHAT.replace("Ciudabot", config.MARCA_ASISTENTE).replace(
 
 ESQUEMA_CHAT = {"type": "OBJECT", "required": ["respuesta"], "properties": {
     "respuesta": {"type": "STRING"}, "zona": {"type": "STRING", "nullable": True},
-    "accion": {"type": "STRING", "enum": list(chat_datos.ENLACES), "nullable": True},
+    "accion": {"type": "STRING", "enum": list(dict.fromkeys([*chat_datos.ENLACES, *chat_datos.ENLACES_GUARDIA])), "nullable": True},
     "sugerencias": {"type": "ARRAY", "items": {"type": "STRING"}, "nullable": True}}}
 _PIDE_ESTADO = re.compile(r"(estado de (?:mi|mis)|como va(?:n)? (?:mi|mis)|(?:mi|mis) (?:solicitud|solicitudes|queja|quejas|reclamo|reclamos|peticion|peticiones|sugerencia|reporte|reportes|danio|danios|pqrs))")
 TOPE_CHAT_AVISO = "Llegaste al límite de mensajes con IA por hoy, pero sigo respondiendo con los datos de reservas. "
@@ -251,18 +251,18 @@ def _restantes_chat(db: Session, usuario: Usuario) -> int:
 
 
 @router.get("/chat/estado", response_model=EstadoChat, summary="¿El chat usa IA y cuántos mensajes me quedan hoy?",
-            description="Roles: **Residente**, **Administrador**. No llama a la IA. El chat funciona siempre: sin IA responde en modo básico con los datos de reservas.")
-def chat_estado(db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
+            description="Roles: **Residente**, **Inquilino**, **Administrador**, **Guardia**. No llama a la IA. El chat funciona siempre: sin IA responde en modo básico con los datos de reservas.")
+def chat_estado(db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN, GUARDIA))):
     return EstadoChat(ia=ia.disponible(), limite_diario=config.IA_LIMITE_CHAT_USUARIO, restantes=_restantes_chat(db, usuario),
                       sugerencias=chat_datos.sugerencias_iniciales(chat_datos.perfil_de(db, usuario)))
 
 
 @router.post("/chat", response_model=RespuestaChat, summary="Conversar con el asistente (congestión de zonas comunes y ayuda de la app)",
-             description="Roles: **Residente**, **Administrador**. Responde con estadísticas reales de reservas calculadas por el servidor (sin datos de personas); la IA solo las explica. "
+             description="Roles: **Residente**, **Inquilino**, **Administrador**, **Guardia**. Responde con estadísticas reales de reservas calculadas por el servidor (sin datos de personas); la IA solo las explica. "
                          "No reserva ni modifica nada. Sin IA, o si se agotó el tope diario del chat, responde en **modo básico** con los mismos datos. "
                          "Si el mensaje suena a emergencia no se consulta la IA y se indican los teléfonos de emergencia. La conversación no se guarda.",
              responses={422: {"description": "Mensaje vacío"}})
-def chat(datos: MensajeChat, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN))):
+def chat(datos: MensajeChat, db: Session = Depends(get_db), usuario: Usuario = Depends(requiere_roles(RESIDENTE, INQUILINO, ADMIN, GUARDIA))):
     texto = ia.limpiar_entrada(datos.mensaje, 400)
     if len(texto) < 2:
         raise HTTPException(status_code=422, detail="Escribe tu pregunta para que pueda ayudarte.")

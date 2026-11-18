@@ -52,8 +52,19 @@ def test_al_delegarle_pagar_y_votar_las_sugerencias_del_inquilino_cambian(client
     assert "¿Cómo pago la administración?" in s and "¿Hay votaciones abiertas?" in s
 
 
-def test_la_guardia_no_tiene_asistente(client, auth, sin_ia):
-    assert client.get("/asistente/chat/estado", headers=auth(CEL)).status_code == 403
+def test_la_guardia_recibe_sugerencias_de_porteria(client, auth, sin_ia):
+    # v4.4: la guardia vuelve a tener el chat, pero con SUS preguntas: nada de reservar, pagar ni votar.
+    s = estado(client, auth, CEL)["sugerencias"]
+    assert len(s) == 4 and "¿Cómo registro el ingreso de un vehículo?" in s and "¿Cómo valido el PIN de un pase?" in s
+    blob = " ".join(s).lower()
+    assert "reservo" not in blob and "votacion" not in blob and "votación" not in blob and "pago" not in blob
+
+
+def test_la_guardia_no_usa_los_borradores_de_pqrs_del_asistente(client, auth, sin_ia):
+    # El chat sí; los borradores de quejas y daños siguen siendo solo de residentes, inquilinos y administración.
+    r = client.post("/asistente/residente", json={"mensaje": "Hay una fuga en el parqueadero"}, headers=auth(CEL))
+    assert r.status_code == 403
+    assert client.get("/asistente/estado", headers=auth(CEL)).json()["disponible"] is False
 
 
 # ------------------------------------------------------------------ respuestas según el rol
@@ -154,3 +165,68 @@ def test_nunca_se_sugiere_la_pregunta_que_la_persona_acaba_de_hacer(client, auth
     pregunta = "¿Qué zonas están más congestionadas?"
     r = preguntar(client, auth, pregunta, ADM)
     assert pregunta not in r["sugerencias"] and r["sugerencias"]            # y siempre queda al menos un seguimiento útil
+
+
+# ------------------------------------------------------------------ v4.4 · la guardia (portería)
+def test_la_guardia_recibe_los_pasos_de_porteria_con_botones_de_porteria(client, auth, sin_ia):
+    veh = preguntar(client, auth, "¿Cómo registro el ingreso de un vehículo?", CEL)
+    assert "Registrar ingreso" in veh["respuesta"] and veh["accion"]["enlace"] == "#/porteria"
+    pin = preguntar(client, auth, "¿Cómo valido el PIN de un pase?", CEL)
+    assert "6 dígitos" in pin["respuesta"] and pin["accion"]["enlace"] == "#/porteria"
+    paq = preguntar(client, auth, "¿Cómo registro un paquete?", CEL)
+    assert "Registrar llegada" in paq["respuesta"] and paq["accion"]["enlace"] == "#/paquetes"
+    tras = preguntar(client, auth, "¿Cómo autorizo un trasteo?", CEL)
+    assert "Autorizar entrada" in tras["respuesta"] and tras["accion"]["enlace"] == "#/trasteos"
+
+
+def test_la_guardia_sabe_que_sin_internet_el_qr_no_se_valida(client, auth, sin_ia):
+    r = preguntar(client, auth, "¿Qué hago si no hay internet?", CEL)
+    assert "Pendiente" in r["respuesta"] and "QR" in r["respuesta"]
+
+
+def test_a_la_guardia_nunca_se_le_ofrecen_pagos_votaciones_ni_quejas(client, auth, sin_ia):
+    for pregunta in ("¿Hay votaciones abiertas?", "¿Cómo pago la administración?", "¿Cómo radico una queja?"):
+        r = preguntar(client, auth, pregunta, CEL)
+        assert r["accion"] is None and "portería" in r["respuesta"]
+    perfil = chat_datos.Perfil("Guardia")
+    for clave in ("cartera", "votaciones", "pqrs", "mantenimiento", "importar", "residentes"):
+        assert chat_datos.accion_para(clave, perfil) is None
+    for clave in ("porteria", "paquetes", "trasteos", "reservas", "anuncios", "emergencias"):
+        assert chat_datos.accion_para(clave, perfil).enlace == f"#/{clave}"
+
+
+def test_las_secciones_de_la_guardia_no_se_le_ofrecen_a_un_residente(client, auth, sin_ia):
+    assert chat_datos.accion_para("porteria", chat_datos.Perfil("Residente")) is None
+    assert chat_datos.accion_para("porteria", None) is None
+
+
+def test_los_seguimientos_de_la_guardia_no_son_de_residente(client, auth, sin_ia):
+    r = preguntar(client, auth, "¿Cómo reservo una zona?", CEL)
+    blob = " ".join(r["sugerencias"]).lower()
+    assert "reservo" not in blob and "votacion" not in blob and "votación" not in blob
+
+
+def test_la_ia_recibe_la_guia_de_porteria_y_no_las_votaciones(client, auth, db, proveedor):
+    from datetime import datetime, timedelta
+    from app.models import Usuario, Votacion
+    adm = db.query(Usuario).filter(Usuario.email == ADM).one()
+    db.add(Votacion(autor_id=adm.id, titulo="Cambio de portón eléctrico", estado="Abierta", fecha_cierre=datetime.utcnow() + timedelta(days=5), un_voto_por="apartamento"))
+    db.commit()
+    preguntar(client, auth, "¿Qué puedo hacer aquí?", CEL)
+    sistema, entrada = proveedor[-1]
+    assert "QUIÉN PREGUNTA: el guardia de portería" in entrada and "GUÍA DE LA APP PARA PORTERÍA" in entrada
+    assert "Mis pagos muestra cuánto debes" not in entrada and "- Comercio:" not in entrada
+    assert "VOTACIONES ABIERTAS" not in entrada and "Cambio de portón" not in entrada      # lo que no usa, no se le entrega
+
+
+def test_la_ia_no_puede_ofrecerle_a_la_guardia_pagos_ni_votaciones(client, auth, monkeypatch, proveedor):
+    monkeypatch.setattr(ia, "generar_json", lambda *a, **k: {"respuesta": "Ve a Pagos.", "accion": "cartera", "sugerencias": ["¿Hay votaciones abiertas?", "¿Cómo pago la administración?"]})
+    r = preguntar(client, auth, "¿Dónde pago?", CEL)
+    assert r["accion"] is None
+    assert not any("votaciones" in x.lower() or "pago" in x.lower() for x in r["sugerencias"]) and r["sugerencias"]
+
+
+def test_la_ia_si_puede_llevar_a_la_guardia_a_porteria(client, auth, monkeypatch, proveedor):
+    monkeypatch.setattr(ia, "generar_json", lambda *a, **k: {"respuesta": "Ve a Portería.", "accion": "porteria", "sugerencias": []})
+    r = preguntar(client, auth, "¿Dónde registro un carro?", CEL)
+    assert r["accion"]["enlace"] == "#/porteria"
