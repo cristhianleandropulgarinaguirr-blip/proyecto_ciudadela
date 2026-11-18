@@ -310,7 +310,7 @@ a { color: inherit; }
 .usuario-chip .datos span { font-size: .78rem; color: var(--tinta-2); }
 
 .pagina-cab { margin-bottom: 1.25rem; }
-.pagina-cab .saludo { font-size: .85rem; color: var(--tinta-2); text-transform: capitalize; }
+.pagina-cab .saludo { font-size: .85rem; color: var(--tinta-2); }
 .pagina-cab h1 { font-size: clamp(1.7rem, 6vw, 2.5rem); font-weight: 500; }
 .pagina-cab h1 em { font-style: italic; color: var(--bosque-2); }
 .pagina-cab p { color: var(--tinta-2); margin-top: .35rem; max-width: 60ch; }
@@ -1285,3 +1285,121 @@ html[data-texto="grande"] { font-size: 112.5%; }
 .pp-detalle dt { color: var(--tinta-2); }
 .pp-detalle dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
 .pp-resultado .btn { margin-top: .5rem; }
+
+/* ==========================================================================
+   VERSIÓN 4.3 · Vida en las tarjetas (sobrio, sin librerías: solo CSS y SVG)
+   Todo este bloque es aditivo: para volver al look anterior basta borrarlo desde aquí hasta el final.
+   1) Correcciones  2) Profundidad  3) Tarjetas principales (degradado, transparencia, patrón por rol)  4) Detalles y movimiento
+   ========================================================================== */
+
+/* ---------- 1) Correcciones ---------- */
+.campana .burbuja[hidden] { display: none; }                 /* el «0» rojo salía porque display:grid le ganaba al atributo hidden */
+.pagina-cab .saludo { text-transform: none; }                /* «17 De Noviembre» → «17 de noviembre»; solo la primera letra va en mayúscula */
+.pagina-cab .saludo::first-letter { text-transform: uppercase; }
+@media (max-width: 1023px) { .main { padding-bottom: calc(var(--nav-h) + var(--safe-b) + 5.5rem); } }   /* espacio para que el botón del chat no tape el final de la lista */
+@media (min-width: 1024px) { .main { padding-bottom: 6rem; } }
+/* Texto sobre la ilustración de fondo: un halo del color del fondo lo separa de los dibujos */
+.pagina-cab .saludo, .pagina-cab h1, .pagina-cab p, .mas-grupo h2, .login-form h2, .login-form .sub, .nota-cierre { text-shadow: 0 0 10px var(--papel), 0 0 3px var(--papel); }
+/* Barra inferior: etiquetas completas y botón activo con «píldora» */
+.nav-inferior a { font-size: .72rem; }
+.nav-inferior a[aria-current="page"] { font-weight: 700; }
+.nav-inferior a[aria-current="page"]::before { content: ""; position: absolute; top: 9px; width: 54px; height: 30px; border-radius: 999px; background: rgba(245, 241, 232, .14); }
+.nav-inferior a svg, .nav-inferior a span { position: relative; }
+
+/* ---------- 2) Profundidad en todas las tarjetas ---------- */
+:root {
+  --patron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44'%3E%3Cpath d='M44 0H0V44' fill='none' stroke='white' stroke-opacity='.10'/%3E%3C/svg%3E");      /* Administrador: cuadrícula de plano */
+}
+:root[data-rol="Residente"] { --patron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Cg fill='none' stroke='white' stroke-opacity='.11'%3E%3Ccircle cx='0' cy='0' r='22'/%3E%3Ccircle cx='0' cy='0' r='40'/%3E%3Ccircle cx='64' cy='64' r='22'/%3E%3Ccircle cx='64' cy='64' r='40'/%3E%3C/g%3E%3C/svg%3E"); }      /* arcos concéntricos */
+:root[data-rol="Guardia"] { --patron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cpath d='M-2 2L2 -2M0 14L14 0M12 16L16 12' stroke='white' stroke-opacity='.12' stroke-width='2'/%3E%3C/svg%3E"); }      /* franjas de barrera */
+:root[data-rol="Inquilino"] { --patron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='4' cy='4' r='1.4' fill='white' fill-opacity='.17'/%3E%3Ccircle cx='14' cy='14' r='1.4' fill='white' fill-opacity='.17'/%3E%3C/svg%3E"); }     /* puntos */
+
+.card, .kpi:not(.destacado), .mas-tile {
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, .38), rgba(255, 255, 255, 0) 58%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 1px 2px rgba(var(--rol-rgb), .10), 0 10px 22px -12px rgba(var(--rol-rgb), .42);
+}
+:root[data-tema="oscuro"] .card, :root[data-tema="oscuro"] .kpi:not(.destacado), :root[data-tema="oscuro"] .mas-tile {
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, 0) 55%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), 0 0 0 1px rgba(var(--rol-rgb), .12), var(--sombra);
+}
+.card:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), var(--sombra-alta); }
+:root[data-tema="oscuro"] .card:hover { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .07), var(--sombra-alta); }
+
+/* ---------- 3) Tarjetas principales: degradado + semitransparencia + patrón del rol ---------- */
+.cuenta, .kpi.destacado {
+  position: relative; overflow: hidden; isolation: isolate;
+  background: var(--menu);                                    /* respaldo si el navegador no soporta color-mix */
+  border: 1px solid rgba(255, 255, 255, .14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), 0 14px 30px -14px rgba(var(--rol-rgb), .6);
+}
+@supports (background: color-mix(in srgb, red 50%, blue)) {
+  .cuenta, .kpi.destacado {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--menu) 90%, transparent) 0%, color-mix(in srgb, color-mix(in srgb, var(--bosque-2) 40%, var(--menu)) 88%, transparent) 100%);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);     /* la ciudad de fondo se ve difusa a través de la tarjeta; 90 % opaca para no perder contraste */
+  }
+}
+.cuenta::before, .kpi.destacado::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: var(--patron);
+  -webkit-mask-image: linear-gradient(115deg, transparent 8%, #000 92%); mask-image: linear-gradient(115deg, transparent 8%, #000 92%);
+}
+.cuenta::after { z-index: -1; }                              /* los anillos de siempre pasan detrás del texto */
+/* Fragmento de la ilustración de la ciudad, muy tenue, en la esquina (reusa el mismo archivo del fondo: no descarga nada nuevo) */
+.kpi.destacado::after {
+  content: ""; position: absolute; right: -6%; bottom: -35%; width: 72%; height: 150%; z-index: -1; pointer-events: none;
+  background: url("img/fondo-oscuro.webp") 62% 58% / cover no-repeat; opacity: .2; mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(closest-side, #000 35%, transparent); mask-image: radial-gradient(closest-side, #000 35%, transparent);
+}
+.kpi.destacado .nota { font-size: .8rem; color: rgba(245, 241, 232, .72); margin-top: .4rem; max-width: 34ch; }
+.cuenta .btn.claro { --bg: var(--crema); --fg: var(--menu); }                    /* «Ver mi cuenta» legible en claro y oscuro */
+.cuenta .badge.bosque { background: rgba(95, 217, 127, .22); color: #D5F7DF; }   /* éxito = verde, no el color del rol */
+
+/* ---------- 4) Detalles ---------- */
+.kpi { position: relative; }
+.kpi .et, .kpi .val { position: relative; z-index: 1; }
+.kpi-enlace { display: block; color: inherit; text-decoration: none; -webkit-tap-highlight-color: transparent; }
+.kpi-enlace:active { transform: scale(.97); }
+.kpi-enlace:focus-visible { outline: 2px solid var(--bosque); outline-offset: 2px; }
+.kpi-marca { position: absolute; right: .6rem; bottom: .5rem; width: 46px; height: 46px; color: var(--bosque); opacity: .13; pointer-events: none; }
+.kpi-marca svg { width: 100%; height: 100%; stroke-width: 1.5; }
+.kpi.cero:not(.destacado) .val { opacity: .6; }               /* lo que está en cero se apaga: lo que tiene pendientes destaca */
+.kpi.cero .kpi-marca { opacity: .07; }
+.kpi.alerta:not(.destacado) .val { color: var(--laton-ink); }   /* pendiente = ámbar (no rojo de error) */
+.kpi.alerta:not(.destacado)::before {
+  content: ""; position: absolute; top: .8rem; right: .85rem; width: 9px; height: 9px; border-radius: 50%; background: var(--laton);
+  box-shadow: 0 0 0 0 rgba(231, 162, 60, .55); animation: aviso-pendiente 2.4s ease-out infinite;
+}
+@keyframes aviso-pendiente { 70%, 100% { box-shadow: 0 0 0 9px rgba(231, 162, 60, 0); } }
+@media (max-width: 599px) {
+  .kpis:has(> .kpi.destacado) > .kpi:last-child:nth-child(even) { grid-column: 1 / -1; }   /* la última tarjeta no queda sola a medias */
+}
+
+/* Guardia: el botón principal arriba y grande */
+.cta-escanear { min-height: 58px; margin-bottom: 1rem; font-size: 1.05rem; gap: .7rem; background-image: linear-gradient(135deg, var(--primario), var(--bosque-2)); box-shadow: 0 12px 24px -12px rgba(var(--rol-rgb), .7); }
+
+/* «Más»: ícono en círculo y, si queda una tarjeta sola, ocupa todo el ancho */
+.mas-ico { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--campo); box-shadow: inset 0 0 0 1px var(--tarjeta-borde); }
+.mas-ico svg { width: 28px; height: 28px; }
+.mas-tile:active { transform: scale(.97); }
+@media (max-width: 639px) {
+  .mas-rejilla > .mas-tile:last-child:nth-child(odd) { grid-column: 1 / -1; flex-direction: row; min-height: 84px; gap: 1rem; }
+}
+
+/* Estados vacíos con halo */
+.vacio svg { box-sizing: border-box; width: 68px; height: 68px; padding: 16px; border-radius: 50%; color: var(--bosque); background: var(--campo);
+  box-shadow: inset 0 0 0 1px var(--tarjeta-borde), 0 8px 18px -10px rgba(var(--rol-rgb), .45); }
+
+/* Menú del avatar */
+.menu-usuario-caja { position: relative; }
+button.avatar { border: 0; padding: 0; cursor: pointer; }
+.menu-usuario { position: absolute; right: 0; top: calc(100% + .6rem); z-index: 60; min-width: 230px; padding: .5rem; border-radius: var(--r);
+  background: var(--tarjeta); border: 1.5px solid var(--tarjeta-borde); box-shadow: var(--sombra-alta); animation: entrar .2s var(--ease) both; }
+.menu-usuario[hidden] { display: none; }
+.menu-usuario-cab { display: grid; gap: .15rem; justify-items: start; padding: .5rem .6rem .7rem; margin-bottom: .35rem; border-bottom: 1px solid var(--tarjeta-borde); }
+.menu-usuario-item { display: flex; align-items: center; gap: .6rem; width: 100%; min-height: 44px; padding: .5rem .6rem; border: 0; border-radius: var(--r-sm); background: transparent;
+  color: var(--tinta); text-decoration: none; font-weight: 600; font-size: .95rem; text-align: left; }
+.menu-usuario-item:hover, .menu-usuario-item:focus-visible { background: var(--bosque-100); }
+.menu-usuario-item.peligro { color: var(--arcilla-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi.alerta:not(.destacado)::before, .menu-usuario { animation: none; }
+}

@@ -1,7 +1,7 @@
 // Arranque de Ciudadela Digital: sesión, "shell" (menú + barra superior) y enrutador por hash.
 import { api, sesion, cuandoExpire, restaurarSesion, cerrarEnServidor, esErrorDeRed } from "./api.js";
 import { borrarAutoTodos } from "./autoguardado.js";
-import { h, icono, logo, toast, iniciales, vaciar, esqueleto, estadoVacio, botonTema, confirmar, modal } from "./ui.js";
+import { h, icono, logo, toast, iniciales, vaciar, esqueleto, estadoVacio, botonTema, confirmar, modal, propio } from "./ui.js";
 import { vistaLogin } from "./vistas/login.js";
 import { crearCampana, detenerCampana, actualizarCampana } from "./campana.js";
 import { registrarServiceWorker } from "./instalar.js";
@@ -39,6 +39,9 @@ const RUTAS = [
   { id: "mas", texto: "Más", icono: "apps", roles: [A, R, G, I], cargar: () => import("./vistas/mas.js"), menu: false },                                  // pantalla de todas las opciones
 ];
 const etiqueta = (r, rol) => (typeof r.texto === "string" ? r.texto : r.texto[rol] ?? r.texto.otro);
+// Nombres cortos SOLO para la barra inferior del celular (los largos se cortaban con «…»). El texto completo queda en el aria-label.
+const CORTA = { paquetes: "Paquetes", cartera: { [R]: "Pagos", [I]: "Pagos", otro: "Cartera" }, emergencias: "Emergencia", visitas: "Visitas" };
+const etiquetaCorta = (r, rol) => { const c = CORTA[r.id]; return c === undefined ? etiqueta(r, rol) : typeof c === "string" ? c : c[rol] ?? c.otro; };
 
 // Barra inferior del celular: máximo 5 botones (4 + «Más»). Lo demás vive en «Más», con botones grandes.
 // ¿Esta ruta es para este usuario? Además del rol: al inquilino solo se le muestran Cartera y Votaciones si su propietario se las delegó.
@@ -180,16 +183,31 @@ async function cerrarSesion() {
   location.hash = ""; mostrarLogin();
 }
 
+// Menú del avatar: Ajustes y Cerrar sesión. El cierre de sesión ya no está a un toque suelto junto al avatar (se cerraba sin querer).
+function crearMenuUsuario() {
+  const cerrar = () => { menu.hidden = true; boton.setAttribute("aria-expanded", "false"); };
+  const menu = h("div", { class: "menu-usuario", role: "menu", "aria-label": "Mi cuenta", hidden: true },
+    h("div", { class: "menu-usuario-cab" }, h("b", {}, propio(usuario.nombre_completo)), h("span", { class: "rol-insignia" }, usuario.rol)),
+    h("a", { class: "menu-usuario-item", role: "menuitem", href: "#/configuracion", onclick: cerrar }, icono("ajustes", 18), "Ajustes"),
+    h("button", { class: "menu-usuario-item peligro", type: "button", role: "menuitem", onclick: () => { cerrar(); cerrarSesion(); } }, icono("salir", 18), "Cerrar sesión"));
+  const boton = h("button", { class: "avatar avatar-enlace", type: "button", title: "Mi cuenta", "aria-label": "Abrir menú de mi cuenta", "aria-haspopup": "menu", "aria-expanded": "false",
+    onclick: () => { menu.hidden = !menu.hidden; boton.setAttribute("aria-expanded", String(!menu.hidden)); } }, iniciales(usuario.nombre_completo));
+  // Se cierra al tocar fuera o con Escape; si el menú ya no está en la página (cerró sesión), los oyentes se quitan solos.
+  const fuera = (e) => { if (!menu.isConnected) { document.removeEventListener("click", fuera); document.removeEventListener("keydown", tecla); return; } if (!menu.hidden && !menu.contains(e.target) && !boton.contains(e.target)) cerrar(); };
+  const tecla = (e) => { if (e.key === "Escape" && !menu.hidden) { cerrar(); boton.focus(); } };
+  document.addEventListener("click", fuera); document.addEventListener("keydown", tecla);
+  return h("div", { class: "menu-usuario-caja" }, boton, menu);
+}
+
 function construirShell() {
   const permitidas = RUTAS.filter((r) => permitida(r, usuario));
-  const enlace = (r) => h("a", { href: `#/${r.id}`, "data-id": r.id }, icono(r.icono), h("span", {}, etiqueta(r, usuario.rol)));
+  const enlace = (r, corto = false) => h("a", { href: `#/${r.id}`, "data-id": r.id, ...(corto ? { "aria-label": etiqueta(r, usuario.rol) } : {}) }, icono(r.icono), h("span", {}, corto ? etiquetaCorta(r, usuario.rol) : etiqueta(r, usuario.rol)));
   const porId = new Map(permitidas.map((r) => [r.id, r]));
   // Escritorio: menú lateral con todo. Celular: barra inferior con 4 botones + «Más».
   const lateral = h("nav", { class: "nav nav-lateral", "aria-label": "Principal" }, permitidas.filter((r) => r.menu !== false).map(enlace));
   const inferior = h("nav", { class: "nav nav-inferior", "aria-label": "Principal" },
-    (BARRA[usuario.rol] ?? []).map((id) => porId.get(id)).filter(Boolean).map(enlace), enlace(porId.get("mas")));
+    (BARRA[usuario.rol] ?? []).map((id) => porId.get(id)).filter(Boolean).map((r) => enlace(r, true)), enlace(porId.get("mas")));
 
-  const salir = h("button", { class: "btn suave icono", "aria-label": "Cerrar sesión", title: "Cerrar sesión", onclick: cerrarSesion }, icono("salir"));
   raiz.replaceChildren(h("div", { class: "shell" },
     h("aside", { class: "sidebar" }, logo(true), lateral, inferior),
     h("div", { class: "main" },
@@ -198,7 +216,7 @@ function construirShell() {
         h("div", { class: "topbar-acciones" }, crearCampana((ruta) => { location.hash = `#/${ruta}`; }), botonTema(),
         h("div", { class: "usuario-chip" },
           h("div", { class: "datos" }, h("b", {}, usuario.nombre_completo), h("span", { class: "rol-insignia" }, usuario.rol)),
-          h("a", { class: "avatar avatar-enlace", href: "#/configuracion", title: "Configuración", "aria-label": "Abrir configuración" }, iniciales(usuario.nombre_completo)), salir))),
+          crearMenuUsuario()))),
       h("main", { id: "contenido", tabindex: "-1" }))));
 }
 
@@ -250,7 +268,7 @@ async function navegar() {
   const mio = ++turno;
   vaciar(cont).append(esqueleto(110, 4));
   try {
-    const ctx = { usuario, ir: (r) => { location.hash = `#/${r}`; }, recargar: navegar, salir: cerrarSesion,
+    const ctx = { usuario, ir: (r) => { location.hash = `#/${r}`; }, recargar: navegar, salir: cerrarSesion, enBarra: BARRA[usuario.rol] ?? [],
       rutas: permitidas.filter((r) => r.id !== "resumen" && r.id !== "mas").map((r) => ({ id: r.id, icono: r.icono, texto: etiqueta(r, usuario.rol) })),
       actualizarUsuario: async () => { usuario = await api("/usuarios/me"); return usuario; } };
     const modulo = await ruta.cargar();

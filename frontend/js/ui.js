@@ -178,11 +178,17 @@ export function contar(el, hasta, formato = (n) => String(n)) {
   };
   requestAnimationFrame(paso);
 }
-export function kpi(etiqueta, valor, { alerta = false, destacado = false, formato } = {}) {
+// Contadores. Opciones nuevas (todas opcionales, lo anterior sigue igual): href → la tarjeta es un enlace; marca → ícono grande de fondo; nota → línea pequeña.
+export function kpi(etiqueta, valor, { alerta = false, destacado = false, formato, href, marca, nota } = {}) {
   const v = h("div", { class: "val" }, "0");
   contar(v, valor, formato);
-  return h("div", { class: `kpi ${alerta && valor > 0 ? "alerta" : ""} ${destacado ? "destacado" : ""}` }, h("div", { class: "et" }, etiqueta), v);
+  const clases = `kpi ${alerta && valor > 0 ? "alerta" : ""} ${destacado ? "destacado" : ""} ${valor === 0 && !formato && !destacado ? "cero" : ""} ${href ? "kpi-enlace" : ""}`.replace(/\s+/g, " ").trim();
+  const hijos = [h("div", { class: "et" }, etiqueta), v, nota ? h("div", { class: "nota" }, nota) : null, marca ? h("span", { class: "kpi-marca", "aria-hidden": "true" }, icono(marca)) : null];
+  return href ? h("a", { class: clases, href }, ...hijos) : h("div", { class: clases }, ...hijos);
 }
+
+/** Nombre para mostrar: pone en mayúscula la primera letra de cada palabra («pepito» → «Pepito»); no toca el resto de las letras. */
+export const propio = (t) => String(t ?? "").replace(/(^|\s)(\p{L})/gu, (_, a, b) => a + b.toLocaleUpperCase("es"));
 
 // Botón con estado "cargando": evita dobles clics y da retroalimentación.
 export async function conCarga(btn, fn) {

@@ -11,10 +11,11 @@ const GRUPOS = [
 ];
 
 export async function render(ctx) {
-  const rutas = new Map(ctx.rutas.map((r) => [r.id, r]));
+  const enBarra = new Set(ctx.enBarra ?? []);                    // lo que ya está en la barra inferior no se repite aquí
+  const rutas = new Map(ctx.rutas.filter((r) => !enBarra.has(r.id)).map((r) => [r.id, r]));
   const grupos = GRUPOS.map(([titulo, ids]) => [titulo, ids.map((id) => rutas.get(id)).filter(Boolean)]).filter(([, r]) => r.length);
   return h("div", {}, cabecera("Más opciones", "Toca lo que necesites."),
     ...grupos.map(([titulo, lista]) => h("section", { class: "mas-grupo" }, h("h2", {}, titulo),
-      h("div", { class: "mas-rejilla" }, lista.map((r) => h("a", { class: "mas-tile", href: `#/${r.id}` }, icono(r.icono), h("span", {}, r.texto)))))),
+      h("div", { class: "mas-rejilla" }, lista.map((r) => h("a", { class: "mas-tile", href: `#/${r.id}` }, h("span", { class: "mas-ico" }, icono(r.icono)), h("span", {}, r.texto)))))),
     h("button", { class: "btn suave block mas-salir", onclick: ctx.salir }, icono("salir", 18), "Cerrar sesión"));
 }
