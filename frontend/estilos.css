@@ -1490,3 +1490,59 @@ button.avatar { border: 0; padding: 0; cursor: pointer; }
 .cta-emergencia { min-height: 58px; gap: .7rem; font-size: 1.05rem; font-weight: 700; border: 1.5px solid var(--arcilla); background: var(--arcilla-100); color: var(--arcilla-ink); box-shadow: none; }
 .cta-emergencia:hover { background: var(--arcilla); color: var(--sobre-arcilla); }
 .cta-emergencia-mini { min-height: 48px; margin-bottom: .9rem; font-size: .98rem; }
+
+
+/* ==========================================================================
+   VERSIÓN 4.6 · ASAMBLEAS DE COPROPIETARIOS
+   Usa solo las variables del tema: el modo oscuro y el color por rol funcionan sin tocar nada aquí.
+   ========================================================================== */
+.asm-lista { display: grid; gap: .75rem; }
+.asm-tarjeta { display: block; width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.asm-tarjeta:hover { border-color: var(--bosque); }
+.asm-tarjeta p { margin: .25rem 0 0; }
+.asm-info p { margin: .45rem 0; }
+.asm-info svg { vertical-align: -3px; color: var(--bosque); }
+.asm-orden { white-space: pre-wrap; line-height: 1.55; margin: 0; }
+.asm-docs { display: grid; gap: .5rem; }
+.asm-doc { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.asm-aviso { display: flex; gap: .5rem; align-items: center; background: var(--laton-100); border-color: var(--laton); margin: .75rem 0; }
+
+/* Medidor de quórum con la marca del 50 % */
+.asm-medidor { position: relative; height: 18px; border-radius: 99px; background: var(--linea); overflow: hidden; margin: .6rem 0; }
+.asm-medidor i { display: block; height: 100%; width: 0; background: var(--laton); border-radius: 99px; transition: width .6s var(--ease, ease), background .3s; }
+.asm-medidor i.ok { background: var(--bosque-2); }
+.asm-medidor .marca-50 { position: absolute; top: 0; bottom: 0; left: 50%; width: 3px; margin-left: -1px; background: var(--tinta); opacity: .7; }
+.asm-pct { font-family: var(--f-display); font-size: 2rem; font-weight: 500; margin: .2rem 0; font-variant-numeric: tabular-nums; }
+.asm-pct small { font-family: var(--f-ui); font-size: .85rem; font-weight: 400; color: var(--tinta-2); }
+
+/* Filas de unidades, asistentes y entregas */
+.asm-fila { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; justify-content: space-between; padding: .75rem .9rem; border: 1px solid var(--linea); border-radius: var(--r); background: var(--superficie); }
+.asm-fila.presente { border-color: var(--bosque-2); background: var(--bosque-100); }
+.asm-fila-txt { display: grid; gap: .15rem; min-width: 0; flex: 1 1 200px; }
+.asm-fila-acc { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.asm-chips { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .2rem; }
+.asm-coef { width: 7.5rem; padding: .5rem .6rem; border: 1px solid var(--linea); border-radius: var(--r-sm); background: var(--campo); color: var(--tinta); font: inherit; }
+.asm-coef:disabled { opacity: .6; }
+.asm-buscar { width: 100%; padding: .7rem .9rem; margin-bottom: .75rem; border: 1px solid var(--linea); border-radius: var(--r); background: var(--campo); color: var(--tinta); font: inherit; }
+.asm-resumen { padding: .8rem 1rem; border-radius: var(--r); border: 1px solid var(--linea); margin-bottom: 1rem; }
+.asm-resumen p { margin: .2rem 0 0; }
+.asm-resumen.ok { background: var(--bosque-100); border-color: var(--bosque-2); }
+.asm-resumen.mal { background: var(--arcilla-100); border-color: var(--arcilla); }
+.asm-evento { padding: .65rem .2rem; border-bottom: 1px solid var(--linea); }
+.asm-evento p { margin: .15rem 0 0; }
+.asm-poder p { margin: .35rem 0; }
+.field.archivo label.fija { position: static; transform: none; display: block; margin-bottom: .4rem; font-size: .85rem; color: var(--tinta-2); pointer-events: auto; }
+.field.archivo input[type="file"] { width: 100%; padding: .6rem; border: 1px dashed var(--tarjeta-borde); border-radius: var(--r); background: var(--campo); color: var(--tinta); }
+
+/* Pantalla grande (proyector): el quórum se lee desde el fondo del salón */
+.asm-pantalla { position: fixed; inset: 0; z-index: 90; background: var(--papel); color: var(--tinta); display: grid; place-items: center; padding: 2rem; overflow: auto; }
+.asm-pantalla-x { position: absolute; top: calc(1rem + var(--safe-t)); right: 1rem; }
+.asm-pantalla-cuerpo { width: min(1100px, 100%); text-align: center; }
+.asm-pantalla-tit { font-family: var(--f-display); font-size: clamp(1.4rem, 3.2vw, 2.4rem); margin: 0 0 .5rem; }
+.asm-pantalla-pct { font-family: var(--f-display); font-size: clamp(5rem, 18vw, 13rem); line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
+.asm-medidor.grande { height: clamp(34px, 6vw, 64px); margin: 1.2rem 0; }
+.asm-medidor.grande .marca-50 { width: 5px; }
+.asm-pantalla-estado { font-size: clamp(1.4rem, 3.6vw, 2.6rem); font-weight: 700; letter-spacing: .05em; color: var(--arcilla-ink); margin: .5rem 0; }
+.asm-pantalla-estado.ok { color: var(--bosque-2); }
+.asm-pantalla-sub { font-size: clamp(1.05rem, 2.2vw, 1.6rem); color: var(--tinta-2); margin: .3rem 0; }
+@media (prefers-reduced-motion: reduce) { .asm-medidor i { transition: none; } }

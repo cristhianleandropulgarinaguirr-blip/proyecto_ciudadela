@@ -191,3 +191,29 @@ class EstadoDemo(str, Enum):
     CONTACTADA = "Contactada"    # ya se habló con la persona
     AGENDADA = "Agendada"        # hay fecha para la demostración
     DESCARTADA = "Descartada"    # no avanzó (o era un envío de prueba)
+
+
+# ---------- V4.6 · Asambleas de copropietarios (Ley 675 de 2001) ----------
+class TipoAsamblea(str, Enum):
+    ORDINARIA = "Ordinaria"            # una vez al año (Art. 39): convocatoria con 15 días calendario de anticipación
+    EXTRAORDINARIA = "Extraordinaria"  # cuando se necesite (Art. 39): solo se tratan los temas del orden del día
+
+
+class ModalidadAsamblea(str, Enum):
+    PRESENCIAL = "Presencial"
+    VIRTUAL = "Virtual"      # reunión no presencial (Art. 42 y Decreto 398 de 2020)
+    MIXTA = "Mixta"
+
+
+class EstadoAsamblea(str, Enum):
+    BORRADOR = "Borrador"       # el administrador la está preparando; los propietarios aún no la ven
+    CONVOCADA = "Convocada"     # ya se envió la convocatoria (queda la huella en la bitácora)
+    EN_SESION = "En sesión"     # instalada: hay quórum y se puede deliberar
+    CERRADA = "Cerrada"
+    CANCELADA = "Cancelada"
+
+
+class EstadoPoder(str, Enum):
+    PENDIENTE = "Pendiente"     # el propietario lo subió; el administrador debe revisarlo
+    APROBADO = "Aprobado"       # ya se puede acreditar al apoderado en la asamblea
+    RECHAZADO = "Rechazado"

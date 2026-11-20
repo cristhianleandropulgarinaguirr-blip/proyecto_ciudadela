@@ -15,7 +15,7 @@ from app.auditoria import auditar
 from app.constantes import CATEGORIAS_DOC_INQUILINO, CategoriaDocumento, RolNombre
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
-from app.models import Documento, Usuario
+from app.models import Asamblea, AsambleaDocumento, Documento, Usuario
 from app.notificaciones import notificar, usuarios_activos
 from app.schemas.comunicacion import DocumentoResponse
 from app.schemas.negocio import MensajeResponse
@@ -87,11 +87,17 @@ def descargar(documento_id: int, db: Session = Depends(get_db), usuario: Usuario
 
 
 @router.delete("/{documento_id}", response_model=MensajeResponse, summary="Eliminar un documento",
-               description="Solo **Administrador**. Borra también el archivo.", responses={404: {"description": "Documento no encontrado"}})
+               description="Solo **Administrador**. Borra también el archivo. Si acompañó la convocatoria de una asamblea ya enviada, no se puede borrar (es parte de la evidencia).",
+               responses={404: {"description": "Documento no encontrado"}, 409: {"description": "Acompañó la convocatoria de una asamblea"}})
 def eliminar(documento_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
     d = db.get(Documento, documento_id)
     if d is None:
         raise HTTPException(status_code=404, detail="Documento no encontrado.")
+    en_asambleas = db.query(AsambleaDocumento).filter(AsambleaDocumento.documento_id == d.id).all()
+    if en_asambleas and db.query(Asamblea.id).filter(Asamblea.id.in_([x.asamblea_id for x in en_asambleas]), Asamblea.fecha_convocatoria.isnot(None)).first():
+        raise HTTPException(status_code=409, detail="Este documento acompañó la convocatoria de una asamblea y es parte de su evidencia: no se puede eliminar.")
+    for x in en_asambleas:                  # solo estaba adjunto a borradores o asambleas nunca convocadas: se suelta
+        db.delete(x)
     archivo = d.archivo
     auditar(db, admin, "Eliminó documento", "Documento", d.id, f"{d.categoria}: {d.titulo}")
     db.delete(d)

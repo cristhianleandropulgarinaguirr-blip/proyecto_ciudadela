@@ -164,3 +164,13 @@ if not 11 <= len(DEMO_WHATSAPP) <= 15:
 DEMO_CONTACTO = " ".join(os.getenv("DEMO_CONTACTO", "").split())[:40]
 DEMO_CORREO = os.getenv("DEMO_CORREO", "").strip()[:120]                                                   # correo de ventas que se muestra en la landing (opcional)
 MARCA_ASISTENTE = os.getenv("MARCA_ASISTENTE", "").strip()[:30] or "Ciudabot"                               # nombre del asistente de chat
+
+
+# Versión 4.6 — asambleas de copropietarios (Ley 675 de 2001). Son los valores «por defecto» del conjunto; cada asamblea puede ajustar algunos.
+# Confírmalos con el reglamento de propiedad horizontal de tu conjunto: si dice otra cosa, el reglamento manda.
+ASAMBLEA_DIAS_ORDINARIA = _entero("ASAMBLEA_DIAS_ORDINARIA", 15) or 15          # Art. 39: días calendario de anticipación para la asamblea ordinaria
+ASAMBLEA_DIAS_EXTRAORDINARIA = _entero("ASAMBLEA_DIAS_EXTRAORDINARIA", 5)       # la ley no fija un mínimo: lo prudente es lo que diga el reglamento
+ASAMBLEA_MAX_PODERES = _entero("ASAMBLEA_MAX_PODERES", 2) or 2                  # cuántos poderes puede recibir una misma persona (lo limita el reglamento)
+ASAMBLEA_SABADO_HABIL = os.getenv("ASAMBLEA_SABADO_HABIL", "0").strip() in ("1", "true", "True", "si", "sí")   # ¿el sábado cuenta como día hábil para la 2.ª convocatoria?
+ASAMBLEA_EXIGE_FINANCIEROS = os.getenv("ASAMBLEA_EXIGE_FINANCIEROS", "1").strip() not in ("0", "false", "False", "no")   # asamblea ordinaria: exige adjuntar estados financieros
+ASAMBLEA_BLOQUEA_PODER_STAFF = os.getenv("ASAMBLEA_BLOQUEA_PODER_STAFF", "1").strip() not in ("0", "false", "False", "no")   # el administrador y el personal no reciben poderes

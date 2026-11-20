@@ -20,6 +20,7 @@ const RUTAS = [
   { id: "paquetes", texto: { [R]: "Mis paquetes", [I]: "Mis paquetes", otro: "Paquetes" }, icono: "caja", roles: [A, R, G, I], cargar: () => import("./vistas/paquetes.js") },
   { id: "cartera", texto: { [R]: "Mis pagos", [I]: "Pagos del apartamento", otro: "Cartera" }, icono: "tarjeta", roles: [A, R, I], delegado: "pagar", cargar: () => import("./vistas/cartera.js") },
   { id: "votaciones", texto: "Votaciones", icono: "urna", roles: [A, R, I], delegado: "votar", cargar: () => import("./vistas/votaciones.js") },
+  { id: "asambleas", texto: "Asambleas", icono: "asamblea", roles: [A, R, G], cargar: () => import("./vistas/asambleas.js") },   // v4.6
   { id: "visitas", texto: { [R]: "Mis visitas", [I]: "Mis visitas", otro: "Visitas" }, icono: "identificacion", roles: [A, R, I], cargar: () => import("./vistas/visitas.js") },
   { id: "inquilinos", texto: { [A]: "Arrendamientos", otro: "Mis inquilinos" }, icono: "usuarios", roles: [A, R], cargar: () => import("./vistas/inquilinos.js") },
   { id: "trasteos", texto: "Trasteos", icono: "camion", roles: [A, R, G, I], cargar: () => import("./vistas/trasteos.js") },

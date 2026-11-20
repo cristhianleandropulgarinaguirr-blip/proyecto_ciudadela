@@ -1,7 +1,7 @@
 # app/models.py
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -601,3 +601,129 @@ class IntentoPago(Base):
     fecha_creacion = Column(DateTime, default=ahora_utc, nullable=False)
     fecha_resolucion = Column(DateTime, nullable=True)
 
+
+
+# ==========================================
+#   V4.6 · ASAMBLEAS DE COPROPIETARIOS (Ley 675 de 2001)
+# ==========================================
+class Unidad(Base):
+    """Una unidad privada (apartamento) del conjunto con su coeficiente de copropiedad. Es la BASE del quórum: el 100 % del conjunto,
+    incluso los propietarios que no tienen cuenta en la app. Las unidades con residentes en la app se mantienen solas a partir de «Usuarios»;
+    las demás (propietarios sin cuenta) las registra el administrador a mano."""
+    __tablename__ = "unidades"
+
+    id = Column(Integer, primary_key=True, index=True)
+    apartamento = Column(String, nullable=False)                      # como se muestra: «Torre 1 Apt 101»
+    clave = Column(String, nullable=False, unique=True, index=True)   # apartamento normalizado (sin tildes, mayúsculas ni espacios de más)
+    coeficiente = Column(Float, nullable=True)                        # en PORCENTAJE (0,8523 = 0,8523 %)
+    propietario_nombre = Column(String(120), nullable=True)
+    origen = Column(String(10), nullable=False, default="usuarios")   # usuarios | manual
+    activa = Column(Boolean, nullable=False, default=True)
+    fecha_creacion = Column(DateTime, default=ahora_utc)
+    fecha_actualizacion = Column(DateTime, default=ahora_utc, onupdate=ahora_utc)
+
+
+class Asamblea(Base):
+    """Una reunión de la asamblea general de copropietarios. Envuelve el registro de asistentes, poderes, quórum y la bitácora de evidencia."""
+    __tablename__ = "asambleas"
+    __table_args__ = (Index("ix_asambleas_estado_fecha", "estado", "fecha_sesion"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    titulo = Column(String(120), nullable=False)
+    tipo = Column(String(15), nullable=False)                         # Ordinaria | Extraordinaria
+    modalidad = Column(String(10), nullable=False)                    # Presencial | Virtual | Mixta
+    estado = Column(String(10), nullable=False, default="Borrador")
+    orden_del_dia = Column(Text, nullable=False)
+    fecha_sesion = Column(DateTime, nullable=False)                   # UTC: primera convocatoria
+    fecha_segunda = Column(DateTime, nullable=False)                  # UTC: segunda convocatoria (Art. 41: tercer día hábil siguiente, 8 p. m.)
+    lugar = Column(String(150), nullable=True)
+    url_videollamada = Column(String(300), nullable=True)
+    instrucciones_virtual = Column(String(500), nullable=True)        # medios tecnológicos que se usarán (los exige el Decreto 398 de 2020)
+    max_poderes = Column(Integer, nullable=False, default=2)
+    restringe_mora = Column(Boolean, nullable=False, default=False)   # el reglamento le quita el voto a quien está en mora
+    # --- se llenan al convocar ---
+    fecha_convocatoria = Column(DateTime, nullable=True)
+    convocatoria_hash = Column(String(64), nullable=True)             # huella (SHA-256) del contenido exacto que se envió
+    morosos_snapshot = Column(Text, nullable=True)                    # JSON: relación de morosos al momento de convocar (Art. 39, parágrafo 2)
+    # --- se llenan en la sesión ---
+    sin_quorum_en = Column(DateTime, nullable=True)                   # la 1.ª convocatoria no logró quórum
+    convocatoria_numero = Column(Integer, nullable=True)              # 1 | 2: con cuál se instaló
+    instalada_en = Column(DateTime, nullable=True)
+    quorum_inicial = Column(Float, nullable=True)                     # % del coeficiente presente al instalar
+    cerrada_en = Column(DateTime, nullable=True)
+    quorum_final = Column(Float, nullable=True)
+    creada_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    fecha_creacion = Column(DateTime, default=ahora_utc)
+    fecha_actualizacion = Column(DateTime, default=ahora_utc, onupdate=ahora_utc)
+
+
+class AsambleaDocumento(Base):
+    """Documentos (estados financieros, informe de gestión, propuesta de presupuesto) que acompañan la convocatoria."""
+    __tablename__ = "asamblea_documentos"
+    __table_args__ = (UniqueConstraint("asamblea_id", "documento_id", name="uq_asamblea_documento"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    asamblea_id = Column(Integer, ForeignKey("asambleas.id"), nullable=False, index=True)
+    documento_id = Column(Integer, ForeignKey("documentos.id"), nullable=False)
+
+
+class AsambleaEvento(Base):
+    """Bitácora de evidencia: solo se agregan filas (nunca se editan ni se borran desde la app). Cada una guarda la huella de la anterior, así
+    cualquier alteración posterior rompe la cadena y se detecta al verificarla."""
+    __tablename__ = "asamblea_eventos"
+    __table_args__ = (UniqueConstraint("asamblea_id", "secuencia", name="uq_asamblea_evento_secuencia"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    asamblea_id = Column(Integer, ForeignKey("asambleas.id"), nullable=False, index=True)
+    secuencia = Column(Integer, nullable=False)
+    tipo = Column(String(30), nullable=False)
+    unidad_id = Column(Integer, ForeignKey("unidades.id"), nullable=True)
+    actor_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    detalle = Column(String(300), nullable=True)
+    creado_en = Column(DateTime, nullable=False)
+    hash_anterior = Column(String(64), nullable=False)
+    hash = Column(String(64), nullable=False)
+
+
+class AsambleaPoder(Base):
+    """Poder escrito con el que un propietario autoriza a otra persona a representarlo en una asamblea."""
+    __tablename__ = "asamblea_poderes"
+    __table_args__ = (Index("ix_asamblea_poderes_asamblea_unidad", "asamblea_id", "unidad_id"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    asamblea_id = Column(Integer, ForeignKey("asambleas.id"), nullable=False, index=True)
+    unidad_id = Column(Integer, ForeignKey("unidades.id"), nullable=False)
+    apoderado_nombre = Column(String(120), nullable=False)
+    apoderado_documento = Column(String(30), nullable=False)          # solo dígitos y letras, sin puntos ni espacios
+    apoderado_usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)   # si el apoderado tiene cuenta (lo vincula el administrador)
+    archivo = Column(String(80), nullable=False)
+    tipo_archivo = Column(String(6), nullable=False)                  # pdf | imagen
+    estado = Column(String(10), nullable=False, default="Pendiente")
+    motivo = Column(String(200), nullable=True)                       # por qué se rechazó
+    subido_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    revisado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    revisado_en = Column(DateTime, nullable=True)
+    fecha_creacion = Column(DateTime, default=ahora_utc)
+
+
+class AsambleaAsistente(Base):
+    """Quién está (o estuvo) en la asamblea por cada unidad. Es UNA fila por unidad: si la persona sale y vuelve, la fila se reabre y la bitácora
+    guarda cada movimiento. El coeficiente se COPIA al acreditar (una «foto»), para que un cambio posterior no altere el quórum de esa reunión."""
+    __tablename__ = "asamblea_asistentes"
+    __table_args__ = (UniqueConstraint("asamblea_id", "unidad_id", name="uq_asamblea_asistente_unidad"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    asamblea_id = Column(Integer, ForeignKey("asambleas.id"), nullable=False, index=True)
+    unidad_id = Column(Integer, ForeignKey("unidades.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)   # la cuenta de quien entró, si la tiene
+    nombre = Column(String(120), nullable=False)
+    documento = Column(String(30), nullable=True)
+    es_apoderado = Column(Boolean, nullable=False, default=False)
+    poder_id = Column(Integer, ForeignKey("asamblea_poderes.id"), nullable=True)
+    modalidad_ingreso = Column(String(10), nullable=False, default="Presencial")
+    hora_ingreso = Column(DateTime, nullable=False)                   # del ingreso más reciente
+    hora_salida = Column(DateTime, nullable=True)                     # vacío = sigue presente
+    coeficiente_acreditado = Column(Float, nullable=False)
+    en_mora = Column(Boolean, nullable=False, default=False)
+    con_voto = Column(Boolean, nullable=False, default=True)
+    registrado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)

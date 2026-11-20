@@ -436,5 +436,8 @@ Fase 4 (presentación comercial): **white-label** (nombre, color, logos y asiste
 
 Versión 4.2 (móvil, landing, asistente por rol, pagos de prueba y seguridad): aviso ámbar de «sin enviar» en portería, botón «Atrás» que cierra modales y chat, guía de instalación de la PWA en la landing, asistente coherente con cada rol, **pasarela de pagos de prueba tipo Wompi/PSE** y revisión de seguridad. Requiere `alembic upgrade head` (migración 0021). Ver `docs/historial/PASOS_V4.2.md`.
 
+## Versión 4.6
+Asambleas de copropietarios (Ley 675 de 2001), fases 1 y 2: unidades y coeficientes como base del quórum, convocatoria con plazos y bitácora de evidencia encadenada, registro de asistentes presencial/virtual, poderes con aprobación y quórum en vivo con pantalla grande. Requiere `alembic upgrade head` (migración 0022). Ver `PASOS_V4.6.md`.
+
 ## Versión 3.8
 Fase 3 (legal y operativo): coeficiente de copropiedad, votación ponderada con quórum (Ley 675) y flujo de trasteos con validación de paz y salvo, aprobación y alerta a la portería. Ver `docs/historial/PASOS_V3.8.md`.
