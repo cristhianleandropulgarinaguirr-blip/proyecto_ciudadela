@@ -17,6 +17,9 @@ from app.routers import (
 )
 
 logging.basicConfig(level=logging.INFO)
+if config.MODO_DEMO:
+    logging.getLogger("ciudadela").warning("MODO DEMO activo · base de datos: %s · archivos: %s (nada de esto toca tu app real)",
+                                           config.DATABASE_URL.split("@")[-1], config.UPLOAD_DIR)
 
 DESCRIPCION = """
 API para la gestión de un **conjunto residencial** (propiedad horizontal).
@@ -71,7 +74,7 @@ TAGS = [
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 # Con DOCS_ACTIVAS=0 las tres rutas de documentación desaparecen (responden 404), como si no existieran.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="4.8.0", openapi_tags=TAGS,
+              version="5.0.0", openapi_tags=TAGS,
               docs_url="/docs" if config.DOCS_ACTIVAS else None,
               redoc_url="/redoc" if config.DOCS_ACTIVAS else None,
               openapi_url="/openapi.json" if config.DOCS_ACTIVAS else None)
@@ -153,7 +156,10 @@ def service_worker():
 @app.get("/app/", include_in_schema=False)
 @app.get("/app/index.html", include_in_schema=False)
 def pagina_de_la_app():
-    return HTMLResponse(marca.aplicar_a_html((FRONTEND_DIR / "index.html").read_text(encoding="utf-8")))
+    html = marca.aplicar_a_html((FRONTEND_DIR / "index.html").read_text(encoding="utf-8"))
+    if config.MODO_DEMO:       # v5.0: la cinta «DEMO» (estilos.css) se enciende con este atributo: así nunca confundes la demo con tu app real
+        html = html.replace("<html", '<html data-modo-demo="1"', 1)
+    return HTMLResponse(html)
 
 
 @app.get("/app/manifest.webmanifest", include_in_schema=False)

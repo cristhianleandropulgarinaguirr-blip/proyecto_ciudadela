@@ -378,8 +378,8 @@
         <h2>Pide tu demostración</h2>
         <p>Te mostramos la app con un conjunto de ejemplo de 30 apartamentos: cartera, portería, votaciones y el paso de Excel a cuentas.</p>
         <ul class="demo-lista">
-          <li>Déjanos tus datos y te escribimos para acordar un horario.</li>
-          <li>Prefieres hablar ya: escríbenos por WhatsApp.</li>
+          <li>Déjanos tus datos y toca «Solicitar demo»: se abre WhatsApp con todo ya escrito.</li>
+          <li>Te respondemos enseguida para acordar un horario.</li>
           <li>Tus datos solo se usan para contactarte sobre la demostración.</li>
         </ul>
         <p class="demo-correo" id="demo-correo" hidden>También puedes escribir a <a id="demo-correo-enlace" href="#"></a></p>
@@ -424,15 +424,14 @@
         </div>
 
         <label class="consentimiento" for="f-acepto">
-          <input id="f-acepto" name="acepto_datos" type="checkbox" required>
-          <span>Autorizo el tratamiento de mis datos personales para que me contacten sobre esta demostración (Ley 1581 de 2012).</span>
+          <input id="f-acepto" name="acepto_datos" type="checkbox">
+          <span>Autorizo guardar mis datos personales para que me contacten sobre esta demostración (Ley 1581 de 2012). Opcional: sin marcarla, igual se abre WhatsApp.</span>
         </label>
 
         <p class="estado-form" id="estado-form" role="status" aria-live="polite"></p>
 
         <div class="formulario-acciones">
           <button class="btn btn-laton btn-grande" type="submit" id="btn-enviar">Solicitar demo</button>
-          <button class="btn btn-contorno btn-grande" type="button" id="btn-whatsapp" hidden>Escribir por WhatsApp</button>
         </div>
       </form>
     </section>

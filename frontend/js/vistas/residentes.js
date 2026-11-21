@@ -127,6 +127,6 @@ export async function render(ctx) {
       h("div", { class: "barra" }, h("div", { class: "buscador" }, icono("buscar"), buscar), h("button", { class: "btn", onclick: nuevoUsuario }, icono("mas", 18), "Nuevo usuario")),
       avisoCoef,
       h("div", { style: "margin-bottom:.5rem" }, chips),
-      h("div", { class: "tabla-wrap" }, h("table", { class: "tabla" },
+      h("div", { class: "tabla-wrap tabla-ancha" }, h("table", { class: "tabla" },
         h("thead", {}, h("tr", {}, ["Usuario", "Rol", "Apartamento", "Parqueadero", "Coeficiente", "Cartera", "Activo"].map((t) => h("th", {}, t)))), cuerpo)), vacio));
 }

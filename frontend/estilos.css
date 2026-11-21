@@ -360,8 +360,12 @@ a { color: inherit; }
 @keyframes brillo { to { background-position: -150% 0; } }
 
 /* ---------- Tablas (en móvil se vuelven tarjetas) ---------- */
-.tabla-wrap { margin: 0 -.1rem; }
-.tabla { width: 100%; border-collapse: collapse; }
+/* v5.0 · El ancho que cuenta es el del CONTENEDOR (la tarjeta), no el de la ventana: con el menú lateral y dos columnas, la tarjeta es mucho más angosta
+   que la pantalla y la tabla aplastaba el texto hasta dejarlo letra por letra. Ahora: tarjetas (compacto) → tarjetas en 2 columnas (medio) → tabla (ancho).
+   Si aun así algo no cupiera, la tarjeta se desplaza de lado: el texto nunca se aplasta. */
+.tabla-wrap { margin: 0 -.1rem; container-type: inline-size; overflow-x: auto; }
+.tabla { width: 100%; border-collapse: collapse; display: block; }
+.tabla tbody { display: block; }
 .tabla thead { display: none; }
 .tabla tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: .5rem .75rem; padding: .9rem .2rem; border-bottom: 1px solid var(--linea); }
 .tabla td { min-width: 0; font-size: .92rem; }
@@ -508,27 +512,23 @@ button.paso:not(:disabled):hover i { transform: scale(1.3); }
   .barra .buscador { max-width: 340px; }
   .modal { max-width: 520px; margin: auto; border-radius: var(--r-lg); }
   .modal-pie { flex-direction: row; justify-content: flex-end; }
-  .item { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .item .acciones { grid-column: auto; justify-content: flex-end; }
-  .vehiculo { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .vehiculo .acciones { grid-column: auto; }
+  /* v5.0 · Antes: tres columnas «auto» → los botones se quedaban con todo el ancho y el texto con casi nada (una letra por línea).
+     Ahora: fila que se acomoda sola. El texto tiene SIEMPRE un ancho mínimo (14 rem) y, si no caben los botones al lado, pasan a la línea de abajo. */
+  .item, .vehiculo { display: flex; flex-wrap: wrap; }
+  .item .cuerpo, .vehiculo .cuerpo { flex: 1 1 14rem; min-width: min(14rem, 100%); }
+  .item .acciones, .vehiculo .acciones { flex: 0 1 auto; margin-left: auto; justify-content: flex-end; }
+  .item .fecha, .vehiculo .placa { flex: none; }
   #toasts { bottom: calc(var(--nav-h) + var(--safe-b) + .75rem); }
 }
 
-/* Tablet vertical y horizontal: la tabla vuelve a ser tabla */
+/* Tablet vertical y horizontal */
 @media (min-width: 768px) {
   .login { grid-template-rows: none; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .login-marca { display: flex; flex-direction: column; justify-content: space-between; padding: 2.2rem; min-height: 100svh; }
   .login-marca p { display: block; }
   .login-marca h1 { font-size: clamp(2.2rem, 4.2vw, 3.4rem); }
   .grid.dos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .tabla thead { display: table-header-group; }
-  .tabla th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--tinta-3); padding: .6rem .75rem; border-bottom: 1px solid var(--linea); }
-  .tabla tr { display: table-row; padding: 0; }
-  .tabla td { display: table-cell; padding: .8rem .75rem; vertical-align: middle; border-bottom: 1px solid var(--linea); }
-  .tabla td[data-et]::before { display: none; }
-  .tabla tbody tr:hover { background: rgba(var(--rol-rgb), .04); }
-  .tabla td.der, .tabla th.der { text-align: right; }
+  /* v5.0 · la tabla ya no se decide aquí (por el ancho de la ventana) sino por el ancho de su tarjeta: ver «Tablas» al final del archivo. */
 }
 
 /* Escritorio: barra lateral */
@@ -1634,3 +1634,61 @@ button.avatar { border: 0; padding: 0; cursor: pointer; }
 .kpi.destacado .nota { font-size: .88rem; color: rgba(245, 241, 232, .86); }
 .nav-inferior a { font-size: .8rem; }
 @media (max-width: 359px) { .nav a, .nav-inferior a { font-size: .7rem; } }
+
+/* ==========================================================================
+   v5.0 · Tablas (Usuarios, Cartera, Historial, Cargar datos) y filas de lista (.item / .vehiculo) en anchos medios
+   El síntoma: entre ~700 y ~1400 px de pantalla, las letras de «Usuarios» (y de Inicio, Reservas y Portería) se veían una por línea.
+   La causa: el diseño se elegía por el ancho de la VENTANA, pero el menú lateral y las dos columnas dejan a cada tarjeta mucho menos sitio, y las
+   columnas «auto» de los botones se quedaban con todo. Además `overflow-wrap: anywhere` deja que el navegador aplaste el texto hasta una letra.
+   La solución:
+     · La tabla mide el ancho de SU tarjeta (container query): angosta → tarjetas · media → tarjetas en 2 columnas · ancha → tabla de verdad.
+     · Las tablas con muchas columnas llevan la clase «tabla-ancha» y pasan a tabla más tarde (1080 px de tarjeta en vez de 720 px).
+     · La columna del nombre tiene un ancho mínimo; si algo no cupiera, la tarjeta se desplaza de lado en vez de aplastar el texto.
+   ========================================================================== */
+/* La zona de contenido va centrada con márgenes automáticos dentro de una cuadrícula: así se encoge a lo que mida su contenido. Como la tabla ahora se
+   mide a sí misma (no empuja el ancho), hay que pedirle explícitamente todo el espacio disponible (hasta su máximo de 1240 px). */
+.main { width: 100%; }
+/* Compacto → medio: cada fila es una tarjeta; con espacio suficiente, dos tarjetas por línea. */
+@container (min-width: 600px) {
+  .tabla tbody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding-top: .6rem; }
+  .tabla tr { border: 1px solid var(--tarjeta-borde); border-radius: var(--r); padding: .9rem 1rem; background: var(--superficie); align-content: start; }
+}
+/* Ancho: tabla de verdad. Dos copias (mismas reglas) porque cada una arranca a un ancho distinto. */
+@container (min-width: 720px) {
+  .tabla-wrap:not(.tabla-ancha) .tabla { display: table; }
+  .tabla-wrap:not(.tabla-ancha) .tabla thead { display: table-header-group; }
+  .tabla-wrap:not(.tabla-ancha) .tabla tbody { display: table-row-group; padding-top: 0; }
+  .tabla-wrap:not(.tabla-ancha) .tabla th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--tinta-3); padding: .6rem .6rem; border-bottom: 1px solid var(--linea); white-space: nowrap; }
+  .tabla-wrap:not(.tabla-ancha) .tabla tr { display: table-row; padding: 0; border: 0; border-radius: 0; background: none; }
+  .tabla-wrap:not(.tabla-ancha) .tabla td { display: table-cell; padding: .8rem .6rem; vertical-align: middle; border-bottom: 1px solid var(--linea); }
+  .tabla-wrap:not(.tabla-ancha) .tabla td[data-et]::before { display: none; }
+  .tabla-wrap:not(.tabla-ancha) .tabla tbody tr:hover { background: rgba(var(--rol-rgb), .04); }
+  .tabla-wrap:not(.tabla-ancha) .tabla td.der, .tabla-wrap:not(.tabla-ancha) .tabla th.der { text-align: right; }
+  .tabla-wrap:not(.tabla-ancha) .tabla td.ancho { min-width: 19rem; }          /* piso para la columna del nombre y el correo: nunca se aplasta */
+  .tabla-wrap:not(.tabla-ancha) .tabla td:not(.ancho) { overflow-wrap: break-word; }
+  .tabla-wrap:not(.tabla-ancha).tabla-ancha .acciones-celda { flex-direction: column; align-items: flex-start; gap: .45rem; }
+}
+@container (min-width: 1080px) {
+  .tabla-wrap.tabla-ancha .tabla { display: table; }
+  .tabla-wrap.tabla-ancha .tabla thead { display: table-header-group; }
+  .tabla-wrap.tabla-ancha .tabla tbody { display: table-row-group; padding-top: 0; }
+  .tabla-wrap.tabla-ancha .tabla th { text-align: left; font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; color: var(--tinta-3); padding: .6rem .6rem; border-bottom: 1px solid var(--linea); white-space: nowrap; }
+  .tabla-wrap.tabla-ancha .tabla tr { display: table-row; padding: 0; border: 0; border-radius: 0; background: none; }
+  .tabla-wrap.tabla-ancha .tabla td { display: table-cell; padding: .8rem .6rem; vertical-align: middle; border-bottom: 1px solid var(--linea); }
+  .tabla-wrap.tabla-ancha .tabla td[data-et]::before { display: none; }
+  .tabla-wrap.tabla-ancha .tabla tbody tr:hover { background: rgba(var(--rol-rgb), .04); }
+  .tabla-wrap.tabla-ancha .tabla td.der, .tabla-wrap.tabla-ancha .tabla th.der { text-align: right; }
+  .tabla-wrap.tabla-ancha .tabla td.ancho { min-width: 19rem; }          /* piso para la columna del nombre y el correo: nunca se aplasta */
+  .tabla-wrap.tabla-ancha .tabla td:not(.ancho) { overflow-wrap: break-word; }
+  .tabla-wrap.tabla-ancha.tabla-ancha .acciones-celda { flex-direction: column; align-items: flex-start; gap: .45rem; }
+}
+/* Sin soporte de «container queries» (navegadores muy viejos) la tabla se queda en tarjetas: se lee bien en cualquier ancho. */
+
+/* ==========================================================================
+   v5.0 · Cinta «DEMO»: solo existe cuando el servidor corre con MODO_DEMO=1 (iniciar-demo.bat). Así nunca confundes la demo con tu app real.
+   ========================================================================== */
+html[data-modo-demo]::after {
+  content: "DEMO"; position: fixed; top: 0; left: 50%; transform: translateX(-50%); z-index: 3000; pointer-events: none;
+  padding: calc(.12rem + env(safe-area-inset-top, 0px) * 0) .85rem .16rem; border-radius: 0 0 10px 10px;
+  background: #B45309; color: #fff; font: 700 .72rem/1.25 var(--f-ui, system-ui, sans-serif); letter-spacing: .16em; box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+}

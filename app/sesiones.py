@@ -22,7 +22,7 @@ from app.security import hash_token, nuevo_token_renovacion
 
 logger = logging.getLogger("conjunto")
 
-COOKIE = "ciudadela_rt"
+COOKIE = "ciudadela_rt_demo" if config.MODO_DEMO else "ciudadela_rt"      # v5.0: las cookies se comparten entre puertos del mismo equipo; la demo usa otro nombre para no pisar la sesión real
 RUTA_COOKIE = "/auth"
 ENCABEZADO_CSRF = "x-requested-with"
 VALOR_CSRF = "ciudadela"

@@ -183,7 +183,7 @@ async function vistaAdmin() {
   return h("div", {}, cabecera("Cartera", "Seguimiento del recaudo de administración por apartamento."), resumen,
     h("div", { class: "barra" }, h("span", {}), h("a", { class: "btn suave sm", href: "#/importar" }, icono("subir", 16), "Cargar desde Excel"), excel),
     h("div", { class: "card" }, filas.length
-      ? h("div", { class: "tabla-wrap" }, h("table", { class: "tabla" },
+      ? h("div", { class: "tabla-wrap tabla-ancha" }, h("table", { class: "tabla" },
           h("thead", {}, h("tr", {}, h("th", {}, "Residente"), h("th", {}, "Cuota"), h("th", { class: "der" }, "Saldo"), h("th", {}, "Estado"), h("th", {}))), cuerpo))
       : estadoVacio("Aún no hay residentes", "Crea residentes desde la sección Usuarios.")));
 }

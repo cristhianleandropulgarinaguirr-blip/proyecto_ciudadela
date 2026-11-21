@@ -16,7 +16,24 @@ def _normalizar_url_bd(url: str) -> str:
     return url
 
 
-DATABASE_URL = _normalizar_url_bd(os.getenv("DATABASE_URL", "sqlite:///./propiedad_horizontal.db"))
+# ==========================================================================================================
+# Versión 5.0 · MODO DEMO (aislamiento). La demo comercial y tu app real NUNCA deben compartir datos, ni siquiera corriendo en tu computador.
+# Con MODO_DEMO=1 (lo pone `iniciar-demo.bat`; en la app real NO existe o vale 0) la app:
+#   · usa SU PROPIA base de datos: DEMO_DATABASE_URL, o el archivo `demo.db` si no la defines. IGNORA por completo DATABASE_URL (la de tu app real);
+#   · guarda las fotos y PDF en SU PROPIA carpeta (`uploads_demo`) y nunca en Supabase Storage;
+#   · usa otro nombre de cookie de sesión y otra clave para firmar los tokens: entrar a la demo no cierra tu sesión real (las cookies se comparten
+#     entre puertos del mismo equipo, p. ej. 127.0.0.1:8000 y 127.0.0.1:8001) y un token de la demo no sirve en la app real;
+#   · muestra una cinta «DEMO» para que nunca confundas una con la otra.
+# Un despliegue que ya existe (p. ej. el servicio de la demo en Render con su propio Supabase) no cambia: sin MODO_DEMO todo funciona como antes.
+# ==========================================================================================================
+MODO_DEMO = os.getenv("MODO_DEMO", "0").strip().lower() in ("1", "true", "si", "sí", "yes")
+_URL_BD_DE_LA_APP = _normalizar_url_bd(os.getenv("DATABASE_URL", "sqlite:///./propiedad_horizontal.db"))
+if MODO_DEMO:
+    DATABASE_URL = _normalizar_url_bd(os.getenv("DEMO_DATABASE_URL", "").strip() or "sqlite:///./demo.db")
+    if DATABASE_URL.startswith("sqlite") and os.path.basename(DATABASE_URL.split("///", 1)[-1]).lower() == "propiedad_horizontal.db":
+        raise RuntimeError("MODO_DEMO=1 no puede usar propiedad_horizontal.db: es la base de tu app REAL. Usa demo.db (por defecto) u otra en DEMO_DATABASE_URL.")
+else:
+    DATABASE_URL = _URL_BD_DE_LA_APP
 # Versión 3.1 — sesión segura. El token de acceso (JWT) dura POCO (15 min) y vive solo en la pestaña; lo renueva una cookie
 # «refresh» HttpOnly (JavaScript no puede leerla) que se rota en cada uso y se puede revocar desde el servidor.
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
@@ -37,7 +54,7 @@ VAPID_PUBLIC_KEY = os.getenv("VAPID_PUBLIC_KEY", "").strip()
 VAPID_PRIVATE_KEY = os.getenv("VAPID_PRIVATE_KEY", "").strip()
 VAPID_SUBJECT = os.getenv("VAPID_SUBJECT", "").strip() or "mailto:admin@ciudadela.local"
 
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "uploads")
+UPLOAD_DIR = (os.getenv("DEMO_UPLOAD_DIR", "").strip() or "uploads_demo") if MODO_DEMO else os.getenv("UPLOAD_DIR", "uploads")   # v5.0: la demo tiene su carpeta
 MAX_UPLOAD_MB = 5
 
 # Fase 2 (comercio): texto que ve el vecino que quiere publicar un anuncio para saber cómo pagar.
@@ -59,7 +76,7 @@ MAX_PDF_MB = 10
 # Versión 2.8 — dónde se guardan las fotos y los PDF.
 #   local    -> carpeta UPLOAD_DIR (desarrollo; en hostings gratuitos se borra al reiniciar).
 #   supabase -> Supabase Storage (bucket privado; recomendado en producción).
-ALMACEN = os.getenv("ALMACEN", "local").strip().lower()
+ALMACEN = "local" if MODO_DEMO else os.getenv("ALMACEN", "local").strip().lower()      # v5.0: la demo nunca escribe en tu Supabase Storage real
 SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip().rstrip("/")
 SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY", "").strip()   # SOLO en el servidor, nunca en el frontend
 SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "ciudadela-archivos").strip()

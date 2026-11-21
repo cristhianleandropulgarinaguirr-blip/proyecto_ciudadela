@@ -27,6 +27,7 @@ from datetime import datetime, timedelta
 
 import sqlalchemy as sa
 
+from app import config
 from app.arrendamientos import ahora_local
 from app.chat_datos import ZONAS
 from app.constantes import EstadoReserva, RolNombre
@@ -41,6 +42,7 @@ from app.seed import asegurar_roles
 
 DOMINIO = "demo.example.com"
 EMAIL_ADMINISTRACION = f"administracion@{DOMINIO}"
+EMAIL_ADMIN_DEMO = f"administrador@{DOMINIO}"          # v5.0 · el administrador de la demo LOCAL (solo se crea con --local o con_admin=True, en una base exclusiva de la demo)
 PRESUPUESTO_MENSUAL = 7_900_000          # lo que el conjunto necesita recaudar al mes; la cuota de cada apartamento sale de su coeficiente
 ORDEN_EMERGENCIAS = 9000                 # los contactos de emergencia de ejemplo llevan un `orden` reservado (9000+) para poder borrarlos sin tocar los reales
 
@@ -105,7 +107,7 @@ def hay_datos_de_ejemplo(db) -> bool:
     return db.query(Usuario.id).filter(Usuario.email.like(f"%@{DOMINIO}")).first() is not None
 
 
-def crear(db, clave: str, semilla: int = 2026, forzar: bool = False) -> dict:
+def crear(db, clave: str, semilla: int = 2026, forzar: bool = False, con_admin: bool = False) -> dict:
     """Crea el conjunto de ejemplo y devuelve lo necesario para entrar (cuentas) y un resumen de cantidades."""
     asegurar_roles(db)
     if hay_datos_de_ejemplo(db):
@@ -115,6 +117,11 @@ def crear(db, clave: str, semilla: int = 2026, forzar: bool = False) -> dict:
     if reales and not forzar:
         raise ValueError(f"Esta base ya tiene {reales} residentes reales. Mezclarlos con el conjunto de ejemplo dañaría los coeficientes y los indicadores. "
                          "Usa una base solo para demostraciones (o --forzar si estás seguro).")
+    if con_admin and not forzar:      # v5.0: un administrador con clave conocida SOLO puede existir en una base que es exclusivamente de la demo
+        reales_activos = db.query(Usuario.id).filter(Usuario.esta_activo.is_(True), ~Usuario.email.like(f"%@{DOMINIO}")).count()
+        if reales_activos:
+            raise ValueError(f"Esta base tiene {reales_activos} usuario(s) reales activos. El administrador de demostración (con clave conocida) solo se crea en una base "
+                             "exclusiva de la demo, nunca junto a datos reales.")
     azar = random.Random(semilla)
     ahora, local = ahora_utc(), ahora_local()
     clave_hash = encriptar_password(clave)            # un solo cálculo (es lento a propósito) para todas las cuentas
@@ -136,6 +143,11 @@ def crear(db, clave: str, semilla: int = 2026, forzar: bool = False) -> dict:
     admin = Usuario(nombre_completo="Administración del conjunto (demo)", email=EMAIL_ADMINISTRACION, password_encriptada=encriptar_password(secrets.token_urlsafe(24)),
                     rol_id=rid[RolNombre.ADMINISTRADOR], esta_activo=False)
     db.add(admin)
+    admin_demo = None
+    if con_admin:      # v5.0 · el administrador con el que se PRESENTA la demo (misma clave de todas las cuentas de ejemplo)
+        admin_demo = Usuario(nombre_completo="Administrador (demo)", email=EMAIL_ADMIN_DEMO, password_encriptada=clave_hash, rol_id=rid[RolNombre.ADMINISTRADOR],
+                             politica_datos_fecha=ahora - timedelta(days=60))
+        db.add(admin_demo)
 
     # --- 30 propietarios
     aptos, coefs = _apartamentos(), _coeficientes()
@@ -356,7 +368,7 @@ def crear(db, clave: str, semilla: int = 2026, forzar: bool = False) -> dict:
     db.commit()
     resumen.update({"en_mora": len(en_mora), "al_dia": len(al_dia), "inquilinos": len(inquilinos), "guardias": len(guardias), "coeficiente_total": round(sum(coefs), 4)})
     return {"resumen": resumen, "clave": clave, "cuentas": [
-        ("Administrador", "el que ya tienes (el de python -m app.seed)", "tu clave de siempre"),
+        ("Administrador", EMAIL_ADMIN_DEMO, "administrador de la demo") if admin_demo else ("Administrador", "el que ya tienes (el de python -m app.seed)", "tu clave de siempre"),
         ("Residente al día", al_dia[0].email, f"{al_dia[0].apartamento}"),
         ("Residente en mora", en_mora[0].email, f"{en_mora[0].apartamento} · debe ${en_mora[0].saldo_pendiente:,}".replace(",", ".")),
         ("Inquilino", inquilinos[0][0].email, f"{inquilinos[0][0].apartamento} · puede pagar y votar"),
@@ -429,19 +441,45 @@ def _imprimir_cuentas(r: dict) -> None:
     print("\nPara quitar todo: python -m app.seed_demo --borrar")
 
 
+CLAVE_DEMO_LOCAL = "Demo2026"      # clave de las cuentas de la demo LOCAL (es una base de mentira, exclusiva de la demo; puedes cambiarla con --clave)
+
+
+def preparar_local(db, clave: str) -> dict | None:
+    """v5.0 · Deja lista la demo de tu computador. Si la base ya tiene el conjunto de ejemplo no toca nada (devuelve None); si está vacía lo crea
+    CON un administrador de demostración (administrador@demo.example.com). Es idempotente: iniciar-demo.bat la llama en cada arranque."""
+    asegurar_roles(db)
+    if hay_datos_de_ejemplo(db):
+        return None
+    return crear(db, clave, con_admin=True)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Conjunto de ejemplo (30 apartamentos) para presentar la app a un cliente.")
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--crear", action="store_true", help="crea el conjunto de ejemplo")
     g.add_argument("--borrar", action="store_true", help="elimina por completo el conjunto de ejemplo")
     g.add_argument("--reiniciar", action="store_true", help="borra y vuelve a crear (demo como nueva)")
+    g.add_argument("--local", action="store_true", help="prepara la demo en tu computador (solo con MODO_DEMO=1): si su base está vacía crea el conjunto de ejemplo CON un "
+                                                       "administrador de demostración; si ya existe no toca nada. Lo usa iniciar-demo.bat; no pide confirmación")
     ap.add_argument("--clave", help="clave de las cuentas de ejemplo (si no, se genera una al azar). Mínimo 8 caracteres.")
+    ap.add_argument("--con-admin", action="store_true", help="además crea el administrador de demostración (administrador@demo.example.com) con esa misma clave; solo en una base exclusiva de la demo")
     ap.add_argument("--forzar", action="store_true", help="permite crear aunque la base ya tenga residentes reales (no recomendado)")
     ap.add_argument("--si", action="store_true", help="no pedir confirmación (para scripts)")
     args = ap.parse_args()
     if args.clave and len(args.clave) < 8:
         ap.error("la clave debe tener al menos 8 caracteres")
+    if args.local and not config.MODO_DEMO:
+        ap.error("--local solo corre con MODO_DEMO=1 (así nunca toca la base de tu app real). Usa iniciar-demo.bat, que ya lo activa.")
     with SessionLocal() as db:
+        if args.local:
+            try:
+                r = preparar_local(db, args.clave or CLAVE_DEMO_LOCAL)
+            except ValueError as e:
+                return print(e)
+            if r is None:
+                return print(f"La demo local ya estaba lista ({engine.url.render_as_string(hide_password=True)}). Administrador: {EMAIL_ADMIN_DEMO}. "
+                             "Si quieres dejarla como nueva: python -m app.seed_demo --reiniciar --con-admin --si")
+            return _imprimir_cuentas(r)
         if args.borrar or args.reiniciar:
             if not args.si and input(f"Esto ELIMINA los datos de ejemplo (@{DOMINIO}) de la base configurada en .env: {engine.url.render_as_string(hide_password=True)}\n¿Continuar? (escribe SI): ").strip().upper() != "SI":
                 return print("Cancelado.")
@@ -451,7 +489,7 @@ def main() -> None:
         elif not args.si and input(f"Esto AGREGA un conjunto de EJEMPLO a la base configurada en .env: {engine.url.render_as_string(hide_password=True)}\n¿Continuar? (escribe SI): ").strip().upper() != "SI":
             return print("Cancelado.")
         try:
-            _imprimir_cuentas(crear(db, args.clave or f"Demo-{secrets.token_urlsafe(6)}", forzar=args.forzar))
+            _imprimir_cuentas(crear(db, args.clave or f"Demo-{secrets.token_urlsafe(6)}", forzar=args.forzar, con_admin=args.con_admin))
         except ValueError as e:
             print(e)
 

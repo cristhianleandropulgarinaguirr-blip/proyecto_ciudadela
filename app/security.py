@@ -9,9 +9,11 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 import jwt
 
-from app.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, BCRYPT_ROUNDS, obtener_secret_key
+from app.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, BCRYPT_ROUNDS, MODO_DEMO, obtener_secret_key
 
-SECRET_KEY = obtener_secret_key()
+# v5.0: en MODO_DEMO los tokens se firman con otra clave derivada: un token de la demo jamás es válido en la app real (ni al revés), aunque ambas
+# usen el mismo SECRET_KEY del .env.
+SECRET_KEY = obtener_secret_key() + (":modo-demo" if MODO_DEMO else "")
 
 _HASH_SHA256_ANTIGUO = re.compile(r"^[0-9a-f]{64}$")
 

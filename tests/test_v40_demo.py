@@ -137,7 +137,7 @@ def test_el_envio_whatsapp_se_guarda_marcado(client, db, avisos):
     assert _enviar(client, origen="whatsapp").status_code == 201
     s = db.query(SolicitudDemo).one()
     assert s.origen == "whatsapp"
-    assert len(avisos) == 1 and "botón de WhatsApp de la landing" in avisos[0]
+    assert len(avisos) == 1 and "botón «Solicitar demo»" in avisos[0]
 
 
 def test_no_se_guarda_la_ip_ni_datos_del_dispositivo():
@@ -213,6 +213,8 @@ def test_si_telegram_falla_no_hay_excepcion_y_el_token_no_se_escribe_en_el_regis
     assert "token-secreto" not in registro and "987654321" not in registro
 
 
-def test_la_landing_ofrece_el_ultimo_paso_por_whatsapp_con_los_datos_escritos(client):
+def test_la_landing_abre_whatsapp_directo_con_los_datos_escritos(client):
+    # v5.0: ya no hay un último paso que pregunte «¿quieres ir a WhatsApp?»: «Solicitar demo» abre WhatsApp en el mismo toque.
     js = client.get("/landing/landing.js").text
-    assert "Enviar mis datos por WhatsApp" in js and "mensajeConDatos" in js and "encodeURIComponent" in js
+    assert "Enviar mis datos por WhatsApp" not in js
+    assert "abrirWhatsApp(url)" in js and "mensajeConDatos" in js and "encodeURIComponent" in js

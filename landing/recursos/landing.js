@@ -1,7 +1,9 @@
-// Landing comercial · v4.0. Un solo archivo, sin librerías. Solo hace dos cosas:
-//   1. «Solicitar demo»: valida el formulario y lo envía a POST /demo/solicitar (el servidor guarda el contacto y te avisa por Telegram a ti, el vendedor; ningún administrador de la app lo ve).
-//   2. WhatsApp: al terminar el formulario aparece el último paso («Enviar mis datos por WhatsApp») con TODOS los datos ya escritos; y el botón «Escribir por WhatsApp»
-//      abre WhatsApp con un mensaje ya escrito (si la persona llenó sus datos y marcó la autorización, también guarda el contacto). El cliente solo usa WhatsApp.
+// Landing comercial · v5.0. Un solo archivo, sin librerías.
+//   «Solicitar demo» = UN solo toque: se validan los datos y WhatsApp se abre AL INSTANTE con el mensaje ya escrito (nombre, conjunto, celular…).
+//   La persona solo toca «Enviar» en WhatsApp. No hay pantalla intermedia que pregunte «¿quieres ir a WhatsApp?».
+//   En segundo plano (sin hacer esperar a nadie) se guarda el contacto en POST /demo/solicitar y te llega el aviso por Telegram, SOLO si marcó la autorización
+//   de datos (Ley 1581). Si no la marca, WhatsApp igual se abre: el mensaje lo envía ella misma y nada se guarda en el servidor.
+//   Sin número de WhatsApp configurado (DEMO_WHATSAPP) vuelve al comportamiento anterior: se guarda y se muestra «Solicitud recibida».
 // Todo texto que se muestra se pone con textContent (nunca innerHTML con lo que escribió la persona).
 (() => {
   "use strict";
@@ -9,13 +11,12 @@
   let marca = {};
   try { marca = JSON.parse(document.querySelector('meta[name="marca"]')?.content ?? "{}"); } catch { marca = {}; }
 
-  const form = $("formulario"), estado = $("estado-form"), btnEnviar = $("btn-enviar"), btnWA = $("btn-whatsapp");
+  const form = $("formulario"), estado = $("estado-form"), btnEnviar = $("btn-enviar");
   const CAMPOS = { nombre: "f-nombre", conjunto: "f-conjunto", celular: "f-celular", correo: "f-correo", ciudad: "f-ciudad", apartamentos: "f-aptos", mensaje: "f-mensaje" };
   const ES_CELULAR = /^3\d{9}$/;
   const ES_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
   // ---------------------------------------------------------------- datos de contacto de la marca
-  if (marca.whatsapp) btnWA.hidden = false;
   if (marca.correo_ventas) {
     const enlace = $("demo-correo-enlace");
     enlace.href = `mailto:${marca.correo_ventas}`;
@@ -96,61 +97,9 @@
     return { ok: r.ok, status: r.status, datos };
   }
 
-  form.addEventListener("submit", async (ev) => {
-    ev.preventDefault();
-    limpiarErrores();
-    decir("");
-    const errores = validar(leer());
-    const claves = Object.keys(errores);
-    if (claves.length) {
-      claves.forEach((k) => marcarError(k, errores[k]));
-      decir("Revisa los campos marcados.", "mal");
-      const primero = form.querySelector(".con-error input, .con-error textarea");
-      primero?.focus();
-      return;
-    }
-    btnEnviar.disabled = true;
-    decir("Enviando…");
-    try {
-      const { ok, status, datos } = await enviar("formulario");
-      if (ok) return mostrarListo(datos?.mensaje, leer());
-      decir(status === 422 ? errorDelServidor(datos?.detail) : (datos?.detail && typeof datos.detail === "string" ? datos.detail : "No pudimos enviar tu solicitud. Inténtalo de nuevo en unos minutos."), "mal");
-    } catch {
-      decir("No pudimos conectarnos. Revisa tu internet e inténtalo de nuevo." + (marca.whatsapp ? " También puedes escribirnos por WhatsApp." : ""), "mal");
-    } finally {
-      btnEnviar.disabled = false;
-    }
-  });
-
-  function mostrarListo(mensaje, d) {
-    const caja = document.createElement("div");
-    caja.className = "formulario-enviado";
-    caja.setAttribute("role", "status");
-    const t = document.createElement("h3");
-    t.textContent = "Solicitud recibida";
-    const p = document.createElement("p");
-    p.textContent = mensaje || "Te contactaremos para agendar la demostración.";
-    caja.append(t, p);
-    if (marca.whatsapp) {
-      // Último paso: WhatsApp se abre con todos los datos ya escritos; la persona solo toca «Enviar». No se abre solo porque el navegador bloquearía la ventana.
-      const paso = document.createElement("p");
-      paso.textContent = "Para atenderte más rápido, envíanos tus datos por WhatsApp: toca el botón y luego «Enviar».";
-      const a = document.createElement("a");
-      a.className = "btn btn-laton btn-grande";
-      a.href = enlaceWhatsApp(mensajeConDatos(d, `${saludo()}, acabo de pedir una demostración de ${marca.nombre || "la app"}.`));
-      a.target = "_blank"; a.rel = "noopener noreferrer";
-      a.textContent = "Enviar mis datos por WhatsApp";
-      caja.append(paso, a);
-    }
-    form.replaceChildren(caja);
-    caja.scrollIntoView({ block: "center", behavior: "smooth" });
-  }
-
-  // ---------------------------------------------------------------- «Escribir por WhatsApp»
   // El texto va codificado en la URL (encodeURIComponent): tildes, «¿», espacios y saltos de línea llegan bien a WhatsApp.
   function enlaceWhatsApp(texto) { return `https://wa.me/${marca.whatsapp}?text=${encodeURIComponent(texto)}`; }
   const saludo = () => (marca.contacto ? `Hola ${marca.contacto}` : "Hola");
-  // Mensaje con los datos que la persona escribió (solo los que llenó). Va codificado en la URL, no se interpreta como HTML en ningún lado.
   function mensajeConDatos(d, intro) {
     const l = [intro, `Nombre: ${d.nombre}`, `Conjunto: ${d.conjunto}`, `Celular: ${d.celular}`];
     if (d.correo) l.push(`Correo: ${d.correo}`);
@@ -160,27 +109,78 @@
     return l.join("\n");
   }
 
-  btnWA.addEventListener("click", () => {
-    if (!marca.whatsapp) return;
+  // Abre WhatsApp DENTRO del toque del botón (el navegador solo lo permite así). Se usa un enlace «sintético» y no window.open(..., "noopener"):
+  // ese devuelve null siempre, el código creía que lo habían bloqueado y además navegaba la página actual (WhatsApp se abría dos veces).
+  function abrirWhatsApp(url) {
+    const a = document.createElement("a");
+    a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+    a.style.display = "none";
+    document.body.append(a);
+    a.click();
+    a.remove();
+  }
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
     limpiarErrores();
+    decir("");
     const d = leer();
-    const completo = Object.keys(validar(d, { exigirConsentimiento: false })).length === 0;
-    const partes = [`${saludo()}, revisé la demo de ${marca.nombre || "la app"} y me gustaría agendar una demostración para mi conjunto residencial.`];
-    if (d.nombre) partes.push(`Soy ${d.nombre}${d.conjunto ? ` de ${d.conjunto}` : ""}.`);
-    if (d.apartamentos) partes.push(`Son ${d.apartamentos} apartamentos.`);
-    if (d.ciudad) partes.push(`Estamos en ${d.ciudad}.`);
-    // Se abre WhatsApp ANTES de cualquier otra cosa: el navegador solo permite abrir la ventana dentro del toque del botón.
-    const url = enlaceWhatsApp(partes.join(" "));
-    const ventana = window.open(url, "_blank", "noopener");
-    if (!ventana) location.href = url;
-    // Si dejó sus datos y autorizó, también queda guardado el contacto (sin bloquear nada: si falla, WhatsApp ya se abrió).
-    if (completo && d.acepto) {
-      enviar("whatsapp", { silencioso: true }).catch(() => {});
-      decir("Abrimos WhatsApp y también guardamos tus datos.", "ok");
-    } else if (completo) {
-      decir("Abrimos WhatsApp. No guardamos tus datos porque no marcaste la autorización.");
+    const conWhatsApp = Boolean(marca.whatsapp);
+    // Con WhatsApp la autorización NO bloquea (solo decide si además se guarda el contacto); sin WhatsApp sí es obligatoria porque se guarda siempre.
+    const errores = validar(d, { exigirConsentimiento: !conWhatsApp });
+    const claves = Object.keys(errores);
+    if (claves.length) {
+      claves.forEach((k) => marcarError(k, errores[k]));
+      decir("Revisa los campos marcados.", "mal");
+      form.querySelector(".con-error input, .con-error textarea")?.focus();
+      return;
+    }
+
+    if (conWhatsApp) {
+      const url = enlaceWhatsApp(mensajeConDatos(d, `${saludo()}, quiero una demostración de ${marca.nombre || "la app"} para mi conjunto.`));
+      // 1) Primero se lanza el guardado (en segundo plano: sigue aunque la página pase a WhatsApp) y 2) en el MISMO toque se abre WhatsApp.
+      if (d.acepto) enviar("whatsapp", { silencioso: true }).catch(() => {});
+      abrirWhatsApp(url);
+      return mostrarListo(d, url, d.acepto);
+    }
+
+    btnEnviar.disabled = true;
+    decir("Enviando…");
+    try {
+      const { ok, status, datos } = await enviar("formulario");
+      if (ok) return mostrarListo(d, null, true, datos?.mensaje);
+      decir(status === 422 ? errorDelServidor(datos?.detail) : (datos?.detail && typeof datos.detail === "string" ? datos.detail : "No pudimos enviar tu solicitud. Inténtalo de nuevo en unos minutos."), "mal");
+    } catch {
+      decir("No pudimos conectarnos. Revisa tu internet e inténtalo de nuevo.", "mal");
+    } finally {
+      btnEnviar.disabled = false;
     }
   });
+
+  // Confirmación. Con WhatsApp: dice qué hacer (tocar «Enviar») y deja un enlace de respaldo por si el navegador no abrió la ventana (no es una pregunta previa).
+  function mostrarListo(d, urlWhatsApp, guardado, mensajeServidor) {
+    const caja = document.createElement("div");
+    caja.className = "formulario-enviado";
+    caja.setAttribute("role", "status");
+    const t = document.createElement("h3");
+    const p = document.createElement("p");
+    if (urlWhatsApp) {
+      t.textContent = "¡Listo! Ya abrimos WhatsApp";
+      p.textContent = `Toca «Enviar» en WhatsApp y ${marca.contacto || "te"} te responde enseguida para agendar tu demostración.` + (guardado ? "" : " (No guardamos tus datos porque no marcaste la autorización: solo viajan en el mensaje que tú envías.)");
+      caja.append(t, p);
+      const respaldo = document.createElement("a");
+      respaldo.className = "btn btn-contorno";
+      respaldo.href = urlWhatsApp; respaldo.target = "_blank"; respaldo.rel = "noopener noreferrer";
+      respaldo.textContent = "¿No se abrió? Toca aquí";
+      caja.append(respaldo);
+    } else {
+      t.textContent = "Solicitud recibida";
+      p.textContent = mensajeServidor || "Te contactaremos para agendar la demostración.";
+      caja.append(t, p);
+    }
+    form.replaceChildren(caja);
+    caja.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
 
 
   // ---------------------------------------------------------------- guía de instalación: pestañas (Android · iPhone · Computador)

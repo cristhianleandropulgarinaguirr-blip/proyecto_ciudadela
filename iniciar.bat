@@ -9,4 +9,4 @@ if exist propiedad_horizontal.db (
 )
 alembic upgrade head
 start http://127.0.0.1:8000/app/
-uvicorn app.main:app --reload
+uvicorn app.main:app --reload --port 8000

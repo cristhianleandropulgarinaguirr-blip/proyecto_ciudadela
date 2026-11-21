@@ -55,6 +55,6 @@ def texto_de_solicitud(s) -> str:
         lineas.append(f"Apartamentos: {s.apartamentos}")
     if s.mensaje:
         lineas.append(f"Mensaje: {s.mensaje}")
-    lineas.append("Llegó desde: " + ("el botón de WhatsApp de la landing (puede que también te escriba)" if s.origen == "whatsapp" else "el formulario"))
+    lineas.append("Llegó desde: " + ("el botón «Solicitar demo» (se le abrió WhatsApp con sus datos: revisa tu WhatsApp, seguramente ya te escribió)" if s.origen == "whatsapp" else "el formulario"))
     lineas.append(f"Escríbele por WhatsApp: https://wa.me/57{s.celular}")
     return "\n".join(lineas)

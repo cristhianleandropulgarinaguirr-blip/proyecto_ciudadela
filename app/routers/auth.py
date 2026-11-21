@@ -115,7 +115,7 @@ def _emitir(db: Session, request: Request, response: Response, usuario: Usuario,
                          "Lo llama la app sola; exige el encabezado `X-Requested-With: ciudadela`.",
              responses={401: {"description": "No hay sesión, expiró o fue cerrada"}, 403: {"description": "Falta el encabezado de la app"}})
 def renovar_token(request: Request, response: Response, db: Session = Depends(get_db),
-                  ciudadela_rt: Optional[str] = Cookie(default=None)):
+                  ciudadela_rt: Optional[str] = Cookie(default=None, alias=sesiones.COOKIE)):
     sesiones.exigir_csrf(request)
     try:
         sesion, nuevo, usuario = sesiones.renovar(db, ciudadela_rt)
@@ -127,7 +127,7 @@ def renovar_token(request: Request, response: Response, db: Session = Depends(ge
 
 @router.post("/logout", response_model=MensajeResponse, summary="Cerrar sesión en este dispositivo",
              description="Revoca la sesión de este dispositivo en el servidor (el token deja de servir al instante) y borra la cookie.")
-def cerrar_sesion(request: Request, response: Response, db: Session = Depends(get_db), ciudadela_rt: Optional[str] = Cookie(default=None)):
+def cerrar_sesion(request: Request, response: Response, db: Session = Depends(get_db), ciudadela_rt: Optional[str] = Cookie(default=None, alias=sesiones.COOKIE)):
     sesiones.exigir_csrf(request)
     if ciudadela_rt:
         from app.security import hash_token
