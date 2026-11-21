@@ -1,6 +1,7 @@
 // Landing comercial · v4.0. Un solo archivo, sin librerías. Solo hace dos cosas:
-//   1. «Solicitar demo»: valida el formulario y lo envía a POST /demo/solicitar (el servidor guarda el contacto y avisa a los administradores).
-//   2. «Escribir por WhatsApp»: abre WhatsApp con un mensaje ya escrito; si la persona llenó sus datos y marcó la autorización, también guarda el contacto.
+//   1. «Solicitar demo»: valida el formulario y lo envía a POST /demo/solicitar (el servidor guarda el contacto y te avisa por Telegram a ti, el vendedor; ningún administrador de la app lo ve).
+//   2. WhatsApp: al terminar el formulario aparece el último paso («Enviar mis datos por WhatsApp») con TODOS los datos ya escritos; y el botón «Escribir por WhatsApp»
+//      abre WhatsApp con un mensaje ya escrito (si la persona llenó sus datos y marcó la autorización, también guarda el contacto). El cliente solo usa WhatsApp.
 // Todo texto que se muestra se pone con textContent (nunca innerHTML con lo que escribió la persona).
 (() => {
   "use strict";
@@ -112,7 +113,7 @@
     decir("Enviando…");
     try {
       const { ok, status, datos } = await enviar("formulario");
-      if (ok) return mostrarListo(datos?.mensaje);
+      if (ok) return mostrarListo(datos?.mensaje, leer());
       decir(status === 422 ? errorDelServidor(datos?.detail) : (datos?.detail && typeof datos.detail === "string" ? datos.detail : "No pudimos enviar tu solicitud. Inténtalo de nuevo en unos minutos."), "mal");
     } catch {
       decir("No pudimos conectarnos. Revisa tu internet e inténtalo de nuevo." + (marca.whatsapp ? " También puedes escribirnos por WhatsApp." : ""), "mal");
@@ -121,7 +122,7 @@
     }
   });
 
-  function mostrarListo(mensaje) {
+  function mostrarListo(mensaje, d) {
     const caja = document.createElement("div");
     caja.className = "formulario-enviado";
     caja.setAttribute("role", "status");
@@ -131,12 +132,15 @@
     p.textContent = mensaje || "Te contactaremos para agendar la demostración.";
     caja.append(t, p);
     if (marca.whatsapp) {
+      // Último paso: WhatsApp se abre con todos los datos ya escritos; la persona solo toca «Enviar». No se abre solo porque el navegador bloquearía la ventana.
+      const paso = document.createElement("p");
+      paso.textContent = "Para atenderte más rápido, envíanos tus datos por WhatsApp: toca el botón y luego «Enviar».";
       const a = document.createElement("a");
-      a.className = "btn btn-contorno";
-      a.href = enlaceWhatsApp(`${saludo()}, acabo de pedir una demostración de ${marca.nombre || "la app"}.`);
+      a.className = "btn btn-laton btn-grande";
+      a.href = enlaceWhatsApp(mensajeConDatos(d, `${saludo()}, acabo de pedir una demostración de ${marca.nombre || "la app"}.`));
       a.target = "_blank"; a.rel = "noopener noreferrer";
-      a.textContent = "Escribir por WhatsApp";
-      caja.append(a);
+      a.textContent = "Enviar mis datos por WhatsApp";
+      caja.append(paso, a);
     }
     form.replaceChildren(caja);
     caja.scrollIntoView({ block: "center", behavior: "smooth" });
@@ -146,6 +150,15 @@
   // El texto va codificado en la URL (encodeURIComponent): tildes, «¿», espacios y saltos de línea llegan bien a WhatsApp.
   function enlaceWhatsApp(texto) { return `https://wa.me/${marca.whatsapp}?text=${encodeURIComponent(texto)}`; }
   const saludo = () => (marca.contacto ? `Hola ${marca.contacto}` : "Hola");
+  // Mensaje con los datos que la persona escribió (solo los que llenó). Va codificado en la URL, no se interpreta como HTML en ningún lado.
+  function mensajeConDatos(d, intro) {
+    const l = [intro, `Nombre: ${d.nombre}`, `Conjunto: ${d.conjunto}`, `Celular: ${d.celular}`];
+    if (d.correo) l.push(`Correo: ${d.correo}`);
+    if (d.ciudad) l.push(`Ciudad: ${d.ciudad}`);
+    if (d.apartamentos) l.push(`Apartamentos: ${d.apartamentos}`);
+    if (d.mensaje) l.push(`Mensaje: ${d.mensaje}`);
+    return l.join("\n");
+  }
 
   btnWA.addEventListener("click", () => {
     if (!marca.whatsapp) return;

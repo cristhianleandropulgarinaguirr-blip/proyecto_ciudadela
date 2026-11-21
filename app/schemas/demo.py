@@ -1,11 +1,8 @@
-# app/schemas/demo.py — V4.0: lo que se recibe y se devuelve en «Solicitar demo».
+# app/schemas/demo.py — V4.0/V4.7: lo que se recibe y se devuelve en «Solicitar demo» (ya no hay lista para el administrador).
 import re
-from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-
-from app.constantes import EstadoDemo
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 
 def _limpio(v):
@@ -63,30 +60,3 @@ class SolicitudDemoCreate(BaseModel):
 class SolicitudDemoRespuesta(BaseModel):
     ok: bool = True
     mensaje: str
-
-
-class SolicitudDemoUpdate(BaseModel):
-    estado: Optional[EstadoDemo] = None
-    nota: Optional[str] = Field(default=None, max_length=300)
-
-    @field_validator("nota")
-    @classmethod
-    def _nota(cls, v):
-        return _limpio(v)
-
-
-class SolicitudDemoResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    nombre: str
-    conjunto: str
-    celular: str
-    correo: Optional[str] = None
-    ciudad: Optional[str] = None
-    apartamentos: Optional[int] = None
-    mensaje: Optional[str] = None
-    origen: str
-    estado: str
-    nota: Optional[str] = None
-    fecha_creacion: datetime

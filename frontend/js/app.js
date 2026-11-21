@@ -32,7 +32,6 @@ const RUTAS = [
   { id: "documentos", texto: "Documentos", icono: "archivo", roles: [A, R, G, I], cargar: () => import("./vistas/documentos.js") },
   { id: "emergencias", texto: "Emergencias", icono: "telefono", roles: [A, R, G, I], cargar: () => import("./vistas/emergencias.js") },
   { id: "indicadores", texto: "Indicadores", icono: "grafico", roles: [A], cargar: () => import("./vistas/indicadores.js") },
-  { id: "demos", texto: "Solicitudes de demo", icono: "megafono", roles: [A], requiere: "landing", cargar: () => import("./vistas/demos.js") },   // v4.0: solo si la landing está activa
   { id: "importar", texto: "Cargar datos", icono: "subir", roles: [A], cargar: () => import("./vistas/importar.js") },
   { id: "auditoria", texto: "Auditoría", icono: "escudo", roles: [A], cargar: () => import("./vistas/auditoria.js") },
   { id: "residentes", texto: "Usuarios", icono: "usuarios", roles: [A], cargar: () => import("./vistas/residentes.js") },

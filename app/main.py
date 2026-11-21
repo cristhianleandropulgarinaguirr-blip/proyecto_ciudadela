@@ -65,13 +65,13 @@ TAGS = [
     {"name": "Trasteos", "description": "Mudanzas: el residente solicita, el sistema valida el paz y salvo (en las salidas), el administrador aprueba, se alerta a la portería y el guardia registra el inicio y el fin."},
     {"name": "Asambleas de Copropietarios", "description": "Asamblea general de la Ley 675 de 2001: convocatoria con plazos y bitácora de evidencia, registro de asistentes (presencial o virtual), poderes con aprobación del administrador y quórum en vivo."},
     {"name": "Unidades y Coeficientes", "description": "Cada apartamento con su coeficiente de copropiedad: la base del quórum (debe sumar 100 %). Incluye propietarios sin cuenta en la app."},
-    {"name": "Presentación comercial (demo)", "description": "El botón «Solicitar demo» de la landing: guarda el contacto (sin sesión, muy limitado contra abuso) y el administrador lo gestiona."},
+    {"name": "Presentación comercial (demo)", "description": "El botón «Solicitar demo» de la landing: guarda el contacto (sin sesión, muy limitado contra abuso) y avisa por Telegram al vendedor. Solo existe si LANDING_ACTIVA=1 (el servicio de la demo)."},
 ]
 
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 # Con DOCS_ACTIVAS=0 las tres rutas de documentación desaparecen (responden 404), como si no existieran.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="4.6.0", openapi_tags=TAGS,
+              version="4.8.0", openapi_tags=TAGS,
               docs_url="/docs" if config.DOCS_ACTIVAS else None,
               redoc_url="/redoc" if config.DOCS_ACTIVAS else None,
               openapi_url="/openapi.json" if config.DOCS_ACTIVAS else None)
@@ -240,7 +240,7 @@ app.add_middleware(GZipSelectivo)
 @app.get("/", include_in_schema=False)
 def inicio():
     """v4.0 · La raíz muestra la landing comercial (con «Solicitar demo»); la aplicación vive en /app/ y la documentación de la API en /docs.
-    Con LANDING_ACTIVA=0 (la app de un cliente ya contratado) la raíz lleva directo a la aplicación, como antes."""
+    v4.7 · Esto SOLO debe pasar en el servicio de la DEMO (LANDING_ACTIVA=1). En la app real (LANDING_ACTIVA=0) la raíz lleva directo a la aplicación."""
     if not config.LANDING_ACTIVA or not LANDING_PAGINA.is_file():
         return RedirectResponse(url="/app/")
     extra = {"whatsapp": config.DEMO_WHATSAPP, "correo_ventas": config.DEMO_CORREO, "contacto": config.DEMO_CONTACTO}

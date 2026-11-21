@@ -441,3 +441,7 @@ Asambleas de copropietarios (Ley 675 de 2001), fases 1 y 2: unidades y coeficien
 
 ## Versión 3.8
 Fase 3 (legal y operativo): coeficiente de copropiedad, votación ponderada con quórum (Ley 675) y flujo de trasteos con validación de paz y salvo, aprobación y alerta a la portería. Ver `docs/historial/PASOS_V3.8.md`.
+
+Versión 4.7: las solicitudes de demo llegan por WhatsApp al vendedor (CallMeBot, `CALLMEBOT_APIKEY`) y ya no las ve ningún administrador de la app; la landing y «Solicitar demo» existen solo donde `LANDING_ACTIVA=1` (servicio de la demo) y en la app real (`LANDING_ACTIVA=0`) la raíz abre directo la app. Sin migración nueva. Ver `PASOS_V4.7.md`.
+
+Versión 4.8: el aviso de solicitudes de demo al vendedor es por Telegram (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`; CallMeBot tiene el cupo lleno) y al terminar el formulario la landing ofrece enviar los datos por WhatsApp ya escritos. El cliente solo usa WhatsApp. Ver `PASOS_V4.8.md`.

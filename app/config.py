@@ -149,7 +149,8 @@ MARCA_COLOR = os.getenv("MARCA_COLOR", "").strip()                              
 # Carpeta con los logos del cliente (opcional). Si un archivo con el MISMO nombre que los de frontend/img existe aquí, se usa este.
 MARCA_DIR = _Path(os.getenv("MARCA_DIR", "").strip() or (_Path(__file__).resolve().parent.parent / "marca"))
 
-# Landing comercial en «/». En «0» la raíz lleva directo a la app (lo que querrás en la app de un cliente ya contratado).
+# Landing comercial en «/». SOLO debe estar en «1» en el servicio de la DEMO. En «0» (la app real de un cliente) la raíz lleva directo a la app
+# y además se desactiva «Solicitar demo» (POST /demo/solicitar responde 404): una app de verdad no tiene por qué recibir contactos comerciales.
 LANDING_ACTIVA = os.getenv("LANDING_ACTIVA", "1").strip() not in ("0", "false", "False", "no", "NO")
 # Documentación interactiva de la API (/docs, /redoc y /openapi.json). En «1» (por defecto) sirve para la demostración y la revisión del
 # instructor; en la app de un cliente ya contratado ponla en «0»: así nadie ve la lista completa de rutas internas.
@@ -163,6 +164,14 @@ if not 11 <= len(DEMO_WHATSAPP) <= 15:
 # v4.2 · Nombre de quien atiende ese WhatsApp (p. ej. «Cristhian»): el mensaje de la landing arranca con «Hola Cristhian, …». Vacío = «Hola, …».
 DEMO_CONTACTO = " ".join(os.getenv("DEMO_CONTACTO", "").split())[:40]
 DEMO_CORREO = os.getenv("DEMO_CORREO", "").strip()[:120]                                                   # correo de ventas que se muestra en la landing (opcional)
+
+# v4.8 · AVISO AL VENDEDOR por Telegram cuando alguien pide una demo desde la landing (ya NO le llega a ningún administrador de la app).
+# El cliente no necesita Telegram: solo lo usas TÚ para enterarte al instante. Se configura una sola vez (pasos en PASOS_V4.8.md):
+#   TELEGRAM_BOT_TOKEN   el token que te da @BotFather al crear tu bot. Es secreto.
+#   TELEGRAM_CHAT_ID     el número de tu chat con el bot (se obtiene escribiéndole «/start» y abriendo getUpdates; ver la guía).
+# Sin ambos no se envía nada (la solicitud igual queda guardada en la base).
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()[:100]
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "").strip()[:30]
 MARCA_ASISTENTE = os.getenv("MARCA_ASISTENTE", "").strip()[:30] or "Ciudabot"                               # nombre del asistente de chat
 
 
