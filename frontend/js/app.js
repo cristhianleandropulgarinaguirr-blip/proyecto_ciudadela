@@ -15,28 +15,28 @@ const A = "Administrador", R = "Residente", G = "Guardia", I = "Inquilino";
 // Cada ruta declara qué roles la ven: el menú se arma solo con lo permitido (la API igual valida con 403).
 // `texto` puede variar por rol: el residente ve palabras de todos los días y el administrador, los nombres de oficina.
 const RUTAS = [
-  { id: "resumen", texto: "Inicio", icono: "grid", roles: [A, R, G, I], cargar: () => import("./vistas/resumen.js") },
-  { id: "reservas", texto: "Reservas", icono: "calendario", roles: [A, R, G, I], cargar: () => import("./vistas/reservas.js") },
-  { id: "paquetes", texto: { [R]: "Mis paquetes", [I]: "Mis paquetes", otro: "Paquetes" }, icono: "caja", roles: [A, R, G, I], cargar: () => import("./vistas/paquetes.js") },
-  { id: "cartera", texto: { [R]: "Mis pagos", [I]: "Pagos del apartamento", otro: "Cartera" }, icono: "tarjeta", roles: [A, R, I], delegado: "pagar", cargar: () => import("./vistas/cartera.js") },
-  { id: "votaciones", texto: "Votaciones", icono: "urna", roles: [A, R, I], delegado: "votar", cargar: () => import("./vistas/votaciones.js") },
-  { id: "asambleas", texto: "Asambleas", icono: "asamblea", roles: [A, R, G], cargar: () => import("./vistas/asambleas.js") },   // v4.6
-  { id: "visitas", texto: { [R]: "Mis visitas", [I]: "Mis visitas", otro: "Visitas" }, icono: "identificacion", roles: [A, R, I], cargar: () => import("./vistas/visitas.js") },
-  { id: "inquilinos", texto: { [A]: "Arrendamientos", otro: "Mis inquilinos" }, icono: "usuarios", roles: [A, R], cargar: () => import("./vistas/inquilinos.js") },
-  { id: "trasteos", texto: "Trasteos", icono: "camion", roles: [A, R, G, I], cargar: () => import("./vistas/trasteos.js") },
-  { id: "porteria", texto: "Portería", icono: "carro", roles: [A, G], cargar: () => import("./vistas/porteria.js") },
-  { id: "mantenimiento", texto: { [R]: "Reportar un daño", [I]: "Reportar un daño", otro: "Daños" }, icono: "llave", roles: [A, R, I], cargar: () => import("./vistas/mantenimiento.js") },
-  { id: "pqrs", texto: { [R]: "Quejas y sugerencias", [I]: "Quejas y sugerencias", otro: "PQRS" }, icono: "mensaje", roles: [A, R, I], cargar: () => import("./vistas/pqrs.js") },
-  { id: "anuncios", texto: "Cartelera", icono: "megafono", roles: [A, R, G, I], cargar: () => import("./vistas/anuncios.js") },
-  { id: "comercio", texto: "Comercio", icono: "tienda", roles: [A, R, I], cargar: () => import("./vistas/comercio.js") },
-  { id: "documentos", texto: "Documentos", icono: "archivo", roles: [A, R, G, I], cargar: () => import("./vistas/documentos.js") },
-  { id: "emergencias", texto: "Emergencias", icono: "telefono", roles: [A, R, G, I], cargar: () => import("./vistas/emergencias.js") },
-  { id: "indicadores", texto: "Indicadores", icono: "grafico", roles: [A], cargar: () => import("./vistas/indicadores.js") },
-  { id: "importar", texto: "Cargar datos", icono: "subir", roles: [A], cargar: () => import("./vistas/importar.js") },
-  { id: "auditoria", texto: "Auditoría", icono: "escudo", roles: [A], cargar: () => import("./vistas/auditoria.js") },
-  { id: "residentes", texto: "Usuarios", icono: "usuarios", roles: [A], cargar: () => import("./vistas/residentes.js") },
-  { id: "configuracion", texto: "Ajustes", icono: "ajustes", roles: [A, R, G, I], cargar: () => import("./vistas/configuracion.js"), menu: false },   // se abre desde el avatar
-  { id: "mas", texto: "Más", icono: "apps", roles: [A, R, G, I], cargar: () => import("./vistas/mas.js"), menu: false },                                  // pantalla de todas las opciones
+  { id: "resumen", texto: "Inicio", icono: "m_resumen", roles: [A, R, G, I], cargar: () => import("./vistas/resumen.js") },
+  { id: "reservas", texto: "Reservas", icono: "m_reservas", roles: [A, R, G, I], cargar: () => import("./vistas/reservas.js") },
+  { id: "paquetes", texto: { [R]: "Mis paquetes", [I]: "Mis paquetes", otro: "Paquetes" }, icono: "m_paquetes", roles: [A, R, G, I], cargar: () => import("./vistas/paquetes.js") },
+  { id: "cartera", texto: { [R]: "Mis pagos", [I]: "Pagos del apartamento", otro: "Cartera" }, icono: "m_cartera", roles: [A, R, I], delegado: "pagar", cargar: () => import("./vistas/cartera.js") },
+  { id: "votaciones", texto: "Votaciones", icono: "m_votaciones", roles: [A, R, I], delegado: "votar", cargar: () => import("./vistas/votaciones.js") },
+  { id: "asambleas", texto: "Asambleas", icono: "m_asambleas", roles: [A, R, G], cargar: () => import("./vistas/asambleas.js") },   // v4.6
+  { id: "visitas", texto: { [R]: "Mis visitas", [I]: "Mis visitas", otro: "Visitas" }, icono: "m_visitas", roles: [A, R, I], cargar: () => import("./vistas/visitas.js") },
+  { id: "inquilinos", texto: { [A]: "Arrendamientos", otro: "Mis inquilinos" }, icono: "m_inquilinos", roles: [A, R], cargar: () => import("./vistas/inquilinos.js") },
+  { id: "trasteos", texto: "Trasteos", icono: "m_trasteos", roles: [A, R, G, I], cargar: () => import("./vistas/trasteos.js") },
+  { id: "porteria", texto: "Portería", icono: "m_porteria", roles: [A, G], cargar: () => import("./vistas/porteria.js") },
+  { id: "mantenimiento", texto: { [R]: "Reportar un daño", [I]: "Reportar un daño", otro: "Daños" }, icono: "m_mantenimiento", roles: [A, R, I], cargar: () => import("./vistas/mantenimiento.js") },
+  { id: "pqrs", texto: { [R]: "Quejas y sugerencias", [I]: "Quejas y sugerencias", otro: "PQRS" }, icono: "m_pqrs", roles: [A, R, I], cargar: () => import("./vistas/pqrs.js") },
+  { id: "anuncios", texto: "Cartelera", icono: "m_anuncios", roles: [A, R, G, I], cargar: () => import("./vistas/anuncios.js") },
+  { id: "comercio", texto: "Comercio", icono: "m_comercio", roles: [A, R, I], cargar: () => import("./vistas/comercio.js") },
+  { id: "documentos", texto: "Documentos", icono: "m_documentos", roles: [A, R, G, I], cargar: () => import("./vistas/documentos.js") },
+  { id: "emergencias", texto: "Emergencias", icono: "m_emergencias", roles: [A, R, G, I], cargar: () => import("./vistas/emergencias.js") },
+  { id: "indicadores", texto: "Indicadores", icono: "m_indicadores", roles: [A], cargar: () => import("./vistas/indicadores.js") },
+  { id: "importar", texto: "Cargar datos", icono: "m_importar", roles: [A], cargar: () => import("./vistas/importar.js") },
+  { id: "auditoria", texto: "Auditoría", icono: "m_auditoria", roles: [A], cargar: () => import("./vistas/auditoria.js") },
+  { id: "residentes", texto: "Usuarios", icono: "m_residentes", roles: [A], cargar: () => import("./vistas/residentes.js") },
+  { id: "configuracion", texto: "Ajustes", icono: "m_configuracion", roles: [A, R, G, I], cargar: () => import("./vistas/configuracion.js"), menu: false },   // se abre desde el avatar
+  { id: "mas", texto: "Más", icono: "m_mas", roles: [A, R, G, I], cargar: () => import("./vistas/mas.js"), menu: false },                                  // pantalla de todas las opciones
 ];
 const etiqueta = (r, rol) => (typeof r.texto === "string" ? r.texto : r.texto[rol] ?? r.texto.otro);
 // Nombres cortos SOLO para la barra inferior del celular (los largos se cortaban con «…»). El texto completo queda en el aria-label.

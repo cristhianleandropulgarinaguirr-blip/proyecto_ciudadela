@@ -17,8 +17,8 @@
   --papel: #F4F5F3;
   --superficie: #FCFCFB;
   --tinta: #1E2D3A;
-  --tinta-2: #4F5F6B;
-  --tinta-3: #53636F;              /* v3.2: un poco más oscuro para leerse bien sobre las tarjetas de color */
+  --tinta-2: #33414D;               /* v4.9: antes #4F5F6B (5:1) → 8:1, para leerse bien con poca vista */
+  --tinta-3: #3B4955;              /* v4.9: antes #53636F (4,8:1) → 7:1 */
   --linea: #DCE4E8;
   /* v3.2 · Tarjetas con color y borde propios: ya no se confunden con el fondo (instructor). El Residente y el Guardia las tiñen con su color. */
   --tarjeta: #DCE8F2; --tarjeta-borde: #7C98AF;
@@ -60,7 +60,7 @@
   --arcilla: #F08A6C; --arcilla-ink: #F6A58E; --arcilla-100: #40241F;
   --laton: #F0B36B; --laton-100: #3A2C17; --laton-ink: #F3CB92;
   --papel: #081633; --superficie: #0F2146;
-  --tinta: #D4DFEC; --tinta-2: #9AABC2; --tinta-3: #8396B0; --linea: #1E3466;
+  --tinta: #D4DFEC; --tinta-2: #C1CEDF; --tinta-3: #B3C2D6; --linea: #1E3466;
   --tarjeta: #142852; --tarjeta-borde: #46689F; --campo: #0B1B3D;
   --menu: #06122B; --primario: #7DB9DC; --sobre-primario: #06122B; --sobre-arcilla: #2A100A;
   --esq-a: #12254C; --esq-b: #1B3263;
@@ -287,7 +287,7 @@ a { color: inherit; }
 .nav::-webkit-scrollbar { display: none; }
 .nav a {
   flex: 1 0 64px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  text-decoration: none; font-size: .68rem; font-weight: 500; color: rgba(245, 241, 232, .62);
+  text-decoration: none; font-size: .78rem; font-weight: 500; color: rgba(245, 241, 232, .82);
   position: relative; transition: color .2s;
 }
 .nav a svg { width: 22px; height: 22px; transition: transform .25s var(--ease); }
@@ -861,7 +861,7 @@ html[data-texto="grande"] { font-size: 112.5%; }
 .mas-rejilla { display: grid; gap: .7rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .mas-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; min-height: 104px; padding: .9rem .6rem; text-align: center;
   border: 1px solid var(--linea); border-radius: var(--r-lg); background: var(--superficie); color: var(--tinta); text-decoration: none; font-weight: 600; font-size: 1rem; line-height: 1.2; }
-.mas-tile svg { width: 30px; height: 30px; color: var(--bosque); }
+.mas-tile svg { width: 30px; height: 30px; color: var(--ico-tint, var(--bosque)); }
 .mas-tile:active { background: var(--bosque-100); }
 .mas-salir { margin-top: .5rem; }
 @media (min-width: 640px) { .mas-rejilla { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -1377,8 +1377,11 @@ html[data-texto="grande"] { font-size: 112.5%; }
 .cta-escanear { min-height: 58px; margin-bottom: 1rem; font-size: 1.05rem; gap: .7rem; background-image: linear-gradient(135deg, var(--primario), var(--bosque-2)); box-shadow: 0 12px 24px -12px rgba(var(--rol-rgb), .7); }
 
 /* «Más»: ícono en círculo y, si queda una tarjeta sola, ocupa todo el ancho */
-.mas-ico { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; background: var(--campo); box-shadow: inset 0 0 0 1px var(--tarjeta-borde); }
-.mas-ico svg { width: 28px; height: 28px; }
+.mas-ico { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; color: var(--ico-tint, var(--bosque));   /* v4.9: squircle */
+  background: var(--ico-bg, var(--campo)); border: 1px solid var(--ico-border, var(--tarjeta-borde));
+  box-shadow: inset 0 1px 0 var(--ico-hi, transparent), 0 6px 14px -8px var(--ico-glow, transparent);
+  transition: transform .28s var(--ease), border-color .28s var(--ease), box-shadow .28s var(--ease); }
+.mas-ico svg { width: 30px; height: 30px; transition: transform .28s var(--ease); }
 .mas-tile:active { transform: scale(.97); }
 @media (max-width: 639px) {
   .mas-rejilla > .mas-tile:last-child:nth-child(odd) { grid-column: 1 / -1; flex-direction: row; min-height: 84px; gap: 1rem; }
@@ -1546,3 +1549,88 @@ button.avatar { border: 0; padding: 0; cursor: pointer; }
 .asm-pantalla-estado.ok { color: var(--bosque-2); }
 .asm-pantalla-sub { font-size: clamp(1.05rem, 2.2vw, 1.6rem); color: var(--tinta-2); margin: .3rem 0; }
 @media (prefers-reduced-motion: reduce) { .asm-medidor i { transition: none; } }
+
+/* ==========================================================================
+   v4.9 · Íconos duotono + legibilidad
+   Para volver atrás: borra este bloque y deshaz los cambios marcados «v4.9» más arriba (grises --tinta-2/-3, etiquetas .nav y .mas-ico).
+   ========================================================================== */
+
+/* ---------- 1) Íconos: sprite oculto y relleno duotono ---------- */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }                    /* el sprite no ocupa espacio ni se ve */
+.du { fill: var(--ico-tint, currentColor); fill-opacity: var(--ico-op, .18); fill-rule: evenodd; }   /* parte «suave» de cada ícono duotono */
+
+/* Paleta de íconos: se DERIVA de los colores que ya tiene cada rol (--bosque y --rol-rgb), así Administrador (azul), Residente (verde azulado),
+   Guardia (ámbar) e Inquilino (violeta), el modo oscuro y la marca blanca se actualizan solos. Solo Emergencias lleva un rojo fijo. */
+:root {
+  --ico-tint: var(--bosque);
+  --ico-op: .22;
+  --ico-bg: linear-gradient(150deg, rgba(var(--rol-rgb), .20), rgba(var(--rol-rgb), .06) 72%), var(--campo);
+  --ico-border: rgba(var(--rol-rgb), .34);
+  --ico-glow: rgba(var(--rol-rgb), .38);
+  --ico-ring: rgba(var(--rol-rgb), .12);
+  --ico-hi: rgba(255, 255, 255, .7);
+  --emer: #dc2626; --emer-rgb: 220, 38, 38;
+}
+:root[data-tema="oscuro"] {
+  --ico-op: .24;
+  --ico-bg: linear-gradient(150deg, rgba(var(--rol-rgb), .26), rgba(var(--rol-rgb), .08) 72%), var(--campo);
+  --ico-border: rgba(var(--rol-rgb), .5);
+  --ico-glow: rgba(var(--rol-rgb), .45);
+  --ico-hi: rgba(255, 255, 255, .08);
+  --emer: #f87171; --emer-rgb: 248, 113, 113;
+}
+/* Emergencias: siempre rojo alerta, sin importar el rol */
+.mas-tile[href="#/emergencias"] {
+  --ico-tint: var(--emer); --ico-border: rgba(var(--emer-rgb), .5); --ico-glow: rgba(var(--emer-rgb), .42); --ico-ring: rgba(var(--emer-rgb), .16);
+  --ico-bg: linear-gradient(150deg, rgba(var(--emer-rgb), .18), rgba(var(--emer-rgb), .05) 72%), var(--campo);
+}
+/* Menús (fondo siempre oscuro): el relleno suave toma el color del propio ícono; Emergencias en rojo claro */
+.nav a svg, .nav-inferior a svg { --ico-tint: currentColor; --ico-op: .22; }
+.nav a[data-id="emergencias"] svg, .nav-inferior a[data-id="emergencias"] svg { --ico-tint: #f87171; color: #f87171; }
+
+/* ---------- 2) «Más»: micro-interacciones del ícono ---------- */
+.mas-tile { font-size: 1.05rem; }
+.mas-grupo h2 { font-size: 1.1rem; color: var(--tinta); }
+.mas-tile:focus-visible .mas-ico, .mas-tile:active .mas-ico {
+  transform: translateY(-2px); border-color: var(--ico-tint);
+  box-shadow: inset 0 1px 0 var(--ico-hi), 0 10px 18px -8px var(--ico-glow), 0 0 0 3px var(--ico-ring);
+}
+.mas-tile:focus-visible .mas-ico svg, .mas-tile:active .mas-ico svg { transform: scale(1.07); }
+@media (hover: hover) {      /* el «hover» solo existe con ratón; en el celular el efecto se ve al tocar (:active) */
+  .mas-tile:hover .mas-ico { transform: translateY(-2px); border-color: var(--ico-tint); box-shadow: inset 0 1px 0 var(--ico-hi), 0 10px 18px -8px var(--ico-glow), 0 0 0 3px var(--ico-ring); }
+  .mas-tile:hover .mas-ico svg { transform: scale(1.07); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mas-ico, .mas-ico svg { transition: none; }
+  .mas-tile:hover .mas-ico, .mas-tile:active .mas-ico, .mas-tile:focus-visible .mas-ico, .mas-tile:hover .mas-ico svg, .mas-tile:active .mas-ico svg, .mas-tile:focus-visible .mas-ico svg { transform: none; }
+}
+
+/* ---------- 3) Legibilidad: ninguna letra de lectura por debajo de ~12–13 px y grises más oscuros ---------- */
+.rol-insignia { font-size: .8rem !important; }
+.field .ayuda { font-size: .9rem; }
+.badge { font-size: .85rem; }
+.usuario-chip .datos span { font-size: .85rem; }
+.kpi .et { font-size: .9rem; }
+.item .fecha span { font-size: .78rem; }
+.tabla td[data-et]::before { font-size: .8rem; }
+.persona span { font-size: .9rem; }
+.zona span { font-size: .88rem; }
+.paso { font-size: .78rem; }
+.tabla th { font-size: .82rem; }
+.registro-por { font-size: .85rem; }
+.anuncio .pie .autor { font-size: .88rem; }
+.datos-perfil dt { font-size: .82rem; }
+.etiqueta-seccion { font-size: .85rem; }
+.item .cuerpo .doc { font-size: .88rem; }
+.campana .burbuja { font-size: .75rem; }
+.cal-sem { font-size: .82rem; }
+.cal-leyenda { font-size: .88rem; }
+.check small { font-size: .9rem; }
+.chat-sub { font-size: .82rem; }
+.chat-grafico figcaption span { font-size: .85rem; }
+.chat-grafico .val { font-size: .8rem; }
+.chat-grafico .dia { font-size: .78rem; }
+.chat-grafico small, .chat-pie { font-size: .8rem; }
+.kpi.destacado .nota { font-size: .88rem; color: rgba(245, 241, 232, .86); }
+.nav-inferior a { font-size: .8rem; }
+@media (max-width: 359px) { .nav a, .nav-inferior a { font-size: .7rem; } }

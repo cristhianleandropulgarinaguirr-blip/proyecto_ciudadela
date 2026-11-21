@@ -20,7 +20,7 @@ export function h(tag, attrs, ...hijos) {
 }
 export const vaciar = (el) => { el.replaceChildren(); return el; };
 
-// ---------- Iconos (SVG estáticos, trazo 2) ----------
+// ---------- Iconos (SVG estáticos; los de módulos son duotono, ver más abajo) ----------
 const ICONOS = {
   grid: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
   calendario: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
@@ -72,15 +72,63 @@ const ICONOS = {
   chevron: '<path d="m18 15-6-6-6 6"/>',
   asamblea: '<path d="M3 21h18M5 21V10M9.5 21V10M14.5 21V10M19 21V10M2 10l10-7 10 7"/>',
   camion: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+  // ---- v4.9 · Íconos de módulos (duotono): trazo 1.75 + relleno suave «du» con el color del rol (--ico-tint, ver estilos.css). Cuadrícula 24×24.
+  m_resumen: '<rect class="du" x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect class="du" x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="7" height="5" rx="1.5"/>',
+  m_visitas: '<rect class="du" x="5" y="3.5" width="14" height="17" rx="2.5"/><path d="M10 6.2h4"/><circle cx="12" cy="10.6" r="2"/><path d="M8 18c.6-2.1 2.1-3.1 4-3.1s3.4 1 4 3.1"/>',
+  m_reservas: '<rect class="du" x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17"/><path d="m9 15.2 2.2 2.2 4-4.2"/>',
+  m_paquetes: '<path class="du" d="M12 3.5 20 8v8.5l-8 4.5-8-4.5V8z"/><path d="m4 8 8 4.5L20 8M12 12.5V21M8 5.75l8 4.5"/>',
+  m_cartera: '<rect class="du" x="3.5" y="6.5" width="17" height="13" rx="2.5"/><path d="M16.5 4.2 6.5 6.5M20.5 11.5h-4a2 2 0 0 0 0 4h4"/>',
+  m_trasteos: '<path class="du" d="M2.5 6.5A1.5 1.5 0 0 1 4 5h9.5A1.5 1.5 0 0 1 15 6.5V16H2.5z"/><path d="M15 9h3.2l3.3 3.8V16H15"/><path d="M7.5 17.5h.01M17.5 17.5h.01" stroke-width="4.9"/>',
+  m_inquilinos: '<path class="du" d="M3.5 11 12 4l8.5 7v8a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19z"/><circle cx="10.2" cy="14.4" r="2"/><path d="M12.2 14.4H17M15.4 14.4v2"/>',
+  m_mantenimiento: '<path class="du" d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/>',
+  m_pqrs: '<path class="du" d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13A1.5 1.5 0 0 1 20 5.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-4 4v-4H5.5A1.5 1.5 0 0 1 4 14.5z"/><path d="M8 8.5h8M8 12h5"/>',
+  m_documentos: '<path class="du" d="M6.5 3H14l5 5v11.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-15A1.5 1.5 0 0 1 6.5 3z"/><path d="M14 3v5h5M8.5 13h7M8.5 16.5h5"/>',
+  m_asambleas: '<path class="du" d="m3.5 9.5 8.5-5.5 8.5 5.5z"/><path d="M6.5 12.5V18M10 12.5V18M14 12.5V18M17.5 12.5V18M3.5 20.5h17"/>',
+  m_votaciones: '<rect class="du" x="3.5" y="12" width="17" height="8.5" rx="2"/><path d="M9 15.8h6M8 12V4.5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1V12M10.3 7.8l1.4 1.4 2.4-2.6"/>',
+  m_anuncios: '<path class="du" d="M4 10 18.5 5v14L4 14z"/><path d="M7.5 15.5 8.8 20h2.9l-1-3.6M21.5 9.5v5"/>',
+  m_comercio: '<path class="du" d="M4 4.5h16l1.5 5a2.4 2.4 0 0 1-4.75 0 2.4 2.4 0 0 1-4.75 0 2.4 2.4 0 0 1-4.75 0 2.4 2.4 0 0 1-4.75 0z"/><path d="M4.5 11.7v8.8h15v-8.8M10 20.5v-5h4v5"/>',
+  m_emergencias: '<path class="du" d="M7 17v-5a5 5 0 0 1 10 0v5z"/><rect x="4.5" y="17" width="15" height="3.5" rx="1.2"/><path d="M12 2.8v1.6M4.4 6.2l1.2 1.2M19.6 6.2l-1.2 1.2M2.5 12H4M20 12h1.5M10 12a2 2 0 0 1 2-2"/>',
+  m_indicadores: '<rect class="du" x="3.5" y="12.5" width="4.5" height="8" rx="1.2"/><rect x="9.75" y="8" width="4.5" height="12.5" rx="1.2"/><rect class="du" x="16" y="3.5" width="4.5" height="17" rx="1.2"/>',
+  m_porteria: '<path class="du" d="M3.5 8A1.5 1.5 0 0 1 5 6.5h4.5A1.5 1.5 0 0 1 11 8v12.5H3.5z"/><path d="M6 10.5h3M3.5 20.5h17"/><rect x="11" y="12.5" width="10" height="3.5" rx="1.2"/><path d="M19.5 16v4.5"/>',
+  m_residentes: '<circle class="du" cx="9" cy="7.5" r="3.4"/><path class="du" d="M2.5 20v-1.5A4.5 4.5 0 0 1 7 14h4a4.5 4.5 0 0 1 4.5 4.5V20z"/><path d="M15.8 4.6a3.5 3.5 0 0 1 0 6.8M18.5 14.2a4.5 4.5 0 0 1 3 4.3V20"/>',
+  m_importar: '<rect class="du" x="3.5" y="3.5" width="17" height="17" rx="2.5"/><path d="M3.5 9h17M9 9v11.5M3.5 14.8H9M14.8 17.8v-5.6M12.6 14.4l2.2-2.2 2.2 2.2"/>',
+  m_auditoria: '<path d="M4 6.5h13M4 11h6.5M4 15.5h4.5"/><circle class="du" cx="15" cy="14" r="4.5"/><path d="m18.3 17.3 3 3"/>',
+  m_configuracion: '<g transform="matrix(.92 0 0 .92 .96 .96)" stroke-width="1.9"><path class="du" d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1zM15 12a3 3 0 1 0-6 0 3 3 0 0 0 6 0z"/></g>',
+  m_mas: '<rect class="du" x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect class="du" x="13.5" y="13.5" width="7" height="7" rx="1.8"/>',
 };
+// Sprite SVG: cada ícono se define UNA sola vez como <symbol id="ico-…"> (se agrega la primera vez que se usa) y cada llamada a icono()
+// solo dibuja un <use> que lo referencia. El trazo y los colores se heredan del <svg> exterior, así que el CSS sigue mandando.
+// Los íconos de módulos (m_…) usan trazo 1.75; los funcionales (✓, ✕, flecha…) siguen con trazo 2.
+const SVG_NS = "http://www.w3.org/2000/svg";
+let sprite = null;
+const enSprite = new Set();
+function registrar(nombre) {
+  if (sprite && !sprite.isConnected) (document.body ?? document.documentElement).prepend(sprite);   // si algo vació el <body>, el sprite se vuelve a colgar solo
+  if (enSprite.has(nombre)) return;
+  enSprite.add(nombre);
+  if (!sprite) {
+    sprite = document.createElementNS(SVG_NS, "svg");
+    sprite.setAttribute("class", "sprite"); sprite.setAttribute("aria-hidden", "true"); sprite.setAttribute("width", "0"); sprite.setAttribute("height", "0");
+    (document.body ?? document.documentElement).prepend(sprite);
+  }
+  const simbolo = document.createElementNS(SVG_NS, "symbol");
+  simbolo.setAttribute("id", `ico-${nombre}`); simbolo.setAttribute("viewBox", "0 0 24 24");
+  simbolo.innerHTML = ICONOS[nombre];   // SVG estático definido arriba, sin datos del usuario
+  sprite.append(simbolo);
+}
 export function icono(nombre, tam) {
-  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  const s = document.createElementNS(SVG_NS, "svg");
   s.setAttribute("viewBox", "0 0 24 24");
   s.setAttribute("fill", "none"); s.setAttribute("stroke", "currentColor");
-  s.setAttribute("stroke-width", "2"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round");
+  s.setAttribute("stroke-width", `${nombre}`.startsWith("m_") ? "1.75" : "2"); s.setAttribute("stroke-linecap", "round"); s.setAttribute("stroke-linejoin", "round");
   s.setAttribute("aria-hidden", "true");
   if (tam) { s.setAttribute("width", tam); s.setAttribute("height", tam); }
-  s.innerHTML = ICONOS[nombre] ?? "";   // SVG estático definido arriba, sin datos del usuario
+  if (ICONOS[nombre]) {
+    registrar(nombre);
+    const uso = document.createElementNS(SVG_NS, "use");
+    uso.setAttribute("href", `#ico-${nombre}`);
+    s.append(uso);
+  }
   return s;
 }
 
