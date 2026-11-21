@@ -49,7 +49,9 @@ export async function desactivarPush() {
 
 /** Al cerrar sesión: este celular deja de recibir los avisos de esa cuenta (los recibiría quien entre después). Mejor esfuerzo. */
 export async function liberarPushAlSalir() {
-  try { if (soportaPush()) { await desactivarPush(); } } catch { /* nada */ }
+  // v5.1: `navigator.serviceWorker.ready` no se resuelve nunca si el service worker no llegó a instalarse; sin este tope, «Cerrar sesión»
+  // se quedaba esperando aquí y jamás llegaba a avisarle al servidor. Si en 3 s no terminó, se sigue (es de mejor esfuerzo).
+  try { if (soportaPush()) { await Promise.race([desactivarPush(), new Promise((f) => setTimeout(f, 3000))]); } } catch { /* nada */ }
 }
 
 /** Al iniciar sesión: si ya había permiso en este equipo, se asocia la suscripción a la cuenta actual (cambio de persona en la portería). */

@@ -171,16 +171,20 @@ function precargarVistas() {
 
 // Al salir: avisa si queda trabajo sin enviar, libera los avisos push de este equipo, revoca la sesión en el servidor y borra lo guardado.
 async function cerrarSesion() {
-  if (await hayPendientes()) {
-    await sincronizar().catch(() => {});
-    const quedan = await hayPendientes();
-    if (quedan && !(await confirmar("Hay registros sin enviar", `Tienes ${quedan} registro(s) guardados en este equipo que aún no llegaron al servidor. Si cierras sesión se quedan guardados y se enviarán cuando vuelvas a ingresar con tu cuenta en este equipo. ¿Cerrar sesión?`, "Cerrar sesión", true))) return;
-  }
-  await liberarPushAlSalir();
-  await cerrarEnServidor();
-  chatMod?.quitarChat();                              // la conversación solo vive en memoria: se borra al salir
-  borrarAutoTodos(); borrarPerfil(); await limpiarAlSalir(); sesion.cerrar();
-  location.hash = ""; mostrarLogin();
+  try {
+    if (await hayPendientes()) {
+      await sincronizar().catch(() => {});
+      const quedan = await hayPendientes();
+      if (quedan && !(await confirmar("Hay registros sin enviar", `Tienes ${quedan} registro(s) guardados en este equipo que aún no llegaron al servidor. Si cierras sesión se quedan guardados y se enviarán cuando vuelvas a ingresar con tu cuenta en este equipo. ¿Cerrar sesión?`, "Cerrar sesión", true))) return;
+    }
+  } catch { /* v5.1: si el almacén local falla, eso no puede impedir salir */ }
+  try {
+    await liberarPushAlSalir();
+    await cerrarEnServidor();
+    chatMod?.quitarChat();                              // la conversación solo vive en memoria: se borra al salir
+    borrarAutoTodos(); borrarPerfil(); await limpiarAlSalir();
+  } catch { /* v5.1: la limpieza local es de mejor esfuerzo; el cierre de abajo ocurre SIEMPRE */ }
+  finally { sesion.cerrar(); location.hash = ""; mostrarLogin(); }
 }
 
 // Menú de la cuenta: Ajustes y Cerrar sesión. El cierre de sesión ya no está a un toque suelto junto al avatar (se cerraba sin querer).

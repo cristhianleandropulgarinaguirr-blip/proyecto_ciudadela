@@ -75,7 +75,9 @@ export async function restaurarSesion() {
 }
 
 export async function cerrarEnServidor() {
-  try { await fetch("/auth/logout", { method: "POST", headers: CSRF, credentials: "same-origin", keepalive: true }); } catch { /* sin red: la sesión vence sola */ }
+  // v5.1: se espera la respuesta como máximo 6 s (un servidor de Render dormido puede tardar mucho). `keepalive` hace que la petición
+  // siga su curso aunque la pantalla ya haya vuelto al login.
+  try { await Promise.race([fetch("/auth/logout", { method: "POST", headers: CSRF, credentials: "same-origin", keepalive: true }), new Promise((f) => setTimeout(f, 6000))]); } catch { /* sin red: la sesión vence sola */ }
 }
 
 // ---------------------------------------------------------------- errores
