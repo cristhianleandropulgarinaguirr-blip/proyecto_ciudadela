@@ -1,7 +1,7 @@
 // Asambleas de copropietarios (Ley 675 de 2001).
 // Administrador: crea, convoca, instala y cierra; acredita asistentes, revisa poderes y consulta la bitácora de evidencia.
-// Guardia: acredita en la puerta. Residente: ve la convocatoria, se conecta si es virtual y sube su poder.
-// Endpoints: /asambleas/… · /unidades/…  (el servidor valida todas las reglas: aquí solo se muestran y se piden).
+// Guardia: acredita en la puerta. Residente: ve la convocatoria, se conecta si es virtual, sube su poder y (V5.2) vota desde la app.
+// Endpoints: /asambleas/… · /asambleas/{id}/votaciones/… · /unidades/…  (el servidor valida todas las reglas: aquí solo se muestran y se piden).
 import { api, apiBlob } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, confirmar, deUtc, fmtFechaHora, kpi, esqueleto } from "../ui.js";
 import { descargar, guardarBlob } from "../descargas.js";
@@ -368,6 +368,186 @@ async function panelBitacora(a) {
   return caja;
 }
 
+// ================================================================ votaciones dentro de la asamblea (V5.2 · Fase 3)
+// Administrador: crea, abre y cierra cada pregunta y registra el voto de quien está presente en el lugar. Residente: vota desde la app si se conectó de forma virtual.
+// El servidor valida TODO (quórum, padrón, 70 %, un voto por unidad, secreto): aquí solo se muestra y se pide. Mientras una pregunta está abierta no hay resultados parciales.
+const MAYORIA_TXT = { Simple: "Mayoría simple", Calificada: "Mayoría calificada (70 %)" };
+const hayDialogoAbierto = () => !!document.querySelector("dialog[open]");        // no se repinta mientras la persona está confirmando algo
+
+/** Resultado congelado de una pregunta cerrada (lo ven todos). */
+function resultadoVotacion(v) {
+  const r = v.resultado;
+  if (!r) return null;
+  const ganadora = v.opciones.find((o) => o.id === r.ganadora)?.texto;
+  const titular = !r.valida ? "Sin validez" : r.aprobada === true ? "Aprobada" : r.aprobada === false ? "No aprobada" : r.empate ? "Empate" : ganadora ? `Gana «${ganadora}»` : "Sin votos";
+  const bien = r.valida && (r.aprobada === true || (r.aprobada == null && !r.empate && !!ganadora));
+  const baseTxt = r.base === "conjunto" ? "del coeficiente de todo el conjunto" : "del coeficiente presente con derecho a voto";
+  return h("div", { class: `asm-resumen ${bien ? "ok" : "mal"}` },
+    h("b", {}, titular),
+    r.aprobada != null ? h("p", { class: "small" }, `${pc(r.porcentaje_a_favor)} % a favor ${baseTxt}. Se necesitaba ${r.umbral === 70 ? "70 % o más" : "más del 50 %"}.`) : null,
+    ...v.opciones.map((o) => {
+      const p = r.base === "conjunto" ? o.porcentaje_conjunto : o.porcentaje_presentes;
+      return h("div", { class: "asm-opcion-res" },
+        h("div", { class: "small" }, h("b", {}, o.texto), ` · ${o.votos} unidad(es) · ${pc(o.coeficiente)} % del coeficiente`),
+        h("div", { class: "asm-medidor fino", role: "img", "aria-label": `${o.texto}: ${pc(p)} por ciento` }, h("i", { class: o.texto === "A favor" || o.id === r.ganadora ? "ok" : "", style: `width:${Math.min(100, p)}%` })));
+    }),
+    r.motivos?.length ? h("ul", { class: "lista-simple" }, r.motivos.map((m) => h("li", {}, m))) : null,
+    h("p", { class: "small muted" }, `Votaron ${r.unidades_votaron} de ${r.unidades_padron} unidades (${r.votos_app} por la app, ${r.votos_presenciales} presenciales) · quórum al abrir ${pc(r.quorum_apertura)} % y al cerrar ${pc(r.quorum_cierre)} %.`),
+    v.resultado_hash ? h("p", { class: "small muted" }, "Huella SHA-256: ", h("code", { title: v.resultado_hash }, `${v.resultado_hash.slice(0, 16)}…`), " (queda también en la bitácora)") : null);
+}
+
+function modalNuevaVotacion(a, alHecho) {
+  let tipo = "Decisión", mayoria = "Simple";
+  const titulo = h("input", { id: "vt-titulo", placeholder: " ", maxlength: "160" });
+  const desc = h("input", { id: "vt-desc", placeholder: " ", maxlength: "500" });
+  const ops = h("textarea", { id: "vt-ops", rows: "4", placeholder: " ", maxlength: "1500" });
+  const cajaOps = h("div", {}, campo("vt-ops", "Opciones o candidatos (uno por línea, de 2 a 12)", ops));
+  const chipsTipo = h("div", { class: "chips", role: "group", "aria-label": "Tipo de votación" });
+  const chipsMay = h("div", { class: "chips", role: "group", "aria-label": "Mayoría exigida" });
+  const bloquea70 = a.modalidad !== "Presencial";
+  const nota = h("p", { class: "small muted" });
+  const pintar = () => {
+    chipsTipo.replaceChildren(...[["Decisión", "Decisión (a favor / en contra)"], ["Elección", "Elección (candidatos)"]].map(([v, t]) =>
+      h("button", { class: "chip", type: "button", "aria-pressed": String(tipo === v), onclick: () => { tipo = v; if (v === "Elección") mayoria = "Simple"; pintar(); } }, t)));
+    chipsMay.replaceChildren(...[["Simple", "Simple (más del 50 %)"], ["Calificada", "Calificada (70 %)"]].map(([v, t]) =>
+      h("button", { class: "chip", type: "button", disabled: tipo === "Elección" || (v === "Calificada" && bloquea70), "aria-pressed": String(mayoria === v), onclick: () => { mayoria = v; pintar(); } }, t)));
+    cajaOps.style.display = tipo === "Elección" ? "" : "none";
+    nota.textContent = tipo === "Elección" ? "En una elección gana la opción con más coeficiente. Si tu reglamento exige una mayoría específica, verifícala con el resultado."
+      : bloquea70 ? "La mayoría calificada (70 %) no está disponible: la asamblea es virtual o mixta, y esas decisiones no se toman a distancia. Se bloquea también en segunda convocatoria." : "Calificada: 70 % o más del coeficiente de TODO el conjunto (no solo de los presentes).";
+  };
+  pintar();
+  const ok = h("button", { class: "btn", type: "submit", form: "f-votacion" }, icono("ok", 16), "Crear");
+  const m = modal("Nueva votación", h("form", { id: "f-votacion", novalidate: true, onsubmit: async (e) => {
+    e.preventDefault();
+    const opciones = tipo === "Elección" ? ops.value.split("\n").map((x) => x.trim()).filter(Boolean) : [];
+    try {
+      await conCarga(ok, () => api(`/asambleas/${a.id}/votaciones`, { metodo: "POST", json: { titulo: titulo.value.trim(), descripcion: desc.value.trim() || null, tipo, mayoria, opciones } }));
+      m.cerrar(); toast("Votación creada: ábrela cuando la asamblea esté en sesión."); alHecho();
+    } catch (err) { toast(err.message, "error"); }
+  } },
+    campo("vt-titulo", "Qué se vota (p. ej. «¿Aprueba el presupuesto 2027?»)", titulo), campo("vt-desc", "Detalle de la propuesta (opcional)", desc),
+    h("div", { class: "etiqueta-seccion" }, "Tipo"), chipsTipo, h("div", { class: "etiqueta-seccion" }, "Mayoría exigida"), chipsMay, nota, cajaOps),
+  { pie: [h("button", { class: "btn suave", onclick: () => m.cerrar() }, "Cancelar"), ok] });
+  titulo.focus();
+}
+
+function modalAnularVotacion(a, v, alHecho) {
+  const motivo = h("input", { id: "an-motivo", placeholder: " ", maxlength: "200" });
+  const ok = h("button", { class: "btn peligro", type: "submit", form: "f-anular" }, "Anular votación");
+  const m = modal(`Anular · ${v.titulo}`, h("form", { id: "f-anular", novalidate: true, onsubmit: async (e) => {
+    e.preventDefault();
+    try { await conCarga(ok, () => api(`/asambleas/${a.id}/votaciones/${v.id}/anular`, { metodo: "POST", json: { motivo: motivo.value.trim() } })); m.cerrar(); toast("Votación anulada."); alHecho(); }
+    catch (err) { toast(err.message, "error"); }
+  } }, h("p", { class: "muted" }, v.estado === "Abierta" ? "Está abierta: los votos ya emitidos no se tendrán en cuenta y se avisará a quienes votan desde la app." : "Se anula antes de abrirla."),
+  campo("an-motivo", "Motivo (queda en la bitácora)", motivo)), { pie: [h("button", { class: "btn suave", onclick: () => m.cerrar() }, "Volver"), ok] });
+  motivo.focus();
+}
+
+function tarjetaVotacionAdmin(a, v0, alCambiar) {
+  let v = v0;
+  const caja = h("div", { class: "card asm-votacion" });
+  const accion = async (btn, ruta, titulo, aviso, ok) => {
+    if (!(await confirmar(titulo, aviso, ok))) return;
+    try {
+      const r = await conCarga(btn, () => api(ruta, { metodo: "POST" }));
+      if (r.advertencias?.length) modal("Ten en cuenta", h("ul", { class: "lista-simple" }, r.advertencias.map((w) => h("li", {}, w))));
+      else toast("Listo.");
+      alCambiar();
+    } catch (err) { toast(err.message, "error"); }
+  };
+  const votoManual = async (f, o) => {
+    if (!(await confirmar(`¿Registrar el voto de ${f.apartamento}?`, `Votó «${o.texto}». Este voto presencial queda a nombre de la unidad (no es secreto) y no se puede cambiar.`, "Sí, registrar"))) return;
+    try { v = await api(`/asambleas/${a.id}/votaciones/${v.id}/votos-presenciales`, { metodo: "POST", json: { unidad_id: f.unidad_id, opcion_id: o.id } }); pintar(); }
+    catch (err) { toast(err.message, "error"); }
+  };
+  async function refrescar() {
+    if (v.estado !== "Abierta" || !caja.isConnected || hayDialogoAbierto()) return;
+    try { v = await api(`/asambleas/${a.id}/votaciones/${v.id}`); pintar(); } catch { /* sin red: se reintenta */ }
+  }
+  function abiertaBloque() {
+    const p = v.participacion ?? {};
+    return h("div", {},
+      h("p", { class: "asm-pct" }, `${p.unidades_votaron ?? 0} de ${p.unidades_padron ?? 0}`, h("small", {}, ` unidades han votado · ${pc(p.porcentaje)} % del coeficiente con voto`)),
+      h("div", { class: "asm-medidor", role: "img", "aria-label": `Participación ${pc(p.porcentaje)} por ciento` }, h("i", { style: `width:${Math.min(100, p.porcentaje ?? 0)}%` })),
+      h("p", { class: "small muted" }, `Quórum al abrir: ${pc(v.quorum_apertura)} %. Los resultados se muestran solo al cerrar (nadie ve parciales).`),
+      h("div", { class: "etiqueta-seccion" }, "Quiénes pueden votar (padrón de esta votación)"),
+      ...(v.padron ?? []).map((f) => h("div", { class: `asm-fila ${f.ya_voto ? "presente" : ""}` },
+        h("div", { class: "asm-fila-txt" }, h("b", {}, f.apartamento), h("span", { class: "small muted" }, `${f.nombre} · ${pc(f.coeficiente)} %`),
+          h("span", { class: "asm-chips" }, h("span", { class: "badge" }, f.via === "App" ? "Vota desde la app" : "Presencial"),
+            f.ya_voto ? h("span", { class: "badge bosque" }, f.opcion_registrada ? `Votó: ${f.opcion_registrada}` : "Ya votó") : null,
+            f.sin_medio ? h("span", { class: "badge arcilla" }, "Sin cuenta: no puede votar") : null,
+            !f.sigue_presente ? h("span", { class: "badge laton" }, "Salió") : null)),
+        f.via === "Manual" && !f.ya_voto && f.sigue_presente
+          ? h("div", { class: "asm-fila-acc", style: "display:flex;flex-wrap:wrap;gap:.4rem" }, v.opciones.map((o) => h("button", { class: "btn sm suave", onclick: () => votoManual(f, o) }, o.texto))) : null)),
+      h("div", { class: "acciones-fila", style: "margin-top:1rem" },
+        h("button", { class: "btn sm", onclick: (e) => accion(e.currentTarget, `/asambleas/${a.id}/votaciones/${v.id}/cerrar`, "¿Cerrar la votación?", "Se valida el quórum de este momento, se calcula el resultado y queda congelado con su huella. No se puede deshacer.", "Sí, cerrar") }, "Cerrar votación y ver resultado"),
+        h("button", { class: "btn suave sm", onclick: () => modalAnularVotacion(a, v, alCambiar) }, "Anular")));
+  }
+  function pintar() {
+    poner(caja,
+      h("div", { class: "card-titulo" }, h("h2", {}, `${v.numero}. ${v.titulo}`), badge(v.estado)),
+      h("p", { class: "small muted" }, `${v.tipo} · ${v.tipo === "Decisión" ? MAYORIA_TXT[v.mayoria] : "gana la opción con más coeficiente"}`),
+      v.descripcion ? h("p", {}, v.descripcion) : null,
+      h("p", { class: "small muted" }, v.requisito),
+      v.tipo === "Elección" && v.estado === "Borrador" ? h("p", { class: "small" }, "Opciones: ", v.opciones.map((o) => o.texto).join(" · ")) : null,
+      v.estado === "Borrador" ? h("div", { class: "acciones-fila" },
+        a.estado === "En sesión" ? h("button", { class: "btn sm", onclick: (e) => accion(e.currentTarget, `/asambleas/${a.id}/votaciones/${v.id}/abrir`, "¿Abrir la votación?", "Se congela quién puede votar: solo las unidades presentes y con derecho a voto ahora. Quien llegue después no votará esta pregunta. Se avisa a quienes votan desde la app.", "Sí, abrir") }, "Abrir votación")
+          : h("span", { class: "small muted" }, "Podrás abrirla cuando la asamblea esté en sesión."),
+        h("button", { class: "btn suave sm", onclick: () => modalAnularVotacion(a, v, alCambiar) }, "Anular")) : null,
+      v.estado === "Abierta" ? abiertaBloque() : null,
+      v.estado === "Cerrada" ? resultadoVotacion(v) : null,
+      v.estado === "Anulada" ? h("p", { class: "small texto-error" }, `Anulada: ${v.motivo_anulacion ?? ""}`) : null);
+  }
+  pintar();
+  if (v.estado === "Abierta") enVivo(caja, refrescar, 6000);
+  return caja;
+}
+
+async function panelVotaciones(a, recargar) {
+  const caja = h("div", {});
+  async function cargar() {
+    try {
+      const lista = await api(`/asambleas/${a.id}/votaciones`);
+      poner(caja,
+        h("div", { class: "acciones-fila", style: "margin:0 0 1rem" }, ["Convocada", "En sesión"].includes(a.estado) ? h("button", { class: "btn", onclick: () => modalNuevaVotacion(a, cargar) }, icono("mas", 18), "Nueva votación") : null),
+        h("p", { class: "small muted" }, "Cada pregunta se abre una por una. El asistente virtual vota él mismo desde la app (voto secreto); a quien está presente en el lugar le registras tú el voto (queda a su nombre)."),
+        ...(lista.length ? lista.map((v) => tarjetaVotacionAdmin(a, v, cargar)) : [estadoVacio("Aún no hay votaciones", "Crea la primera con «Nueva votación».")]));
+    } catch (e) { caja.replaceChildren(estadoVacio("No se pudieron cargar", e.message)); }
+  }
+  await cargar();
+  return caja;
+}
+
+/** Residente: vota desde el celular las preguntas abiertas y ve los resultados de las cerradas. Se actualiza sola. */
+function tarjetaVotaciones(a, { ms = 6000 } = {}) {
+  const caja = h("div", { class: "card asm-votaciones" }, h("div", { class: "esq", style: "height:80px" }));
+  const votar = async (v, m, o, btn) => {
+    if (!(await confirmar(`¿Votar «${o.texto}»?`, `${m.apartamento} · ${pc(m.coeficiente)} %. Tu voto es secreto y no se puede cambiar ni repetir.`, "Sí, votar"))) return;
+    try { await conCarga(btn, () => api(`/asambleas/${a.id}/votaciones/${v.id}/votar`, { metodo: "POST", json: { opcion_id: o.id, unidad_id: m.unidad_id } })); toast("Tu voto quedó registrado."); cargar(true); }
+    catch (err) { toast(err.message, "error"); }
+  };
+  async function cargar(forzar = false) {
+    if (!forzar && (hayDialogoAbierto() || !caja.isConnected)) return;
+    try {
+      const lista = await api(`/asambleas/${a.id}/votaciones`);
+      const abiertas = lista.filter((x) => x.estado === "Abierta"), cerradas = lista.filter((x) => x.estado === "Cerrada").reverse();
+      poner(caja, h("div", { class: "card-titulo" }, h("h2", {}, "Votaciones"), abiertas.length ? h("span", { class: "badge bosque" }, "Hay una votación abierta") : null),
+        !lista.length ? h("p", { class: "muted" }, "Aún no hay votaciones. Cuando el administrador abra una, aparecerá aquí.") : null,
+        ...abiertas.map((v) => h("div", { class: "asm-resumen" },
+          h("b", {}, `${v.numero}. ${v.titulo}`), v.descripcion ? h("p", {}, v.descripcion) : null, h("p", { class: "small muted" }, v.requisito),
+          ...(v.mis_unidades ?? []).map((m) => m.ya_voto ? h("p", {}, h("span", { class: "badge bosque" }, `${m.apartamento}: ya votaste`))
+            : m.puede_votar ? h("div", {}, (v.mis_unidades.length > 1 ? h("p", { class: "small" }, `Votas por ${m.apartamento} (${pc(m.coeficiente)} %)`) : null),
+              h("div", { class: "acciones-fila" }, v.opciones.map((o) => h("button", { class: "btn", onclick: (e) => votar(v, m, o, e.currentTarget) }, o.texto)))) : null),
+          v.mensaje_votante ? h("p", { class: "small muted" }, v.mensaje_votante) : null)),
+        ...cerradas.map((v) => h("div", { class: "asm-votacion-cerrada" }, h("p", {}, h("b", {}, `${v.numero}. ${v.titulo}`)), resultadoVotacion(v))),
+        lista.some((x) => x.estado === "Anulada") ? h("p", { class: "small muted" }, "Alguna votación fue anulada por el administrador.") : null);
+    } catch (e) { caja.replaceChildren(h("p", { class: "small muted" }, e.message)); }
+  }
+  cargar(true);
+  enVivo(caja, () => cargar(), ms);
+  return caja;
+}
+
 // ================================================================ detalle
 function bloqueInfo(a) {
   return h("div", { class: "card asm-info" },
@@ -449,6 +629,7 @@ function vistaResidente(a, recargar) {
   }
   partes.push(h("div", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Mi participación"), mi.apartamento ? h("span", { class: "badge" }, mi.apartamento) : null), ...acc));
   if (abierto || a.estado === "Cerrada") partes.push(tarjetaQuorum(a.id, { ms: 15000 }));
+  if (a.estado === "En sesión" || a.estado === "Cerrada") partes.push(tarjetaVotaciones(a));                       // V5.2: votar desde la app y ver resultados
   partes.push(h("div", { class: "etiqueta-seccion" }, "Poder de representación"));
   return partes;
 }
@@ -463,7 +644,7 @@ async function mostrarDetalle(raiz, ctx, id, pestana = "resumen", volver) {
   volverBtn.firstChild.style.transform = "rotate(180deg)";
   const cuerpo = h("div", {});
   if (esAdmin) {
-    const opciones = [{ id: "resumen", texto: "Resumen" }, { id: "asistencia", texto: "Asistencia" }, { id: "poderes", texto: "Poderes" }, { id: "entregas", texto: "Entregas" }, { id: "bitacora", texto: "Bitácora" }]
+    const opciones = [{ id: "resumen", texto: "Resumen" }, { id: "asistencia", texto: "Asistencia" }, { id: "votaciones", texto: "Votaciones" }, { id: "poderes", texto: "Poderes" }, { id: "entregas", texto: "Entregas" }, { id: "bitacora", texto: "Bitácora" }]
       .filter((o) => a.estado !== "Borrador" || o.id === "resumen");
     const pintar = async (p) => {
       pestana = p;
@@ -471,6 +652,7 @@ async function mostrarDetalle(raiz, ctx, id, pestana = "resumen", volver) {
       if (p === "resumen") poner(cuerpo, bloqueInfo(a), accionesAdmin(a, recargar, volver), bloqueOrden(a, true, recargar),
         a.morosos?.length ? h("div", { class: "card" }, h("div", { class: "etiqueta-seccion", style: "margin-top:0" }, `Unidades en mora al convocar (${a.morosos.length})`), h("ul", { class: "lista-simple" }, a.morosos.map((m) => h("li", {}, `${m.apartamento} · $ ${Number(m.saldo).toLocaleString("es-CO")}`)))) : null);
       else if (p === "asistencia") cuerpo.replaceChildren(await panelAsistencia(a, true, recargar));
+      else if (p === "votaciones") cuerpo.replaceChildren(await panelVotaciones(a, recargar));
       else if (p === "poderes") cuerpo.replaceChildren(await panelPoderes(a, true, recargar));
       else if (p === "entregas") cuerpo.replaceChildren(await panelEntregas(a, recargar));
       else cuerpo.replaceChildren(await panelBitacora(a));

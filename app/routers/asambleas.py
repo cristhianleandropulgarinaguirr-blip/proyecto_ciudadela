@@ -24,7 +24,7 @@ from app.coeficientes import norm_apto
 from app.constantes import CategoriaDocumento, EstadoAsamblea, EstadoPoder, ModalidadAsamblea, RolNombre, TipoAsamblea
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
-from app.models import (Asamblea, AsambleaAsistente, AsambleaDocumento, AsambleaEvento, AsambleaPoder, Documento, Unidad, Usuario, ahora_utc)
+from app.models import (Asamblea, AsambleaAsistente, AsambleaDocumento, AsambleaEvento, AsambleaPoder, AsambleaVotacion, Documento, Unidad, Usuario, ahora_utc)
 from app.notificaciones import notificar
 from app.schemas import asambleas as esq
 from app.schemas.negocio import MensajeResponse
@@ -423,6 +423,8 @@ def cerrar(asamblea_id: int, db: Session = Depends(get_db), admin: Usuario = Dep
     reglas_unidades.sincronizar(db)
     a = reglas.obtener(db, asamblea_id, bloquear=True)
     reglas.exige_estado(a, EstadoAsamblea.EN_SESION, accion="cerrar")
+    if db.query(AsambleaVotacion.id).filter(AsambleaVotacion.asamblea_id == a.id, AsambleaVotacion.estado == "Abierta").first():     # V5.2: nunca se cierra la reunión con una votación sin cerrar
+        raise HTTPException(status_code=409, detail="Hay una votación abierta: ciérrala (o anúlala) antes de cerrar la asamblea.")
     q = reglas.quorum(db, a)
     a.estado = EstadoAsamblea.CERRADA.value
     a.cerrada_en = ahora_utc()

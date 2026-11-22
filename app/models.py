@@ -1,7 +1,7 @@
 # app/models.py
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -727,3 +727,73 @@ class AsambleaAsistente(Base):
     en_mora = Column(Boolean, nullable=False, default=False)
     con_voto = Column(Boolean, nullable=False, default=True)
     registrado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+
+
+# ==========================================
+#   V5.2 · VOTACIONES DENTRO DE LA ASAMBLEA (Ley 675 de 2001)
+# ==========================================
+class AsambleaVotacion(Base):
+    """Una pregunta que se vota dentro de una asamblea (punto del orden del día). Es independiente del motor de «Votaciones» del conjunto: allí se
+    vota por apartamentos con cuenta; aquí se vota por UNIDAD acreditada, con el coeficiente «fotografiado» y con el quórum validado por pregunta.
+    Al abrirla se guarda el padrón (quiénes pueden votar, con su coeficiente); al cerrarla se congela el resultado con su huella SHA-256."""
+    __tablename__ = "asamblea_votaciones"
+    __table_args__ = (
+        UniqueConstraint("asamblea_id", "numero", name="uq_asamblea_votacion_numero"),
+        # Solo UNA votación abierta por asamblea, garantizado por la base de datos y no solo por el código.
+        Index("uq_asamblea_votacion_una_abierta", "asamblea_id", unique=True, sqlite_where=text("estado = 'Abierta'"), postgresql_where=text("estado = 'Abierta'")),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    asamblea_id = Column(Integer, ForeignKey("asambleas.id"), nullable=False, index=True)
+    numero = Column(Integer, nullable=False)                          # consecutivo dentro de la asamblea
+    titulo = Column(String(160), nullable=False)
+    descripcion = Column(String(500), nullable=True)
+    tipo = Column(String(10), nullable=False)                         # Decisión | Elección
+    mayoria = Column(String(12), nullable=False, default="Simple")    # Simple | Calificada
+    estado = Column(String(10), nullable=False, default="Borrador")   # Borrador | Abierta | Cerrada | Anulada
+    creada_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    fecha_creacion = Column(DateTime, default=ahora_utc)
+    # --- al abrir ---
+    abierta_en = Column(DateTime, nullable=True)
+    abierta_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    padron = Column(Text, nullable=True)                              # JSON: unidades que pueden votar, con su coeficiente y por qué vía (App | Manual)
+    coef_padron = Column(Float, nullable=True)                        # suma del coeficiente del padrón (la base de la mayoría simple)
+    coef_total = Column(Float, nullable=True)                         # el 100 % del conjunto en ese momento (la base de la mayoría calificada)
+    quorum_apertura = Column(Float, nullable=True)                    # % del coeficiente presente al abrir
+    # --- al cerrar o anular ---
+    cerrada_en = Column(DateTime, nullable=True)
+    cerrada_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    quorum_cierre = Column(Float, nullable=True)
+    resultado = Column(Text, nullable=True)                           # JSON congelado del resultado
+    resultado_hash = Column(String(64), nullable=True)                # SHA-256 de ese JSON (también queda en la bitácora)
+    motivo_anulacion = Column(String(200), nullable=True)
+
+
+class AsambleaVotacionOpcion(Base):
+    """Una opción de la pregunta y cuánto lleva. El voto de la app es SECRETO: este contador no está unido a ninguna persona."""
+    __tablename__ = "asamblea_votacion_opciones"
+
+    id = Column(Integer, primary_key=True, index=True)
+    votacion_id = Column(Integer, ForeignKey("asamblea_votaciones.id"), nullable=False, index=True)
+    texto = Column(String(120), nullable=False)
+    orden = Column(Integer, nullable=False, default=0)
+    conteo = Column(Integer, nullable=False, default=0)               # unidades que la escogieron
+    peso = Column(Float, nullable=False, default=0.0)                 # suma de sus coeficientes (%)
+
+
+class AsambleaVoto(Base):
+    """Que una unidad YA votó (la restricción única impide votar dos veces, aunque lleguen dos peticiones a la vez).
+    Voto por la app (asistente virtual): `opcion_id` queda VACÍO, así nadie puede saber qué votó (voto secreto).
+    Voto registrado por el administrador (asistente presencial): `opcion_id` guarda lo que se votó (voto nominal, queda a nombre de la unidad)."""
+    __tablename__ = "asamblea_votos"
+    __table_args__ = (UniqueConstraint("votacion_id", "unidad_id", name="uq_asamblea_voto_unidad"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    votacion_id = Column(Integer, ForeignKey("asamblea_votaciones.id"), nullable=False, index=True)
+    unidad_id = Column(Integer, ForeignKey("unidades.id"), nullable=False)
+    asistente_id = Column(Integer, ForeignKey("asamblea_asistentes.id"), nullable=False)
+    peso = Column(Float, nullable=False)                              # coeficiente (%) con el que votó la unidad (el del padrón)
+    via = Column(String(6), nullable=False)                           # App | Manual
+    emitido_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    opcion_id = Column(Integer, ForeignKey("asamblea_votacion_opciones.id"), nullable=True)   # solo en votos Manual
+    fecha = Column(DateTime, default=ahora_utc)

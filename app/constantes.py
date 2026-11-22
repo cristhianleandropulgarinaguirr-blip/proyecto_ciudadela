@@ -217,3 +217,21 @@ class EstadoPoder(str, Enum):
     PENDIENTE = "Pendiente"     # el propietario lo subió; el administrador debe revisarlo
     APROBADO = "Aprobado"       # ya se puede acreditar al apoderado en la asamblea
     RECHAZADO = "Rechazado"
+
+
+# ---------- V5.2 · Votaciones dentro de la asamblea (Fase 3) ----------
+class TipoVotacionAsamblea(str, Enum):
+    DECISION = "Decisión"      # se aprueba o no: opciones fijas «A favor», «En contra» y «Abstención»
+    ELECCION = "Elección"      # se escoge entre candidatos u opciones que escribe el administrador (gana la de más coeficiente)
+
+
+class MayoriaAsamblea(str, Enum):
+    SIMPLE = "Simple"              # más de la mitad del coeficiente presente con derecho a voto al abrir la votación
+    CALIFICADA = "Calificada"      # 70 % o más del coeficiente de TODO el conjunto (Ley 675, Art. 45 y 46)
+
+
+class EstadoVotacionAsamblea(str, Enum):
+    BORRADOR = "Borrador"      # el administrador la preparó; aún no se puede votar
+    ABIERTA = "Abierta"        # se está votando (solo una a la vez por asamblea)
+    CERRADA = "Cerrada"        # resultado calculado y congelado con su huella
+    ANULADA = "Anulada"        # no vale: queda el motivo en la bitácora

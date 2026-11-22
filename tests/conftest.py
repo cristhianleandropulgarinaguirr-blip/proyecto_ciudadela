@@ -30,6 +30,17 @@ _VALORES_DE_PRUEBA = {
     "SUPABASE_URL": "",
     "SUPABASE_SECRET_KEY": "",
     "PAGOS_SIMULADOS": "1",
+    # v5.3: valores de la landing/demo y de marca. Si tu .env real los define (p. ej. tu WhatsApp), antes se colaban en las pruebas
+    # y hacían fallar test_sin_whatsapp_configurado_no_hay_numero_en_la_pagina. Aquí se fijan «vacíos» o por defecto.
+    "MODO_DEMO": "0",
+    "LANDING_ACTIVA": "1",
+    "DOCS_ACTIVAS": "1",
+    "DEMO_WHATSAPP": "",
+    "DEMO_CONTACTO": "",
+    "DEMO_CORREO": "",
+    "TELEGRAM_BOT_TOKEN": "",
+    "TELEGRAM_CHAT_ID": "",
+    "MARCA_COLOR": "",
 }
 os.environ.update(_VALORES_DE_PRUEBA)
 

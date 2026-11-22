@@ -1692,3 +1692,13 @@ html[data-modo-demo]::after {
   padding: calc(.12rem + env(safe-area-inset-top, 0px) * 0) .85rem .16rem; border-radius: 0 0 10px 10px;
   background: #B45309; color: #fff; font: 700 .72rem/1.25 var(--f-ui, system-ui, sans-serif); letter-spacing: .16em; box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
 }
+
+/* ==========================================================================
+   v5.2 · Votaciones dentro de la asamblea
+   Para volver atrás: borra este bloque y deshaz los cambios marcados «V5.2» en js/vistas/asambleas.js.
+   ========================================================================== */
+.asm-medidor.fino { height: 12px; margin: .3rem 0 .6rem; }
+.asm-opcion-res { margin: .4rem 0; }
+.asm-votacion, .asm-votaciones { display: grid; gap: .6rem; }
+.asm-votacion-cerrada { border-top: 1px solid var(--linea); padding-top: .8rem; margin-top: .4rem; }
+.asm-votaciones .acciones-fila .btn { min-height: 48px; flex: 1 1 8rem; }   /* botones grandes para votar desde el celular */

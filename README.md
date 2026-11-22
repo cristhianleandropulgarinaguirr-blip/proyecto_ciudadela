@@ -445,3 +445,5 @@ Fase 3 (legal y operativo): coeficiente de copropiedad, votación ponderada con 
 Versión 4.7: las solicitudes de demo llegan por WhatsApp al vendedor (CallMeBot, `CALLMEBOT_APIKEY`) y ya no las ve ningún administrador de la app; la landing y «Solicitar demo» existen solo donde `LANDING_ACTIVA=1` (servicio de la demo) y en la app real (`LANDING_ACTIVA=0`) la raíz abre directo la app. Sin migración nueva. Ver `PASOS_V4.7.md`.
 
 Versión 4.8: el aviso de solicitudes de demo al vendedor es por Telegram (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`; CallMeBot tiene el cupo lleno) y al terminar el formulario la landing ofrece enviar los datos por WhatsApp ya escritos. El cliente solo usa WhatsApp. Ver `PASOS_V4.8.md`.
+
+Versión 5.2: asambleas, Fase 3 — votaciones dentro de la asamblea (padrón congelado al abrir, voto secreto desde la app para asistentes virtuales, voto presencial registrado por el administrador, mayoría simple o calificada del 70 % con bloqueos en reuniones virtuales/mixtas y en segunda convocatoria, quórum validado por pregunta y resultado congelado con huella SHA-256). **Recuerda `alembic upgrade head` (migración 0023).** Ver `PASOS_V5.2.md`.

@@ -200,3 +200,12 @@ ASAMBLEA_MAX_PODERES = _entero("ASAMBLEA_MAX_PODERES", 2) or 2                  
 ASAMBLEA_SABADO_HABIL = os.getenv("ASAMBLEA_SABADO_HABIL", "0").strip() in ("1", "true", "True", "si", "sí")   # ¿el sábado cuenta como día hábil para la 2.ª convocatoria?
 ASAMBLEA_EXIGE_FINANCIEROS = os.getenv("ASAMBLEA_EXIGE_FINANCIEROS", "1").strip() not in ("0", "false", "False", "no")   # asamblea ordinaria: exige adjuntar estados financieros
 ASAMBLEA_BLOQUEA_PODER_STAFF = os.getenv("ASAMBLEA_BLOQUEA_PODER_STAFF", "1").strip() not in ("0", "false", "False", "no")   # el administrador y el personal no reciben poderes
+
+# Versión 5.2 — votaciones dentro de la asamblea. Son decisiones PRUDENTES que debe validar un abogado de propiedad horizontal; si tu reglamento dice otra cosa, manda el reglamento.
+def _si(nombre: str, defecto: str = "1") -> bool:
+    return os.getenv(nombre, defecto).strip() not in ("0", "false", "False", "no")
+
+
+ASAMBLEA_BLOQUEA_70_VIRTUAL = _si("ASAMBLEA_BLOQUEA_70_VIRTUAL")     # no se abren votaciones de mayoría calificada (70 %) en reuniones no presenciales (virtuales)
+ASAMBLEA_BLOQUEA_70_MIXTA = _si("ASAMBLEA_BLOQUEA_70_MIXTA")         # ídem en reuniones mixtas (hay votantes a distancia): lo prudente es bloquearlas también
+ASAMBLEA_BLOQUEA_70_SEGUNDA = _si("ASAMBLEA_BLOQUEA_70_SEGUNDA")     # ídem cuando la asamblea se instaló en segunda convocatoria
