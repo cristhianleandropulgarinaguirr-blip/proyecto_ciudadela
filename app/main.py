@@ -75,7 +75,7 @@ TAGS = [
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 # Con DOCS_ACTIVAS=0 las tres rutas de documentación desaparecen (responden 404), como si no existieran.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="5.2.0", openapi_tags=TAGS,
+              version="5.3.0", openapi_tags=TAGS,
               docs_url="/docs" if config.DOCS_ACTIVAS else None,
               redoc_url="/redoc" if config.DOCS_ACTIVAS else None,
               openapi_url="/openapi.json" if config.DOCS_ACTIVAS else None)
@@ -223,6 +223,13 @@ async def cabeceras_de_seguridad(request: Request, call_next):
     respuesta.headers.setdefault("X-Frame-Options", "DENY")
     respuesta.headers.setdefault("Referrer-Policy", "same-origin")
     respuesta.headers.setdefault("Permissions-Policy", "camera=(self), microphone=(), geolocation=()")   # la cámara la usa el escáner QR
+    # v5.3 · aislamiento del origen y nada de caché para datos personales: ni el navegador ni un proxy guardan listados, PDF o Excel de los residentes.
+    respuesta.headers.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+    respuesta.headers.setdefault("Cross-Origin-Resource-Policy", "same-origin")
+    respuesta.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
+    tipo = respuesta.headers.get("content-type", "")
+    if tipo.startswith("application/json") or "pdf" in tipo or "spreadsheet" in tipo:
+        respuesta.headers.setdefault("Cache-Control", "no-store")
     if request.headers.get("x-forwarded-proto", request.url.scheme) == "https":
         respuesta.headers.setdefault("Strict-Transport-Security", "max-age=31536000")
     if request.url.path.startswith("/app"):

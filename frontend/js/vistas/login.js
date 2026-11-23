@@ -21,6 +21,10 @@ export function vistaLogin(alIngresar) {
     ver.setAttribute("aria-label", visible ? "Mostrar contraseña" : "Ocultar contraseña");
   });
   const boton = h("button", { class: "btn block", type: "submit" }, "Ingresar", icono("flecha", 18));
+  // v5.3 · segundo paso: aparece solo cuando el servidor lo pide (cuenta con verificación en dos pasos).
+  const codigo = h("input", { id: "codigo2fa", type: "text", inputmode: "numeric", autocomplete: "one-time-code", placeholder: " ", maxlength: 20 });
+  const campoCodigo = h("div", { class: "field", hidden: true }, codigo, h("label", { for: "codigo2fa" }, "Código de verificación"));
+  const ayudaCodigo = h("p", { class: "small muted", hidden: true, style: "margin:-.4rem 0 1rem" }, "Abre tu app de autenticación y escribe el código de 6 dígitos. ¿Perdiste el celular? Usa uno de tus códigos de recuperación.");
 
   const form = h("form", { novalidate: true, onsubmit: async (e) => {
     e.preventDefault();
@@ -28,17 +32,27 @@ export function vistaLogin(alIngresar) {
     if (!email.value.trim() || !clave.value) return fallar("Escribe tu correo y tu contraseña.");
     try {
       await conCarga(boton, async () => {
-        const r = await api("/auth/login", { metodo: "POST", form: { username: email.value.trim(), password: clave.value } });
+        const cabeceras = codigo.value.trim() ? { "X-Codigo-2FA": codigo.value.trim() } : undefined;
+        const r = await api("/auth/login", { metodo: "POST", form: { username: email.value.trim(), password: clave.value }, cabeceras });
         sesion.guardar(r);          // token corto en esta pestaña; la renovación va en una cookie HttpOnly
       });
       alIngresar();
-    } catch (err) { fallar(err.message); }
+    } catch (err) {
+      if (err.requiere2fa) {      // contraseña correcta: falta (o es incorrecto) el código del segundo paso
+        const habiaCodigo = !campoCodigo.hidden;
+        campoCodigo.hidden = ayudaCodigo.hidden = false; codigo.focus();
+        if (habiaCodigo) { codigo.select(); return fallar(err.message); }
+        error.hidden = true; return;
+      }
+      fallar(err.message);
+    }
   } },
     h("h2", {}, "Bienvenido de nuevo"),
     h("p", { class: "sub" }, "Ingresa con la cuenta que te creó la administración."),
     error,
     h("div", { class: "field" }, email, h("label", { for: "email" }, "Correo electrónico")),
     h("div", { class: "field" }, clave, h("label", { for: "clave" }, "Contraseña"), ver),
+    campoCodigo, ayudaCodigo,
     boton,
     h("p", { class: "nota-cierre" }, "¿Olvidaste tu contraseña o aún no tienes cuenta? Pídela en la administración de tu conjunto."));
 
@@ -49,8 +63,8 @@ export function vistaLogin(alIngresar) {
     for (const selector of [":-webkit-autofill", ":autofill"]) { try { if (campo.matches(selector)) return true; } catch { /* el navegador no conoce ese selector */ } }
     return false;
   };
-  const sincronizar = () => [email, clave].forEach((campo) => campo.parentElement?.classList.toggle("lleno", estaRelleno(campo)));
-  [email, clave].forEach((campo) => ["input", "change", "animationstart", "focus", "blur"].forEach((ev) => campo.addEventListener(ev, sincronizar)));
+  const sincronizar = () => [email, clave, codigo].forEach((campo) => campo.parentElement?.classList.toggle("lleno", estaRelleno(campo)));
+  [email, clave, codigo].forEach((campo) => ["input", "change", "animationstart", "focus", "blur"].forEach((ev) => campo.addEventListener(ev, sincronizar)));
   [0, 100, 300, 800, 1500, 3000].forEach((ms) => setTimeout(sincronizar, ms));   // el autocompletar llega unos instantes después de pintar
   window.addEventListener("pageshow", sincronizar);
 

@@ -3,6 +3,7 @@ import { api, sesion, cuandoExpire, restaurarSesion, cerrarEnServidor, esErrorDe
 import { borrarAutoTodos } from "./autoguardado.js";
 import { h, icono, logo, toast, iniciales, vaciar, esqueleto, estadoVacio, botonTema, confirmar, modal, propio } from "./ui.js";
 import { vistaLogin } from "./vistas/login.js";
+import "./reauth.js";     // v5.3: ventana «Confirma tu contraseña» para acciones sensibles
 import { crearCampana, detenerCampana, actualizarCampana } from "./campana.js";
 import { registrarServiceWorker } from "./instalar.js";
 import { red } from "./red.js";

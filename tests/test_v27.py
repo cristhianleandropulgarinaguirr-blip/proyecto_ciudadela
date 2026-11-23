@@ -32,7 +32,8 @@ def test_la_sesion_del_guarda_dura_un_turno_y_la_de_los_demas_no(client, db):
     # El token de acceso es corto para todos (se renueva solo); lo que dura un turno es la sesión de la portería.
     assert vida_del_token(client, CEL) < 0.3 and vida_del_token(client, ANA) < 0.3 and vida_del_token(client, ADM) < 0.3
     assert GUARDIA_TOKEN_HORAS - 0.1 < vida_de_la_sesion(client, db, CEL) <= GUARDIA_TOKEN_HORAS
-    assert vida_de_la_sesion(client, db, ADM) > 24 * 6 and vida_de_la_sesion(client, db, ANA) > 24 * 13
+    # v5.3: el administrador ya NO tiene 7 días: su sesión se cierra tras 8 h sin actividad (SESION_INACTIVIDAD_ADMIN_MIN); residentes e inquilinos siguen con 14 días.
+    assert 7.9 < vida_de_la_sesion(client, db, ADM) <= 8 and vida_de_la_sesion(client, db, ANA) > 24 * 13
 
 
 # ------------------------------------------------------------ visita de un solo día

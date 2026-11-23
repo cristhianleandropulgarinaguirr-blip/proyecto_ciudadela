@@ -55,6 +55,12 @@ class Usuario(Base):
     debe_cambiar_password = Column(Boolean, default=False, nullable=False)
     politica_datos_fecha = Column(DateTime, nullable=True)   # cuándo aceptó la política de tratamiento de datos
 
+    # v5.3 · verificación en dos pasos (TOTP). El secreto va CIFRADO (app/totp.py); los códigos de recuperación, solo como hash.
+    totp_secreto = Column(String, nullable=True)
+    totp_activo = Column(Boolean, default=False, nullable=False, server_default=text("false"))
+    totp_ultimo_paso = Column(Integer, nullable=True)         # último «paso» de 30 s aceptado: un código no se puede usar dos veces
+    codigos_recuperacion = Column(Text, nullable=True)        # JSON con los hashes de los códigos de uso único que quedan
+
     @property
     def politica_aceptada(self) -> bool:
         return self.politica_datos_fecha is not None

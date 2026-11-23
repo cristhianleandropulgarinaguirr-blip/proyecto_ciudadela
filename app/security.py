@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 import jwt
 
-from app.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, BCRYPT_ROUNDS, MODO_DEMO, obtener_secret_key
+from app.config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, BCRYPT_ROUNDS, MODO_DEMO, REAUTH_MINUTOS, obtener_secret_key
 
 # v5.0: en MODO_DEMO los tokens se firman con otra clave derivada: un token de la demo jamás es válido en la app real (ni al revés), aunque ambas
 # usen el mismo SECRET_KEY del .env.
@@ -61,3 +61,25 @@ def nuevo_token_renovacion() -> str:
 
 def hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+# ---------------------------------------------------------------- v5.3 · confirmación de contraseña (acciones sensibles)
+# El «pase de reautenticación» se firma con OTRA clave derivada: aunque lleve usuario_id y sid, jamás sirve como token de acceso.
+_CLAVE_REAUTH = SECRET_KEY + ":reauth-v1"
+
+
+def crear_token_reauth(usuario_id: int, sid: str) -> str:
+    return jwt.encode({"usuario_id": usuario_id, "sid": sid, "tipo": "reauth", "exp": datetime.now(timezone.utc) + timedelta(minutes=REAUTH_MINUTOS)},
+                      _CLAVE_REAUTH, algorithm=ALGORITHM)
+
+
+def decodificar_token_reauth(token: str) -> dict:
+    datos = jwt.decode(token, _CLAVE_REAUTH, algorithms=[ALGORITHM])
+    if datos.get("tipo") != "reauth":
+        raise jwt.InvalidTokenError("no es un pase de reautenticación")
+    return datos
+
+
+# Hash bcrypt de una clave que nadie conoce: cuando el correo NO existe se calcula igual una comparación, para que la respuesta tarde
+# lo mismo que con un correo real y el tiempo no delate qué cuentas existen.
+HASH_FALSO = encriptar_password(secrets.token_urlsafe(16))

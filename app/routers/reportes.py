@@ -22,7 +22,7 @@ from app.auditoria import auditar
 from app import arrendamientos as reglas_arr, config, marca
 from app.constantes import Delegacion, RolNombre
 from app.database import get_db
-from app.dependencies import get_current_user, requiere_roles
+from app.dependencies import get_current_user, reauth_admin, requiere_roles
 from app.models import AccesoVisitante, Auditoria, Pago, Paquete, PQRS, Rol, Usuario, VisitanteAutorizado
 from app.routers.pqrs import radicado
 
@@ -74,7 +74,7 @@ def _excel(hoja: str, titulo: str, encabezados: list[str], filas: list[list], ar
 
 @router.get("/cartera.xlsx", summary="Exportar la cartera a Excel", response_class=Response,
             description="Solo **Administrador**. Un renglón por residente: cuota, saldo y si está al día.")
-def cartera(db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
+def cartera(db: Session = Depends(get_db), admin: Usuario = Depends(reauth_admin)):
     residentes = (db.query(Usuario).join(Rol, Rol.id == Usuario.rol_id).filter(Rol.nombre == RolNombre.RESIDENTE.value)
                   .order_by(Usuario.apartamento, Usuario.nombre_completo).limit(MAX_FILAS).all())
     filas = [[u.apartamento, u.nombre_completo, u.email, u.valor_administracion, u.saldo_pendiente, "Al día" if u.saldo_pendiente == 0 else "En mora",
@@ -87,7 +87,7 @@ def cartera(db: Session = Depends(get_db), admin: Usuario = Depends(requiere_rol
 
 
 @router.get("/pqrs.xlsx", summary="Exportar las PQRS a Excel", response_class=Response, description="Solo **Administrador**.")
-def pqrs(db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
+def pqrs(db: Session = Depends(get_db), admin: Usuario = Depends(reauth_admin)):
     resp = aliased(Usuario)
     filas = (db.query(PQRS, Usuario, resp.nombre_completo).join(Usuario, Usuario.id == PQRS.usuario_id)
              .outerjoin(resp, resp.id == PQRS.respondido_por).order_by(PQRS.id.desc()).limit(MAX_FILAS).all())
@@ -100,7 +100,7 @@ def pqrs(db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(
 
 
 @router.get("/paquetes.xlsx", summary="Exportar los paquetes a Excel", response_class=Response, description="Solo **Administrador**.")
-def paquetes(db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
+def paquetes(db: Session = Depends(get_db), admin: Usuario = Depends(reauth_admin)):
     rec, ent = aliased(Usuario), aliased(Usuario)
     filas = (db.query(Paquete, Usuario, rec.nombre_completo, ent.nombre_completo).join(Usuario, Usuario.id == Paquete.destinatario_id)
              .outerjoin(rec, rec.id == Paquete.recibido_por).outerjoin(ent, ent.id == Paquete.entregado_por)
@@ -114,7 +114,7 @@ def paquetes(db: Session = Depends(get_db), admin: Usuario = Depends(requiere_ro
 
 
 @router.get("/visitantes.xlsx", summary="Exportar los ingresos de visitantes a pie a Excel", response_class=Response, description="Solo **Administrador**.")
-def visitantes(db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
+def visitantes(db: Session = Depends(get_db), admin: Usuario = Depends(reauth_admin)):
     anf, gi, go = aliased(Usuario), aliased(Usuario), aliased(Usuario)
     filas = (db.query(AccesoVisitante, VisitanteAutorizado, anf, gi.nombre_completo, go.nombre_completo)
              .join(VisitanteAutorizado, VisitanteAutorizado.id == AccesoVisitante.visitante_id).join(anf, anf.id == VisitanteAutorizado.usuario_id)
@@ -130,7 +130,7 @@ def visitantes(db: Session = Depends(get_db), admin: Usuario = Depends(requiere_
 
 @router.get("/auditoria.xlsx", summary="Exportar la auditoría a Excel", response_class=Response,
             description="Solo **Administrador**. Mismo filtro `entidad` que la pantalla de auditoría.")
-def auditoria(entidad: Optional[str] = Query(None, max_length=30), db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
+def auditoria(entidad: Optional[str] = Query(None, max_length=30), db: Session = Depends(get_db), admin: Usuario = Depends(reauth_admin)):
     q = db.query(Auditoria, Usuario.nombre_completo).outerjoin(Usuario, Usuario.id == Auditoria.actor_id)
     if entidad:
         q = q.filter(Auditoria.entidad == entidad)

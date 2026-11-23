@@ -15,9 +15,12 @@ os.environ.setdefault("BCRYPT_ROUNDS", "4")   # bcrypt rápido solo en pruebas (
 _VALORES_DE_PRUEBA = {
     "ACCESS_TOKEN_EXPIRE_MINUTES": "15",
     "GUARDIA_TOKEN_HORAS": "12",
-    "SESION_DIAS_ADMIN": "7",
     "SESION_DIAS": "14",
-    "SESION_MAXIMA_DIAS": "60",
+    "SESION_MAXIMA_DIAS": "30",
+    "SESION_INACTIVIDAD_ADMIN_MIN": "480",
+    "SESION_MAXIMA_ADMIN_HORAS": "72",
+    "REAUTH_ACTIVA": "0",         # v5.3: las pruebas viejas no repiten la contraseña en cada acción sensible; las de la v5.3 lo encienden a propósito
+    "EXIGIR_2FA_ADMIN": "0",
     "VAPID_PUBLIC_KEY": "",      # sin claves push: así se prueba el modo «apagado»
     "VAPID_PRIVATE_KEY": "",
     "SMTP_HOST": "",             # sin correo real

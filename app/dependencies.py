@@ -5,16 +5,16 @@
 from typing import Optional
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
-from app import arrendamientos
+from app import arrendamientos, config
 from app.constantes import RolNombre
 from app.database import get_db
 from app.models import Usuario
 from app import sesiones
-from app.security import decodificar_token
+from app.security import decodificar_token, decodificar_token_reauth
 
 # tokenUrl hace que Swagger muestre el botón "Authorize" y pida usuario/clave.
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -71,3 +71,20 @@ def requiere_roles(*roles_permitidos: RolNombre):
         return usuario
 
     return verificador
+
+
+def reauth_admin(request: Request, usuario: Usuario = Depends(requiere_roles(RolNombre.ADMINISTRADOR)),
+                 sid: Optional[str] = Depends(sid_actual)) -> Usuario:
+    """v5.3 · Acciones sensibles del administrador (crear o desactivar usuarios, restablecer claves, coeficientes, importar y exportar datos):
+    además de la sesión exige un «pase» reciente (cabecera X-Reauth) que se obtiene confirmando la contraseña en POST /auth/reautenticar.
+    Así, una pantalla que quedó abierta o una sesión robada no basta para hacer daño. La app web lo pide sola en una ventana emergente."""
+    if not config.REAUTH_ACTIVA:
+        return usuario
+    try:
+        pase = decodificar_token_reauth(request.headers.get("x-reauth", ""))
+    except jwt.PyJWTError:
+        pase = None
+    if not pase or pase.get("usuario_id") != usuario.id or pase.get("sid") != sid:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Por seguridad, confirma tu contraseña para continuar.",
+                            headers={"X-Reauth-Requerida": "1"})
+    return usuario

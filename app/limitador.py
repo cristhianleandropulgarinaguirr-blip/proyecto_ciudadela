@@ -82,3 +82,10 @@ SOLICITUDES_DEMO = Ventana(maximo=5, segundos=600)
 SOLICITUDES_DEMO_TOTAL = Ventana(maximo=40, segundos=3600)
 # V4.2 · Pasarela de pruebas: por persona, 20 pasos (crear intento o pagar) cada 10 minutos. En la pasarela real esto frena a quien prueba tarjetas robadas.
 PAGOS_SIMULADOS_USUARIO = Ventana(maximo=20, segundos=600)
+
+
+# v5.3 · Fallos de inicio de sesión por dirección IP (además del bloqueo por correo, que no depende de la IP): 30 en 10 minutos.
+# Vale para frenar a quien prueba muchos correos distintos desde un mismo sitio. Detrás de un proxy la IP viene de X-Forwarded-For, que quien
+# envía puede escribir: por eso el bloqueo por correo sigue siendo la defensa principal y esta es una segunda barrera.
+from app import config as _config  # noqa: E402
+LOGIN_FALLOS_IP = Ventana(maximo=_config.LOGIN_FALLOS_POR_IP, segundos=600)

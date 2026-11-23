@@ -22,7 +22,14 @@ const ssDel = (k) => { try { sessionStorage.removeItem(k); } catch { /* nada */ 
 // Limpieza de la versión anterior: el token ya NO se guarda en localStorage (cualquier script de la página podía leerlo).
 lsDel("ciudadela.token"); ssDel("ciudadela.token");
 
+// v5.3 · ACTIVIDAD REAL: la app renueva el token sola mientras la pestaña esté abierta, así que el servidor necesita saber si la persona de verdad
+// está usando la pantalla (clic, tecla, toque). Se avisa en cada renovación con X-Actividad; el administrador que se va y deja la pestaña abierta se cierra solo.
+let hayActividad = true;           // abrir la app ya cuenta como actividad
+const marcarActividad = () => { hayActividad = true; };
+for (const ev of ["pointerdown", "keydown", "touchstart", "wheel"]) addEventListener(ev, marcarActividad, { passive: true, capture: true });
+
 let acceso = null;                 // { t: token, exp: ms epoch }
+let pase = null;                   // { t, exp }: «pase» de contraseña confirmada para acciones sensibles (solo en memoria; se pierde al recargar)
 try { const g = JSON.parse(ssGet(TOKEN) ?? "null"); if (g?.t && g.exp) acceso = g; } catch { /* sin sesión guardada */ }
 
 export const sesion = {
@@ -34,14 +41,20 @@ export const sesion = {
     ssSet(TOKEN, JSON.stringify(acceso)); lsSet(PISTA, "1");
   },
   /** Borra la sesión de este navegador (no avisa al servidor: para eso está `cerrarEnServidor`). */
-  cerrar() { acceso = null; ssDel(TOKEN); lsDel(PISTA); lecturas.clear(); },
+  cerrar() { acceso = null; pase = null; ssDel(TOKEN); lsDel(PISTA); lecturas.clear(); },
+  guardarPase(token, segundos) { pase = { t: token, exp: Date.now() + (segundos ?? 300) * 1000 }; },
+  get pase() { return pase && pase.exp - Date.now() > 5000 ? pase.t : null; },
 };
+
+// Quien pide la contraseña (ventana emergente) se registra aquí desde reauth.js; devuelve true si la persona la confirmó.
+let pedirClaveFn = async () => false;
+export const cuandoPidaClave = (fn) => { pedirClaveFn = fn; };
 
 let alExpirar = () => {};
 export const cuandoExpire = (fn) => { alExpirar = fn; };
 
 export class ApiError extends Error {
-  constructor(mensaje, status) { super(mensaje); this.status = status; }
+  constructor(mensaje, status, extra = {}) { super(mensaje); this.status = status; Object.assign(this, extra); }
   get sinRed() { return this.status === 0; }
 }
 export const esErrorDeRed = (e) => e instanceof ApiError && e.status === 0;
@@ -52,7 +65,8 @@ let renovando = null;
 export function renovar() {
   return (renovando ??= (async () => {
     try {
-      const res = await fetch("/auth/refresh", { method: "POST", headers: CSRF, credentials: "same-origin" });
+      const res = await fetch("/auth/refresh", { method: "POST", headers: { ...CSRF, "X-Actividad": hayActividad ? "1" : "0" }, credentials: "same-origin" });
+      if (res.ok) hayActividad = false;
       if (res.ok) { sesion.guardar(await res.json()); return "ok"; }
       if (res.status === 401 || res.status === 403) return "negada";
       return "sin-red";                       // 5xx o el servidor despertando: no es lo mismo que «sesión cerrada»
@@ -98,11 +112,12 @@ function mensajeDe(datos, status) {
 const espera = (ms) => new Promise((f) => setTimeout(f, ms));
 const TRANSITORIOS = new Set([502, 503, 504]);    // el servidor gratis de Render devuelve esto mientras despierta
 
-async function enviar(ruta, { metodo = "GET", params, json, form, cuerpo, timeout = 25000 }, token) {
+async function enviar(ruta, { metodo = "GET", params, json, form, cuerpo, timeout = 25000, cabeceras }, token) {
   let url = ruta;
   if (params) url += "?" + new URLSearchParams(params);
-  const headers = {};
+  const headers = { ...(cabeceras ?? {}) };
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (token && sesion.pase) headers["X-Reauth"] = sesion.pase;      // v5.3: pase de contraseña confirmada (solo lo usan las acciones sensibles)
   let body;
   if (json) { headers["Content-Type"] = "application/json"; body = JSON.stringify(json); }
   else if (form) body = new URLSearchParams(form);   // login = application/x-www-form-urlencoded
@@ -137,9 +152,13 @@ async function pedir(ruta, opc = {}) {
     else if (r === "negada") { alExpirar(); }
     else throw new ApiError("Sin conexión con el servidor. Revisa tu internet.", 0);
   }
+  // v5.3 · acción sensible: el servidor pide confirmar la contraseña. Se abre la ventana, se guarda el pase y se repite la petición UNA vez.
+  if (res.status === 403 && res.headers.get("X-Reauth-Requerida") === "1" && !esAuth) {
+    if (await pedirClaveFn()) res = await enviar(ruta, opc, sesion.token);
+  }
   if (!res.ok) {
     const datos = await res.json().catch(() => null);
-    throw new ApiError(mensajeDe(datos, res.status), res.status);
+    throw new ApiError(mensajeDe(datos, res.status), res.status, { requiere2fa: res.headers.get("X-2FA-Requerida") === "1", pideClave: res.headers.get("X-Reauth-Requerida") === "1" });
   }
   return res;
 }

@@ -14,5 +14,6 @@ reportlab==5.0.1
 psycopg2-binary==2.9.13
 httpx==0.28.1            # cliente de Supabase Storage
 pywebpush==2.5.0         # avisos push al celular (Web Push + VAPID)
+cryptography>=42,<51     # v5.3: cifra el secreto de la verificación en dos pasos (ya la trae pywebpush; aquí se declara a propósito)
 # Solo para correr las pruebas automáticas
 pytest==9.2.0

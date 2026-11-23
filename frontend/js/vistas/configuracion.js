@@ -1,5 +1,5 @@
 // Configuración personal: perfil y preferencias de apariencia (se guardan en este dispositivo).
-import { h, icono, toast, conCarga, deUtc, hace, confirmar } from "../ui.js";
+import { h, icono, toast, conCarga, deUtc, hace, confirmar, modal } from "../ui.js";
 import { cabecera } from "./comun.js";
 import { api } from "../api.js";
 import { marca } from "../marca.js";
@@ -53,6 +53,102 @@ function filaAvisos() {
   return caja;
 }
 
+// v5.3 · Verificación en dos pasos (solo administrador): además de la contraseña, un código de 6 dígitos que cambia cada 30 s en el celular.
+function campoTexto(id, etiqueta, tipo = "text", extra = {}) {
+  const input = h("input", { id, type: tipo, placeholder: " ", required: true, ...extra });
+  return { input, caja: h("div", { class: "field" }, input, h("label", { for: id }, etiqueta)) };
+}
+const descargarTxt = (nombre, texto) => {
+  const a = h("a", { href: URL.createObjectURL(new Blob([texto], { type: "text/plain" })), download: nombre });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
+function mostrarCodigosRecuperacion(codigos, alCerrar) {
+  const m = modal("Guarda tus códigos de recuperación", h("div", {},
+    h("p", { class: "muted", style: "margin-bottom:.8rem" }, "Si pierdes el celular, cada uno de estos códigos te deja entrar UNA vez. Se muestran solo ahora: guárdalos en un lugar seguro (no en este mismo celular)."),
+    h("pre", { style: "font-size:1.05rem;line-height:1.8;text-align:center;background:var(--superficie-2,rgba(128,128,128,.12));padding:.8rem;border-radius:10px;user-select:all" }, codigos.join("\n")),
+    h("div", { class: "barra-mini", style: "margin-top:.8rem" },
+      h("button", { class: "btn suave sm", onclick: () => descargarTxt("codigos-de-recuperacion.txt", codigos.join("\n") + "\n") }, "Descargar"),
+      h("button", { class: "btn suave sm", onclick: async () => { try { await navigator.clipboard.writeText(codigos.join("\n")); toast("Códigos copiados."); } catch { toast("No se pudo copiar: descárgalos.", "error"); } } }, "Copiar"))),
+    { pie: [h("button", { class: "btn", onclick: () => m.cerrar() }, "Ya los guardé")] });
+  // «close» del modal anterior llega de forma asíncrona cuando ya se abrió este: solo cuenta el cierre en que el diálogo de verdad quedó cerrado.
+  const d = document.getElementById("modal");
+  const alCerrarModal = () => { if (!d.open) { d.removeEventListener("close", alCerrarModal); alCerrar(); } };
+  d.addEventListener("close", alCerrarModal);
+}
+
+function activarDosPasos(alTerminar) {
+  const err = h("div", { class: "msg-error", role: "alert", hidden: true });
+  const mostrar = (t) => { err.textContent = t; err.hidden = false; };
+  const clave = campoTexto("dp-clave", "Tu contraseña", "password", { autocomplete: "current-password" });
+  const paso1 = h("form", { novalidate: true, onsubmit: async (e) => {
+    e.preventDefault(); err.hidden = true;
+    try {
+      const r = await conCarga(e.submitter ?? paso1.querySelector("button[type=submit]"), () => api("/auth/2fa/iniciar", { metodo: "POST", json: { password: clave.input.value } }));
+      paso2(r);
+    } catch (x) { mostrar(x.message); }
+  } },
+    h("p", { class: "muted", style: "margin-bottom:.8rem" }, "Vas a vincular una app de autenticación (Google Authenticator, Microsoft Authenticator, Authy…). Primero confirma tu contraseña."),
+    err, clave.caja, h("div", { class: "modal-pie" }, h("button", { class: "btn", type: "submit" }, "Continuar")));
+  const m = modal("Activar la verificación en dos pasos", paso1);
+
+  function paso2(r) {
+    const codigo = campoTexto("dp-codigo", "Código de 6 dígitos", "text", { inputmode: "numeric", autocomplete: "one-time-code", maxlength: 8 });
+    const err2 = h("div", { class: "msg-error", role: "alert", hidden: true });
+    const f = h("form", { novalidate: true, onsubmit: async (e) => {
+      e.preventDefault(); err2.hidden = true;
+      try {
+        const res = await conCarga(f.querySelector("button[type=submit]"), () => api("/auth/2fa/activar", { metodo: "POST", json: { codigo: codigo.input.value } }));
+        m.cerrar(); mostrarCodigosRecuperacion(res.codigos_recuperacion, alTerminar);
+      } catch (x) { err2.textContent = x.message; err2.hidden = false; }
+    } },
+      h("p", { class: "muted" }, "1. Abre tu app de autenticación y escanea este código QR."),
+      h("img", { src: r.qr, alt: "Código QR para la app de autenticación", style: "display:block;margin:.6rem auto;width:200px;max-width:100%;background:#fff;padding:8px;border-radius:10px" }),
+      h("p", { class: "small muted", style: "text-align:center;word-break:break-all" }, "¿No puedes escanearlo? Escribe esta clave en la app: ", h("b", { style: "user-select:all" }, r.secreto)),
+      h("p", { class: "muted", style: "margin:.8rem 0" }, "2. Escribe el código de 6 dígitos que muestra la app para confirmar."),
+      err2, codigo.caja, h("div", { class: "modal-pie" }, h("button", { class: "btn", type: "submit" }, "Activar")));
+    modal("Activar la verificación en dos pasos", f);
+    setTimeout(() => codigo.input.focus(), 50);
+  }
+  setTimeout(() => clave.input.focus(), 50);
+}
+
+function pedirClaveYCodigo(titulo, textoBtn, accion, alTerminar, peligro = false) {
+  const err = h("div", { class: "msg-error", role: "alert", hidden: true });
+  const clave = campoTexto("dc-clave", "Tu contraseña", "password", { autocomplete: "current-password" });
+  const codigo = campoTexto("dc-codigo", "Código de la app o de recuperación", "text", { autocomplete: "one-time-code", maxlength: 20 });
+  const f = h("form", { novalidate: true, onsubmit: async (e) => {
+    e.preventDefault(); err.hidden = true;
+    try { const r = await conCarga(f.querySelector("button[type=submit]"), () => accion({ password: clave.input.value, codigo: codigo.input.value })); m.cerrar(); await alTerminar(r); }
+    catch (x) { err.textContent = x.message; err.hidden = false; }
+  } }, err, clave.caja, codigo.caja, h("div", { class: "modal-pie" }, h("button", { class: `btn ${peligro ? "arcilla" : ""}`, type: "submit" }, textoBtn)));
+  const m = modal(titulo, f);
+  setTimeout(() => clave.input.focus(), 50);
+}
+
+function tarjetaDosPasos() {
+  const cuerpo = h("div", {});
+  async function pintar() {
+    try {
+      const e = await api("/auth/2fa/estado");
+      const botones = e.activo
+        ? [h("button", { class: "btn suave sm", onclick: () => pedirClaveYCodigo("Generar códigos de recuperación nuevos", "Generar", (d) => api("/auth/2fa/codigos-nuevos", { metodo: "POST", json: d }),
+              (r) => new Promise((ok) => mostrarCodigosRecuperacion(r.codigos_recuperacion, () => { ok(); pintar(); }))) }, "Códigos nuevos"),
+           e.obligatorio ? null : h("button", { class: "btn peligro sm", onclick: () => pedirClaveYCodigo("Desactivar la verificación en dos pasos", "Desactivar", (d) => api("/auth/2fa/desactivar", { metodo: "POST", json: d }),
+              () => { toast("Verificación en dos pasos desactivada."); pintar(); }, true) }, "Desactivar")]
+        : [h("button", { class: "btn sm", onclick: () => activarDosPasos(pintar) }, icono("escudo", 16), "Activar")];
+      cuerpo.replaceChildren(
+        e.obligatorio && !e.activo ? h("div", { class: "msg-error", role: "alert" }, "La administración del conjunto exige la verificación en dos pasos. Actívala ahora para proteger la cuenta.") : null,
+        h("p", { class: "small muted", style: "margin-bottom:.8rem" }, e.activo
+          ? `Activa. Al iniciar sesión se pide, además de la contraseña, un código de tu celular. Te quedan ${e.codigos_restantes} código(s) de recuperación${e.codigos_restantes <= 2 ? " — genera nuevos pronto" : ""}.`
+          : "Recomendado para administradores: aunque alguien se entere de tu contraseña, no podrá entrar sin el código de tu celular."),
+        h("div", { class: "barra-mini" }, ...botones.filter(Boolean)));
+    } catch (x) { cuerpo.replaceChildren(h("p", { class: "small muted" }, x.message)); }
+  }
+  pintar();
+  return h("section", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Verificación en dos pasos")), cuerpo);
+}
+
 // Dispositivos con la sesión abierta: para cerrar el que no reconozcas.
 function tarjetaDispositivos() {
   const lista = h("div", { class: "lista" });
@@ -103,6 +199,7 @@ export async function render(ctx) {
         fila("Tamaño del texto", "Hazlo más grande para leer con más comodidad.",
           segmentado([["normal", "Normal"], ["grande", "Grande"]], p.texto, (v) => T().establecerPref("texto", v)))),
 
+      u.rol === "Administrador" ? tarjetaDosPasos() : null,
       tarjetaDispositivos(),
 
       h("section", { class: "card" },

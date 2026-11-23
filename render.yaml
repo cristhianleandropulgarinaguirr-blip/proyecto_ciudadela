@@ -37,6 +37,12 @@ services:
         sync: false
       - key: PAGOS_SIMULADOS
         value: "0"              # en producción NO hay pagos de mentira
+      - key: REAUTH_ACTIVA            # v5.3 · pide la contraseña de nuevo en acciones sensibles del administrador (crear/desactivar usuarios, exportar datos…)
+        value: "1"
+      - key: SESION_INACTIVIDAD_ADMIN_MIN   # v5.3 · el administrador se cierra tras estos minutos SIN actividad (480 = 8 horas)
+        value: "480"
+      - key: EXIGIR_2FA_ADMIN         # v5.3 · «1» = la verificación en dos pasos del administrador es obligatoria (actívala primero en Ajustes)
+        value: "0"
       - key: PAGOS_INSTRUCCIONES
         sync: false
       - key: CONJUNTO_NOMBRE          # v3.5 · página pública del pase de visitante (todo opcional)

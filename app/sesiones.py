@@ -34,8 +34,15 @@ def vida_sesion(usuario: Usuario) -> tuple[timedelta, timedelta]:
     """(vida deslizante, vida máxima absoluta) según el rol."""
     if usuario.rol == RolNombre.GUARDIA.value:
         return timedelta(hours=config.GUARDIA_TOKEN_HORAS), timedelta(hours=max(24, config.GUARDIA_TOKEN_HORAS))
-    dias = config.SESION_DIAS_ADMIN if usuario.rol == RolNombre.ADMINISTRADOR.value else config.SESION_DIAS
-    return timedelta(days=dias), timedelta(days=max(dias, config.SESION_MAXIMA_DIAS))
+    if usuario.rol == RolNombre.ADMINISTRADOR.value:
+        # v5.3: el administrador se cierra por INACTIVIDAD (8 h sin tocar la pantalla por defecto) y con un tope absoluto de 72 h.
+        return timedelta(minutes=config.SESION_INACTIVIDAD_ADMIN_MIN), timedelta(hours=config.SESION_MAXIMA_ADMIN_HORAS)
+    return timedelta(days=config.SESION_DIAS), timedelta(days=max(config.SESION_DIAS, config.SESION_MAXIMA_DIAS))
+
+
+def exige_actividad(usuario: Usuario) -> bool:
+    """¿La sesión de este rol solo se alarga cuando la persona HACE algo? (hoy, el administrador; el guardia deja la pantalla de portería abierta todo el turno)."""
+    return usuario.rol == RolNombre.ADMINISTRADOR.value
 
 
 # ---------------------------------------------------------------- validez rápida (caché de 15 s)
@@ -125,9 +132,11 @@ def _no_autorizado(detalle: str = "Tu sesión ya no es válida. Inicia sesión d
     return HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detalle)
 
 
-def renovar(db: Session, token: Optional[str]) -> tuple[Sesion, Optional[str], Usuario]:
+def renovar(db: Session, token: Optional[str], actividad: bool = True) -> tuple[Sesion, Optional[str], Usuario]:
     """Cambia un refresh token por otro nuevo. Devuelve (sesión, token_nuevo | None, usuario).
-    token_nuevo es None cuando la petición llegó dentro de la gracia de rotación (otra pestaña ya renovó): se emite solo el access token."""
+    token_nuevo es None cuando la petición llegó dentro de la gracia de rotación (otra pestaña ya renovó): se emite solo el access token.
+    `actividad`: la app avisa si la persona tocó la pantalla desde la última renovación. En los roles que exigen actividad (administrador)
+    sin ella el token se rota igual, pero el vencimiento NO se corre: una pestaña olvidada no mantiene la sesión abierta para siempre."""
     if not token:
         raise _no_autorizado()
     h = hash_token(token)
@@ -149,15 +158,16 @@ def renovar(db: Session, token: Optional[str]) -> tuple[Sesion, Optional[str], U
             db.commit()
         raise _no_autorizado()
     if s.revocada is not None or s.expira <= ahora or s.maxima <= ahora:
-        raise _no_autorizado("Tu sesión expiró. Inicia sesión de nuevo.")
+        raise _no_autorizado("Tu sesión expiró por inactividad. Inicia sesión de nuevo." if s.maxima > ahora else "Tu sesión expiró. Inicia sesión de nuevo.")
     u = db.get(Usuario, s.usuario_id)
     if u is None or not u.esta_activo:
         raise _no_autorizado()
     desliza, _ = vida_sesion(u)
     nuevo = nuevo_token_renovacion()
     s.token_anterior_hash, s.token_hash, s.rotado_en = s.token_hash, hash_token(nuevo), ahora
-    s.ultimo_uso = ahora
-    s.expira = min(ahora + desliza, s.maxima)
+    if actividad or not exige_actividad(u):
+        s.ultimo_uso = ahora
+        s.expira = min(ahora + desliza, s.maxima)
     return s, nuevo, u
 
 

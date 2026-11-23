@@ -7,6 +7,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _entero(nombre: str, defecto: int) -> int:
+    try:
+        return max(0, int(os.getenv(nombre, str(defecto))))
+    except ValueError:
+        return defecto
+
+
 def _normalizar_url_bd(url: str) -> str:
     """Acepta la URL tal como la entrega Supabase y la adapta a SQLAlchemy + psycopg2."""
     if url.startswith("postgres://"):
@@ -41,9 +48,22 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15")
 #   - Guardia: un turno completo (12 h por defecto), con tope absoluto de 24 h.
 #   - Administrador: 7 días · Residente: 14 días. Tope absoluto para todos: SESION_MAXIMA_DIAS (60).
 GUARDIA_TOKEN_HORAS = int(os.getenv("GUARDIA_TOKEN_HORAS", "12"))
-SESION_DIAS_ADMIN = int(os.getenv("SESION_DIAS_ADMIN", "7"))
 SESION_DIAS = int(os.getenv("SESION_DIAS", "14"))
-SESION_MAXIMA_DIAS = int(os.getenv("SESION_MAXIMA_DIAS", "60"))
+# v5.3 · tope absoluto para residentes e inquilinos: baja de 60 a 30 días (aunque la usen todos los días, a los 30 se pide la clave).
+SESION_MAXIMA_DIAS = int(os.getenv("SESION_MAXIMA_DIAS", "30"))
+# v5.3 · ADMINISTRADOR: la sesión se cierra por INACTIVIDAD REAL (sin tocar la pantalla), no por días. Mientras haya una pestaña abierta la
+# app renueva el token sola, así que lo que se mide es la última vez que la persona hizo algo (clic, tecla, toque). Tope absoluto aparte.
+SESION_INACTIVIDAD_ADMIN_MIN = _entero("SESION_INACTIVIDAD_ADMIN_MIN", 480) or 480          # 8 horas sin actividad = clave de nuevo
+SESION_MAXIMA_ADMIN_HORAS = _entero("SESION_MAXIMA_ADMIN_HORAS", 72) or 72                   # y como mucho 3 días seguidos, aunque la use sin parar
+# v5.3 · Confirmar la contraseña para acciones sensibles (crear o desactivar usuarios, restablecer claves, coeficientes, importar y exportar datos).
+# Con «1» (producción) la app pide la clave una vez y la recuerda REAUTH_MINUTOS. Las pruebas automáticas lo apagan para no repetirla en cada llamada.
+REAUTH_ACTIVA = os.getenv("REAUTH_ACTIVA", "1").strip() not in ("0", "false", "False", "no", "NO")
+REAUTH_MINUTOS = _entero("REAUTH_MINUTOS", 5) or 5
+# v5.3 · Verificación en dos pasos (TOTP: Google Authenticator, Microsoft Authenticator, Authy…) para el administrador.
+# EXIGIR_2FA_ADMIN=1 hace que la app muestre un aviso que no se puede ocultar hasta que el administrador la active.
+EXIGIR_2FA_ADMIN = os.getenv("EXIGIR_2FA_ADMIN", "0").strip() in ("1", "true", "True", "si", "sí")
+# v5.3 · Tope de fallos de inicio de sesión por dirección IP (además del bloqueo por correo): 30 fallos en 10 minutos.
+LOGIN_FALLOS_POR_IP = _entero("LOGIN_FALLOS_POR_IP", 30) or 30
 ALGORITHM = "HS256"
 # Coste de bcrypt (12 = recomendado en producción). Las pruebas automáticas lo bajan para correr en segundos.
 BCRYPT_ROUNDS = max(4, min(15, int(os.getenv("BCRYPT_ROUNDS", "12"))))
@@ -104,13 +124,6 @@ def obtener_secret_key() -> str:
 # Versión 2.9 — asistente de IA (borradores de PQRS, daños y avisos). La clave vive SOLO en el servidor (.env).
 #   PROVEEDOR_IA: gemini (gratis en Google AI Studio) | groq | compatible (cualquier API estilo OpenAI: exige IA_URL_BASE).
 #   Si falta la clave, el asistente queda apagado y toda la app funciona igual con sus formularios normales.
-def _entero(nombre: str, defecto: int) -> int:
-    try:
-        return max(0, int(os.getenv(nombre, str(defecto))))
-    except ValueError:
-        return defecto
-
-
 PROVEEDOR_IA = os.getenv("PROVEEDOR_IA", "gemini").strip().lower()
 IA_API_KEY = (os.getenv("IA_API_KEY") or os.getenv("GEMINI_API_KEY") or "").strip()
 IA_MODELO = os.getenv("IA_MODELO", "").strip()                    # vacío = modelo por defecto del proveedor

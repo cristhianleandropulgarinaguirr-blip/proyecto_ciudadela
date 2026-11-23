@@ -8,8 +8,9 @@ from app import arrendamientos, coeficientes, sesiones
 from app.auditoria import auditar
 from app.constantes import RolNombre
 from app.database import get_db
-from app.dependencies import get_current_user, requiere_roles
+from app.dependencies import get_current_user, reauth_admin, requiere_roles
 from app.models import Rol, Usuario
+from app.schemas.negocio import MensajeResponse
 from app.schemas.usuarios import CoeficienteUpdate, CoeficientesResumen, ParqueaderoUpdate, PasswordTemporalResponse, UsuarioCreateAdmin, UsuarioResponse
 from app.security import encriptar_password
 
@@ -36,7 +37,7 @@ def listar_usuarios(db: Session = Depends(get_db), _: Usuario = Depends(solo_adm
              summary="Crear un usuario con cualquier rol",
              description="Solo **Administrador**. Sirve para crear celadores (Guardia) u otros administradores.",
              responses={400: {"description": "El correo ya está registrado"}})
-def crear_usuario(datos: UsuarioCreateAdmin, db: Session = Depends(get_db), admin: Usuario = Depends(solo_admin)):
+def crear_usuario(datos: UsuarioCreateAdmin, db: Session = Depends(get_db), admin: Usuario = Depends(reauth_admin)):
     if db.query(Usuario).filter(Usuario.email == datos.email).first():
         raise HTTPException(status_code=400, detail="El correo electrónico ya se encuentra registrado.")
     if datos.rol == RolNombre.INQUILINO:
@@ -85,7 +86,7 @@ def resumen_coeficientes(db: Session = Depends(get_db), _: Usuario = Depends(sol
               description="Solo **Administrador**. Porcentaje del apartamento (Ley 675), de 0,0001 a 100. Solo para propietarios (rol Residente). "
                           "La suma de todos los apartamentos no puede pasar de 100. Enviar `null` lo quita.",
               responses={404: {"description": "Usuario no encontrado"}, 400: {"description": "No es residente o la suma pasaría de 100"}})
-def asignar_coeficiente(usuario_id: int, datos: CoeficienteUpdate, db: Session = Depends(get_db), admin: Usuario = Depends(solo_admin)):
+def asignar_coeficiente(usuario_id: int, datos: CoeficienteUpdate, db: Session = Depends(get_db), admin: Usuario = Depends(reauth_admin)):
     usuario = db.get(Usuario, usuario_id)
     if usuario is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
@@ -109,7 +110,7 @@ def asignar_coeficiente(usuario_id: int, datos: CoeficienteUpdate, db: Session =
               "Un administrador no puede desactivarse a sí mismo.",
               responses={404: {"description": "Usuario no encontrado"}, 400: {"description": "Acción no permitida"}})
 def cambiar_activo(usuario_id: int, esta_activo: bool, db: Session = Depends(get_db),
-                   admin: Usuario = Depends(solo_admin)):
+                   admin: Usuario = Depends(reauth_admin)):
     usuario = db.get(Usuario, usuario_id)
     if usuario is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
@@ -130,7 +131,7 @@ def cambiar_activo(usuario_id: int, esta_activo: bool, db: Session = Depends(get
                          "cambiarla al ingresar. Úsalo cuando alguien olvide su clave. No se puede usar sobre tu propia cuenta "
                          "(para eso está `POST /auth/cambiar-password`).",
              responses={404: {"description": "Usuario no encontrado"}, 400: {"description": "Es tu propia cuenta"}})
-def restablecer_password(usuario_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(solo_admin)):
+def restablecer_password(usuario_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(reauth_admin)):
     usuario = db.get(Usuario, usuario_id)
     if usuario is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado.")
@@ -143,3 +144,20 @@ def restablecer_password(usuario_id: int, db: Session = Depends(get_db), admin: 
     auditar(db, admin, "Restableció contraseña", "Seguridad", usuario.id, usuario.nombre_completo)
     db.commit()
     return {"password_temporal": temporal, "mensaje": f"Entrégale esta clave a {usuario.nombre_completo}. Deberá cambiarla al ingresar."}
+
+
+@router.delete("/{usuario_id}/2fa", response_model=MensajeResponse, summary="Quitar la verificación en dos pasos de otro administrador",
+               description="Solo **Administrador** (confirma su contraseña). Sirve cuando otro administrador perdió su celular y sus códigos de recuperación. "
+                           "Cierra todas las sesiones de esa cuenta; deberá activarla de nuevo. No se puede usar sobre tu propia cuenta (para eso está `POST /auth/2fa/desactivar`).",
+               responses={404: {"description": "Usuario no encontrado"}, 400: {"description": "Es tu propia cuenta"}})
+def quitar_dos_pasos(usuario_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(reauth_admin)):
+    if usuario_id == admin.id:
+        raise HTTPException(status_code=400, detail="Para tu propia cuenta usa «Desactivar» en Configuración.")
+    usuario = db.get(Usuario, usuario_id)
+    if usuario is None:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+    usuario.totp_activo, usuario.totp_secreto, usuario.totp_ultimo_paso, usuario.codigos_recuperacion = False, None, None, None
+    cerradas = sesiones.revocar_todas(db, usuario.id)
+    auditar(db, admin, "Quitó la verificación en dos pasos de otra cuenta", "Seguridad", usuario.id, f"{usuario.email}; cerró {cerradas} sesión(es)")
+    db.commit()
+    return {"mensaje": f"Se quitó la verificación en dos pasos de {usuario.nombre_completo}. Deberá activarla de nuevo."}

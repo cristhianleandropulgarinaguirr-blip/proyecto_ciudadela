@@ -17,7 +17,7 @@ from app import coeficientes, importacion as imp
 from app.auditoria import auditar
 from app.constantes import RolNombre
 from app.database import get_db
-from app.dependencies import requiere_roles
+from app.dependencies import reauth_admin, requiere_roles
 from app.models import Rol, Usuario
 from app.schemas.importaciones import CredencialNueva, FilaImportacion, ResumenImportacion
 from app.security import encriptar_password
@@ -228,7 +228,7 @@ def vista_previa(tipo: Tipo, archivo: UploadFile = File(...), db: Session = Depe
                          "salvo que envíes `omitir_errores=true` (entonces se guardan solo las válidas). En residentes, devuelve las **claves temporales** de las cuentas nuevas: "
                          "se muestran una sola vez.", responses={400: {"description": "Hay filas con errores o el archivo no sirve"}, 409: {"description": "Un correo se creó en paralelo"}})
 def aplicar(tipo: Tipo, omitir_errores: bool = Query(False), archivo: UploadFile = File(...), db: Session = Depends(get_db),
-            admin: Usuario = Depends(requiere_roles(ADMIN))):
+            admin: Usuario = Depends(reauth_admin)):
     evaluadas, nombre = _procesar(db, tipo, archivo)
     errores = sum(1 for f in evaluadas if f.accion == "error")
     if errores and not omitir_errores:

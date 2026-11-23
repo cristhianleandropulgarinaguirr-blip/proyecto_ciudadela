@@ -447,3 +447,10 @@ Versión 4.7: las solicitudes de demo llegan por WhatsApp al vendedor (CallMeBot
 Versión 4.8: el aviso de solicitudes de demo al vendedor es por Telegram (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`; CallMeBot tiene el cupo lleno) y al terminar el formulario la landing ofrece enviar los datos por WhatsApp ya escritos. El cliente solo usa WhatsApp. Ver `PASOS_V4.8.md`.
 
 Versión 5.2: asambleas, Fase 3 — votaciones dentro de la asamblea (padrón congelado al abrir, voto secreto desde la app para asistentes virtuales, voto presencial registrado por el administrador, mayoría simple o calificada del 70 % con bloqueos en reuniones virtuales/mixtas y en segunda convocatoria, quórum validado por pregunta y resultado congelado con huella SHA-256). **Recuerda `alembic upgrade head` (migración 0023).** Ver `PASOS_V5.2.md`.
+
+## Versión 5.3: seguridad completa — recuerda `pip install -r requirements.txt` y `alembic upgrade head` (migración 0024)
+
+Guía completa en `PASOS_V5.3.md`. En resumen: el **administrador** se cierra tras 8 h **sin actividad real** (tope de 72 h); las acciones sensibles piden la
+**contraseña de nuevo** (pase de 5 min); **verificación en dos pasos (TOTP)** con códigos de recuperación; el login ya no delata qué correos existen
+(ni por mensaje ni por tiempo) y tiene tope por IP; se rechazan contraseñas débiles; `Cache-Control: no-store` y aislamiento de origen en toda la API;
+y una prueba que **barre las 200 rutas** para que ninguna nueva quede sin proteger por olvido. Rescate si se pierde el celular: `python -m app.reset_2fa correo`.
