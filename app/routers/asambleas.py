@@ -418,7 +418,7 @@ def instalar(asamblea_id: int, db: Session = Depends(get_db), admin: Usuario = D
 
 
 @router.post("/{asamblea_id}/cerrar", response_model=esq.AsambleaResponse, summary="Cerrar la asamblea",
-             description="Solo **Administrador**. Guarda el quórum final (los coeficientes presentes al cierre).", responses={409: {"description": "No está en sesión"}})
+             description="Solo **Administrador**. Guarda el quórum final (los coeficientes presentes al cierre) y **congela la reunión**: ya no se acreditan asistentes ni se votan preguntas. Después se redacta y se sella el acta.", responses={409: {"description": "No está en sesión o hay una votación abierta"}})
 def cerrar(asamblea_id: int, db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
     reglas_unidades.sincronizar(db)
     a = reglas.obtener(db, asamblea_id, bloquear=True)
@@ -426,10 +426,13 @@ def cerrar(asamblea_id: int, db: Session = Depends(get_db), admin: Usuario = Dep
     if db.query(AsambleaVotacion.id).filter(AsambleaVotacion.asamblea_id == a.id, AsambleaVotacion.estado == "Abierta").first():     # V5.2: nunca se cierra la reunión con una votación sin cerrar
         raise HTTPException(status_code=409, detail="Hay una votación abierta: ciérrala (o anúlala) antes de cerrar la asamblea.")
     q = reglas.quorum(db, a)
+    por_estado = dict(db.query(AsambleaVotacion.estado, func.count(AsambleaVotacion.id)).filter(AsambleaVotacion.asamblea_id == a.id).group_by(AsambleaVotacion.estado).all())
     a.estado = EstadoAsamblea.CERRADA.value
     a.cerrada_en = ahora_utc()
     a.quorum_final = q["porcentaje"]
-    reglas.registrar_evento(db, a.id, "Cerrada", admin, detalle=f"Quórum final {q['porcentaje']:g} % · {q['unidades_presentes']} unidades")
+    # V5.4: al cerrar queda congelado todo lo de la reunión (asistentes, poderes, votaciones). El acta se redacta y se sella después, en /asambleas/{id}/acta.
+    reglas.registrar_evento(db, a.id, "Cerrada", admin, detalle=f"Quórum final {q['porcentaje']:g} % · {q['unidades_presentes']} unidades · votaciones: "
+                            f"{por_estado.get('Cerrada', 0)} cerrada(s), {por_estado.get('Anulada', 0)} anulada(s), {por_estado.get('Borrador', 0)} sin votar")
     auditar(db, admin, "Cerró una asamblea", "Asamblea", a.id, f"quórum final {q['porcentaje']:g} %")
     db.commit()
     return _vista(db, a, admin)

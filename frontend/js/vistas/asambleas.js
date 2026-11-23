@@ -492,8 +492,8 @@ function tarjetaVotacionAdmin(a, v0, alCambiar) {
       v.tipo === "Elección" && v.estado === "Borrador" ? h("p", { class: "small" }, "Opciones: ", v.opciones.map((o) => o.texto).join(" · ")) : null,
       v.estado === "Borrador" ? h("div", { class: "acciones-fila" },
         a.estado === "En sesión" ? h("button", { class: "btn sm", onclick: (e) => accion(e.currentTarget, `/asambleas/${a.id}/votaciones/${v.id}/abrir`, "¿Abrir la votación?", "Se congela quién puede votar: solo las unidades presentes y con derecho a voto ahora. Quien llegue después no votará esta pregunta. Se avisa a quienes votan desde la app.", "Sí, abrir") }, "Abrir votación")
-          : h("span", { class: "small muted" }, "Podrás abrirla cuando la asamblea esté en sesión."),
-        h("button", { class: "btn suave sm", onclick: () => modalAnularVotacion(a, v, alCambiar) }, "Anular")) : null,
+          : h("span", { class: "small muted" }, a.estado === "Cerrada" ? "La asamblea terminó: esta propuesta no se sometió a votación." : "Podrás abrirla cuando la asamblea esté en sesión."),
+        a.estado === "Cerrada" ? null : h("button", { class: "btn suave sm", onclick: () => modalAnularVotacion(a, v, alCambiar) }, "Anular")) : null,
       v.estado === "Abierta" ? abiertaBloque() : null,
       v.estado === "Cerrada" ? resultadoVotacion(v) : null,
       v.estado === "Anulada" ? h("p", { class: "small texto-error" }, `Anulada: ${v.motivo_anulacion ?? ""}`) : null);
@@ -607,7 +607,8 @@ function accionesAdmin(a, recargar, volver) {
   }
   if (a.estado === "En sesión") b.push(
     h("button", { class: "btn sm", onclick: () => pantallaGrande(a) }, icono("pantalla", 16), "Pantalla grande"),
-    accion("Cerrar asamblea", `/asambleas/${a.id}/cerrar`, { titulo: "¿Cerrar la asamblea?", ok: "Sí, cerrar", aviso: "Queda registrado el quórum final (los coeficientes presentes ahora). Después no se registran más movimientos." }));
+    accion("Cerrar asamblea", `/asambleas/${a.id}/cerrar`, { titulo: "¿Cerrar la asamblea?", ok: "Sí, cerrar", aviso: "Queda registrado el quórum final (los coeficientes presentes ahora) y la reunión se congela: ya no se acreditan asistentes ni se votan preguntas. Después redactas y sellas el acta." }));
+  if (a.estado === "Cerrada") b.push(h("button", { class: "btn sm", onclick: () => recargar("acta") }, icono("archivo", 16), "Preparar el acta"));
   if (["Borrador", "Convocada"].includes(a.estado)) b.push(accion("Cancelar", `/asambleas/${a.id}/cancelar`, { titulo: "¿Cancelar la asamblea?", ok: "Sí, cancelar", peligro: true, clase: "peligro", aviso: a.estado === "Convocada" ? "Se avisará a todos los propietarios que ya no se realizará." : "El borrador quedará como cancelado." }));
   return h("div", { class: "acciones-fila" }, b);
 }
@@ -630,8 +631,133 @@ function vistaResidente(a, recargar) {
   partes.push(h("div", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Mi participación"), mi.apartamento ? h("span", { class: "badge" }, mi.apartamento) : null), ...acc));
   if (abierto || a.estado === "Cerrada") partes.push(tarjetaQuorum(a.id, { ms: 15000 }));
   if (a.estado === "En sesión" || a.estado === "Cerrada") partes.push(tarjetaVotaciones(a));                       // V5.2: votar desde la app y ver resultados
+  if (a.estado === "Cerrada") partes.push(tarjetaActa(a));                                                      // V5.4: el acta, cuando se publica
   partes.push(h("div", { class: "etiqueta-seccion" }, "Poder de representación"));
   return partes;
+}
+
+// ================================================================ acta de la asamblea (V5.4 · Fase 4, Art. 47 de la Ley 675 de 2001)
+// El servidor decide todo (quién puede editar, cuándo se puede sellar, el plazo): aquí solo se muestra y se pide.
+// Ciclo: redactar el borrador → (asamblea cerrada) sellar = congelar con huella → subir la copia firmada → publicar a los propietarios.
+const fechaCorta = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+
+function modalVerificarActa(r) {
+  modal("Verificación de integridad", h("div", {},
+    h("div", { class: `asm-resumen ${r.ok ? "ok" : "mal"}` }, h("b", {}, r.ok ? "El acta no ha sido alterada" : "¡Se detectó una alteración!"),
+      h("p", { class: "small" }, r.ok ? "Todo coincide con lo que se congeló al sellar el acta." : "Alguien modificó información después de sellar el acta. Revisa lo marcado abajo y la base de datos antes de publicar.")),
+    ...r.comprobaciones.map((c) => h("p", {}, h("span", { class: `badge ${c.ok ? "bosque" : "arcilla"}` }, c.ok ? "Correcto" : "Falló"), " ", h("b", {}, c.nombre), h("br"), h("span", { class: "small muted" }, c.detalle))),
+    h("p", { class: "small muted" }, "Huella del acta (SHA-256): ", h("code", {}, r.huella))));
+}
+
+function modalSubirFirmada(a, reemplaza, alHecho) {
+  const archivo = h("input", { id: "af-arch", type: "file", accept: "application/pdf" });
+  const ok = h("button", { class: "btn", type: "submit", form: "f-firmada" }, icono("subir", 16), reemplaza ? "Reemplazar copia" : "Subir copia");
+  const m = modal("Copia firmada del acta", h("form", { id: "f-firmada", novalidate: true, onsubmit: async (e) => {
+    e.preventDefault();
+    if (!archivo.files[0]) return toast("Adjunta el PDF escaneado con las firmas.", "error");
+    const fd = new FormData(); fd.append("archivo", archivo.files[0]);
+    try { await conCarga(ok, () => api(`/asambleas/${a.id}/acta/firmada`, { metodo: "POST", cuerpo: fd })); m.cerrar(); toast("Copia firmada guardada."); alHecho(); }
+    catch (err) { toast(err.message, "error"); }
+  } },
+    h("p", { class: "small muted" }, "Imprime el acta definitiva, que la firmen el presidente y el secretario, escanéala y súbela aquí (PDF). Se guarda su huella SHA-256 en la bitácora. Puedes reemplazarla mientras el acta no esté publicada."),
+    h("div", { class: "field archivo" }, h("label", { for: "af-arch", class: "fija" }, "PDF firmado"), archivo)),
+  { pie: [h("button", { class: "btn suave", onclick: () => m.cerrar() }, "Cancelar"), ok] });
+}
+
+async function panelActa(a, recargar) {
+  const caja = h("div", {});
+  async function cargar() {
+    let t;
+    try { t = await api(`/asambleas/${a.id}/acta`); } catch (e) { return caja.replaceChildren(estadoVacio("No se pudo abrir el acta", e.message)); }
+    const sellada = t.estado === "Sellada", cerrada = a.estado === "Cerrada";
+    const paso = (hecho, texto) => h("li", { class: `asm-paso${hecho ? " hecho" : ""}` }, h("span", { class: `badge ${hecho ? "bosque" : ""}` }, hecho ? "Listo" : "Pendiente"), " ", texto);
+    const recargarActa = () => cargar();
+    const accion = (texto, ruta, { titulo, aviso, ok, peligro = false, clase = "", alVolver } = {}) => h("button", { class: `btn sm ${clase}`, onclick: async (e) => {
+      const btn = e.currentTarget;
+      if (titulo && !(await confirmar(titulo, aviso, ok ?? "Sí, continuar", peligro))) return;
+      try { await conCarga(btn, () => api(ruta, { metodo: "POST" })); toast("Listo."); (alVolver ?? recargarActa)(); } catch (err) { toast(err.message, "error"); }
+    } }, texto);
+
+    const partes = [
+      h("div", { class: `asm-resumen ${t.publicada ? "ok" : t.plazo_vencido ? "mal" : ""}` },
+        h("b", {}, t.publicada ? "Acta publicada a los propietarios" : sellada ? "Acta sellada: falta firmarla y publicarla" : "Acta en borrador"),
+        h("p", { class: "small" }, `Plazo para ponerla a disposición de los propietarios: ${fechaCorta(t.limite_publicacion)} (20 días hábiles desde la fecha de la reunión, Art. 47 de la Ley 675 de 2001).`)),
+      t.advertencias?.length ? h("div", { class: "asm-resumen mal" }, h("ul", { class: "lista-simple" }, t.advertencias.map((w) => h("li", {}, w)))) : null,
+      h("ol", { class: "asm-pasos" },
+        paso(cerrada, "Cerrar la asamblea (queda congelada la reunión: asistentes y votaciones)"),
+        paso(Boolean(t.presidente_nombre && t.secretario_nombre && t.desarrollo), "Completar presidente, secretario y desarrollo de la reunión"),
+        paso(sellada, "Sellar el acta (se congela con su huella SHA-256)"),
+        paso(t.tiene_firmada, "Subir la copia firmada por el presidente y el secretario"),
+        paso(t.publicada, "Publicar el acta a los propietarios")),
+    ];
+
+    if (!sellada) {
+      const f = {
+        pres: h("input", { id: "ac-pres", placeholder: " ", maxlength: "120", value: t.presidente_nombre ?? "" }),
+        sec: h("input", { id: "ac-sec", placeholder: " ", maxlength: "120", value: t.secretario_nombre ?? "" }),
+        com: h("input", { id: "ac-com", placeholder: " ", maxlength: "500", value: t.comision ?? "" }),
+        des: h("textarea", { id: "ac-des", placeholder: " ", rows: "10", maxlength: "20000" }),
+      };
+      f.des.value = t.desarrollo ?? "";
+      const cuerpo = () => ({ presidente_nombre: f.pres.value, secretario_nombre: f.sec.value, comision: f.com.value, desarrollo: f.des.value });
+      const guardar = () => api(`/asambleas/${a.id}/acta`, { metodo: "PUT", json: cuerpo() });
+      const btnGuardar = h("button", { class: "btn", type: "button", onclick: async (e) => {
+        try { await conCarga(e.currentTarget, guardar); toast("Borrador guardado."); recargarActa(); } catch (err) { toast(err.message, "error"); }
+      } }, icono("editar", 16), "Guardar borrador");
+      partes.push(h("div", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Datos del acta")),
+        h("p", { class: "small muted" }, "El acta indica la clase de asamblea, la convocatoria, el orden del día, los asistentes con su coeficiente y los votos emitidos: eso la aplicación lo toma solo de lo registrado. Tú completas quién presidió, quién fue secretario y qué se discutió y decidió."),
+        campo("ac-pres", "Presidente de la reunión", f.pres), campo("ac-sec", "Secretario de la reunión", f.sec),
+        campo("ac-com", "Comisión verificadora de la redacción del acta (si se designó)", f.com),
+        campo("ac-des", "Desarrollo del orden del día y decisiones adoptadas", f.des),
+        h("div", { class: "acciones-fila" }, btnGuardar,
+          h("button", { class: "btn suave", type: "button", onclick: async (e) => {
+            const btn = e.currentTarget;
+            try { await guardar(); await descargar(btn, `/asambleas/${a.id}/acta/borrador.pdf`, `acta-borrador-${a.id}.pdf`); } catch (err) { toast(err.message, "error"); }
+          } }, icono("descarga", 16), "Descargar borrador (PDF)"))));
+      partes.push(h("div", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Sellar el acta")),
+        cerrada ? h("p", { class: "small muted" }, "Cuando el borrador esté completo, séllalo. Se guarda una copia congelada con su huella SHA-256 y queda en la bitácora. No se puede deshacer: después no cambia ni el texto ni la evidencia.")
+          : h("p", { class: "small muted" }, "Podrás sellarla cuando cierres la asamblea. Mientras la reunión sigue, puedes ir redactando el borrador."),
+        t.motivo_no_sellar && cerrada ? h("p", { class: "small texto-error" }, t.motivo_no_sellar) : null,
+        h("div", { class: "acciones-fila" }, h("button", { class: "btn", type: "button", disabled: !t.puede_sellar, onclick: async (e) => {
+          const btn = e.currentTarget;
+          if (!(await confirmar("¿Sellar el acta?", "Se congela todo el contenido con su huella SHA-256. No se puede deshacer ni editar después. Se guardarán primero los cambios que tengas en pantalla.", "Sí, sellar", true))) return;
+          try { await conCarga(btn, async () => { await guardar(); await api(`/asambleas/${a.id}/acta/sellar`, { metodo: "POST" }); }); toast("Acta sellada."); recargarActa(); } catch (err) { toast(err.message, "error"); }
+        } }, "Sellar el acta"))));
+    } else {
+      partes.push(
+        h("div", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Acta sellada"), badge(t.publicada ? "Publicada" : "Sellada")),
+          h("p", { class: "small muted" }, `Sellada el ${fmtFechaHora(deUtc(t.sellada_en))}. Huella (SHA-256): `, h("code", {}, t.contenido_hash)),
+          t.tiene_firmada ? h("p", { class: "small muted" }, `Copia firmada subida el ${fmtFechaHora(deUtc(t.firmada_en))}.`) : null,
+          t.publicada ? h("p", { class: "small muted" }, `Publicada el ${fmtFechaHora(deUtc(t.publicada_en))}.`) : null,
+          h("div", { class: "acciones-fila" },
+            h("button", { class: "btn sm", onclick: (e) => descargar(e.currentTarget, `/asambleas/${a.id}/acta.pdf`, `acta-asamblea-${a.id}.pdf`) }, icono("descarga", 16), "Acta definitiva (PDF)"),
+            !t.publicada ? h("button", { class: "btn suave sm", onclick: () => modalSubirFirmada(a, t.tiene_firmada, recargarActa) }, icono("subir", 16), t.tiene_firmada ? "Reemplazar copia firmada" : "Subir copia firmada") : null,
+            t.tiene_firmada ? h("button", { class: "btn suave sm", onclick: (e) => verArchivo(e.currentTarget, `/asambleas/${a.id}/acta/firmada`, `acta-firmada-${a.id}`) }, icono("archivo", 16), "Ver copia firmada") : null,
+            h("button", { class: "btn suave sm", onclick: async (e) => { try { modalVerificarActa(await conCarga(e.currentTarget, () => api(`/asambleas/${a.id}/acta/verificar`))); } catch (err) { toast(err.message, "error"); } } }, "Verificar integridad"),
+            !t.publicada ? accion("Publicar a los propietarios", `/asambleas/${a.id}/acta/publicar`, { titulo: "¿Publicar el acta?", ok: "Sí, publicar",
+              aviso: t.tiene_firmada ? "Se avisará a los propietarios y podrán descargar el acta y la copia firmada. Después ya no se podrá cambiar la copia firmada." : "Todavía no subiste la copia firmada. Si publicas ahora, los propietarios verán el acta sin firmas y ya no podrás reemplazar la copia. ¿Continuar?" }) : null)),
+        h("div", { class: "card" }, h("div", { class: "card-titulo" }, h("h2", {}, "Dignatarios y desarrollo")),
+          h("p", {}, h("b", {}, "Presidente: "), t.presidente_nombre ?? "—"), h("p", {}, h("b", {}, "Secretario: "), t.secretario_nombre ?? "—"),
+          t.comision ? h("p", {}, h("b", {}, "Comisión verificadora: "), t.comision) : null,
+          t.desarrollo ? h("p", { style: "white-space:pre-wrap" }, t.desarrollo) : h("p", { class: "muted" }, "Sin desarrollo redactado.")));
+    }
+    poner(caja, partes);
+  }
+  await cargar();
+  return caja;
+}
+
+/** Residente: el acta aparece cuando el administrador la publica (Art. 47: máximo 20 días hábiles después de la reunión). */
+function tarjetaActa(a) {
+  const caja = h("div", {});
+  api(`/asambleas/${a.id}/acta`).then((t) => caja.replaceChildren(h("div", { class: "card" },
+    h("div", { class: "card-titulo" }, h("h2", {}, "Acta de la asamblea"), badge("Publicada")),
+    h("p", { class: "small muted" }, `Publicada el ${fmtFechaHora(deUtc(t.publicada_en))}. Huella de verificación: `, h("code", {}, t.contenido_hash.slice(0, 16))),
+    h("div", { class: "acciones-fila" },
+      h("button", { class: "btn sm", onclick: (e) => descargar(e.currentTarget, `/asambleas/${a.id}/acta.pdf`, `acta-asamblea-${a.id}.pdf`) }, icono("descarga", 16), "Descargar el acta (PDF)"),
+      t.tiene_firmada ? h("button", { class: "btn suave sm", onclick: (e) => verArchivo(e.currentTarget, `/asambleas/${a.id}/acta/firmada`, `acta-firmada-${a.id}`) }, icono("archivo", 16), "Ver copia firmada") : null))))
+    .catch((e) => { if (/publicad/i.test(e.message)) caja.replaceChildren(h("p", { class: "small muted" }, "El acta de esta asamblea aún no ha sido publicada. La administración debe ponerla a disposición dentro de los 20 días hábiles siguientes a la reunión.")); });
+  return caja;
 }
 
 async function mostrarDetalle(raiz, ctx, id, pestana = "resumen", volver) {
@@ -644,8 +770,8 @@ async function mostrarDetalle(raiz, ctx, id, pestana = "resumen", volver) {
   volverBtn.firstChild.style.transform = "rotate(180deg)";
   const cuerpo = h("div", {});
   if (esAdmin) {
-    const opciones = [{ id: "resumen", texto: "Resumen" }, { id: "asistencia", texto: "Asistencia" }, { id: "votaciones", texto: "Votaciones" }, { id: "poderes", texto: "Poderes" }, { id: "entregas", texto: "Entregas" }, { id: "bitacora", texto: "Bitácora" }]
-      .filter((o) => a.estado !== "Borrador" || o.id === "resumen");
+    const opciones = [{ id: "resumen", texto: "Resumen" }, { id: "asistencia", texto: "Asistencia" }, { id: "votaciones", texto: "Votaciones" }, { id: "poderes", texto: "Poderes" }, { id: "entregas", texto: "Entregas" }, { id: "acta", texto: "Acta" }, { id: "bitacora", texto: "Bitácora" }]
+      .filter((o) => (a.estado !== "Borrador" || o.id === "resumen") && (o.id !== "acta" || ["En sesión", "Cerrada"].includes(a.estado)));
     const pintar = async (p) => {
       pestana = p;
       cuerpo.replaceChildren(esqueleto(80, 3));
@@ -655,6 +781,7 @@ async function mostrarDetalle(raiz, ctx, id, pestana = "resumen", volver) {
       else if (p === "votaciones") cuerpo.replaceChildren(await panelVotaciones(a, recargar));
       else if (p === "poderes") cuerpo.replaceChildren(await panelPoderes(a, true, recargar));
       else if (p === "entregas") cuerpo.replaceChildren(await panelEntregas(a, recargar));
+      else if (p === "acta") cuerpo.replaceChildren(await panelActa(a, recargar));
       else cuerpo.replaceChildren(await panelBitacora(a));
     };
     raiz.replaceChildren(volverBtn, opciones.length > 1 ? filtros(opciones, pestana, pintar) : h("span"), cuerpo);

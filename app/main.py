@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import config, marca
 from app.routers import (
-    anuncios, arrendamientos, asamblea_votos, asambleas, asistente, auditoria, auth, comercio, dashboard, demo, documentos, emergencias, importaciones, modulos, notificaciones, paquetes, pagos_simulados, paz_y_salvo, pqrs, push, qr, reportes,
+    anuncios, arrendamientos, asamblea_acta, asamblea_votos, asambleas, asistente, auditoria, auth, comercio, dashboard, demo, documentos, emergencias, importaciones, modulos, notificaciones, paquetes, pagos_simulados, paz_y_salvo, pqrs, push, qr, reportes,
     publico, sincronizacion, trasteos, usuarios, visitantes, votaciones,
 )
 
@@ -68,6 +68,7 @@ TAGS = [
     {"name": "Trasteos", "description": "Mudanzas: el residente solicita, el sistema valida el paz y salvo (en las salidas), el administrador aprueba, se alerta a la portería y el guardia registra el inicio y el fin."},
     {"name": "Asambleas de Copropietarios", "description": "Asamblea general de la Ley 675 de 2001: convocatoria con plazos y bitácora de evidencia, registro de asistentes (presencial o virtual), poderes con aprobación del administrador y quórum en vivo."},
     {"name": "Votaciones de la Asamblea", "description": "Preguntas votadas dentro de una asamblea (Ley 675 de 2001): padrón congelado al abrir, voto secreto desde la app para asistentes virtuales, voto presencial registrado por el administrador, mayoría simple o calificada (70 %) con bloqueos, quórum validado y resultado congelado con huella SHA-256."},
+    {"name": "Acta de la Asamblea", "description": "Acta de la asamblea (Art. 47, Ley 675 de 2001): borrador editable con marca de agua, sellado (congelado con huella SHA-256 en la bitácora encadenada), copia firmada, publicación a los propietarios dentro del plazo de 20 días hábiles y verificación de integridad."},
     {"name": "Unidades y Coeficientes", "description": "Cada apartamento con su coeficiente de copropiedad: la base del quórum (debe sumar 100 %). Incluye propietarios sin cuenta en la app."},
     {"name": "Presentación comercial (demo)", "description": "El botón «Solicitar demo» de la landing: guarda el contacto (sin sesión, muy limitado contra abuso) y avisa por Telegram al vendedor. Solo existe si LANDING_ACTIVA=1 (el servicio de la demo)."},
 ]
@@ -75,7 +76,7 @@ TAGS = [
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 # Con DOCS_ACTIVAS=0 las tres rutas de documentación desaparecen (responden 404), como si no existieran.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="5.3.0", openapi_tags=TAGS,
+              version="5.4.0", openapi_tags=TAGS,
               docs_url="/docs" if config.DOCS_ACTIVAS else None,
               redoc_url="/redoc" if config.DOCS_ACTIVAS else None,
               openapi_url="/openapi.json" if config.DOCS_ACTIVAS else None)
@@ -99,6 +100,7 @@ app.include_router(votaciones.router)
 app.include_router(asambleas.router_unidades)
 app.include_router(asambleas.router)
 app.include_router(asamblea_votos.router)
+app.include_router(asamblea_acta.router)
 app.include_router(arrendamientos.router)
 app.include_router(push.router)
 app.include_router(sincronizacion.router)

@@ -222,3 +222,7 @@ def _si(nombre: str, defecto: str = "1") -> bool:
 ASAMBLEA_BLOQUEA_70_VIRTUAL = _si("ASAMBLEA_BLOQUEA_70_VIRTUAL")     # no se abren votaciones de mayoría calificada (70 %) en reuniones no presenciales (virtuales)
 ASAMBLEA_BLOQUEA_70_MIXTA = _si("ASAMBLEA_BLOQUEA_70_MIXTA")         # ídem en reuniones mixtas (hay votantes a distancia): lo prudente es bloquearlas también
 ASAMBLEA_BLOQUEA_70_SEGUNDA = _si("ASAMBLEA_BLOQUEA_70_SEGUNDA")     # ídem cuando la asamblea se instaló en segunda convocatoria
+
+
+# --- V5.4 · acta de la asamblea (Art. 47, Ley 675 de 2001)
+ASAMBLEA_ACTA_DIAS_HABILES = _entero("ASAMBLEA_ACTA_DIAS_HABILES", 20) or 20      # días hábiles, desde la fecha de la reunión, para poner el acta a disposición de los propietarios

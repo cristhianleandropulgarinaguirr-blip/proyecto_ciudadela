@@ -454,3 +454,14 @@ Guía completa en `PASOS_V5.3.md`. En resumen: el **administrador** se cierra tr
 **contraseña de nuevo** (pase de 5 min); **verificación en dos pasos (TOTP)** con códigos de recuperación; el login ya no delata qué correos existen
 (ni por mensaje ni por tiempo) y tiene tope por IP; se rechazan contraseñas débiles; `Cache-Control: no-store` y aislamiento de origen en toda la API;
 y una prueba que **barre las 200 rutas** para que ninguna nueva quede sin proteger por olvido. Rescate si se pierde el celular: `python -m app.reset_2fa correo`.
+
+## Versión 5.4 — acta, cierre y congelado de la asamblea (Fase 4) — recuerda `alembic upgrade head` (migración 0025)
+
+Cierra el ciclo del módulo de asambleas (Ley 675 de 2001, Art. 47):
+
+- **Cerrar** la asamblea congela la reunión: no se acreditan asistentes, no se reciben poderes y no se vota.
+- **Acta** (pestaña nueva, solo administrador): borrador editable con PDF de marca de agua → **sellar** (copia congelada con huella SHA-256 en la bitácora) → subir la **copia firmada** → **publicar** a los propietarios, con el plazo de 20 días hábiles a la vista. Sellar y publicar piden la contraseña de nuevo.
+- **Verificar integridad**: recalcula todo y detecta cualquier cambio posterior a la firma.
+- Endpoints bajo `/asambleas/{id}/acta` (Swagger, etiqueta «Acta de la Asamblea»). Variable opcional: `ASAMBLEA_ACTA_DIAS_HABILES` (por defecto 20).
+
+Detalle, pasos y puntos para revisar con un abogado: [`PASOS_V5.4.md`](PASOS_V5.4.md).

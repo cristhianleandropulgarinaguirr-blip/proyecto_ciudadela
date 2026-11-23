@@ -1702,3 +1702,9 @@ html[data-modo-demo]::after {
 .asm-votacion, .asm-votaciones { display: grid; gap: .6rem; }
 .asm-votacion-cerrada { border-top: 1px solid var(--linea); padding-top: .8rem; margin-top: .4rem; }
 .asm-votaciones .acciones-fila .btn { min-height: 48px; flex: 1 1 8rem; }   /* botones grandes para votar desde el celular */
+
+/* ---- V5.4 · acta de la asamblea (Fase 4) ---- */
+.asm-pasos { list-style: none; margin: 0 0 1rem; padding: 0; display: grid; gap: .45rem; }
+.asm-paso { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .95rem; }
+.asm-paso.hecho { color: var(--tinta-2, inherit); }
+.asm-paso:not(.hecho) { font-weight: 600; }

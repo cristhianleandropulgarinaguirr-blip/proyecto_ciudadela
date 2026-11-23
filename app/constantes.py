@@ -235,3 +235,9 @@ class EstadoVotacionAsamblea(str, Enum):
     ABIERTA = "Abierta"        # se está votando (solo una a la vez por asamblea)
     CERRADA = "Cerrada"        # resultado calculado y congelado con su huella
     ANULADA = "Anulada"        # no vale: queda el motivo en la bitácora
+
+
+# ---------- V5.4 · Acta de la asamblea (Fase 4) ----------
+class EstadoActa(str, Enum):
+    BORRADOR = "Borrador"      # el secretario la está redactando: se puede editar y descargar con marca de agua «BORRADOR»
+    SELLADA = "Sellada"        # congelada con su huella SHA-256: el texto y la evidencia ya no cambian

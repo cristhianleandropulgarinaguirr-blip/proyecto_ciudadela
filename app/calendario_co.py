@@ -42,14 +42,19 @@ def es_dia_habil(d: date, sabado_habil: bool = False) -> bool:
     return d.weekday() != 5 or sabado_habil
 
 
-def tercer_dia_habil(desde: date, sabado_habil: bool = False) -> date:
-    """Tercer día hábil DESPUÉS de `desde` (el día de la primera convocatoria no cuenta)."""
+def dia_habil_numero(desde: date, n: int, sabado_habil: bool = False) -> date:
+    """El día hábil número `n` DESPUÉS de `desde` (el propio día `desde` no cuenta). Salta domingos, festivos y, si no es hábil, los sábados."""
     d, contados = desde, 0
-    while contados < 3:
+    while contados < n:
         d += timedelta(days=1)
         if es_dia_habil(d, sabado_habil):
             contados += 1
     return d
+
+
+def tercer_dia_habil(desde: date, sabado_habil: bool = False) -> date:
+    """Tercer día hábil DESPUÉS de `desde` (el día de la primera convocatoria no cuenta)."""
+    return dia_habil_numero(desde, 3, sabado_habil)
 
 
 def segunda_convocatoria(fecha_sesion_utc: datetime, sabado_habil: bool = False) -> datetime:

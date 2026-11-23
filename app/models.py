@@ -803,3 +803,38 @@ class AsambleaVoto(Base):
     emitido_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
     opcion_id = Column(Integer, ForeignKey("asamblea_votacion_opciones.id"), nullable=True)   # solo en votos Manual
     fecha = Column(DateTime, default=ahora_utc)
+
+
+
+# ==========================================
+#   V5.4 · ACTA DE LA ASAMBLEA (Art. 47, Ley 675 de 2001) — Fase 4
+# ==========================================
+class AsambleaActa(Base):
+    """El acta de UNA asamblea. Nace como borrador (el administrador completa presidente, secretario, comisión verificadora y el desarrollo de la reunión).
+    Al SELLARla se guarda una copia congelada de todo su contenido (`contenido`, JSON) con su huella SHA-256: desde ahí ni el texto ni la evidencia cambian.
+    Después se sube la copia firmada por el presidente y el secretario (PDF escaneado) y se publica a los propietarios. Una sola acta por asamblea."""
+    __tablename__ = "asamblea_actas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    asamblea_id = Column(Integer, ForeignKey("asambleas.id"), nullable=False, unique=True, index=True)
+    estado = Column(String(10), nullable=False, default="Borrador")        # Borrador | Sellada
+    presidente_nombre = Column(String(120), nullable=True)
+    secretario_nombre = Column(String(120), nullable=True)
+    comision = Column(String(500), nullable=True)                          # personas que verifican la redacción del acta (si la asamblea las designó)
+    desarrollo = Column(Text, nullable=True)                               # desarrollo del orden del día y decisiones, redactado por el secretario
+    editada_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    fecha_creacion = Column(DateTime, default=ahora_utc)
+    fecha_actualizacion = Column(DateTime, default=ahora_utc, onupdate=ahora_utc)
+    # --- al sellar ---
+    sellada_en = Column(DateTime, nullable=True)
+    sellada_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    contenido = Column(Text, nullable=True)                                # JSON congelado del acta completa
+    contenido_hash = Column(String(64), nullable=True)                     # SHA-256 de ese JSON (también queda en la bitácora encadenada)
+    # --- copia firmada (escaneada) ---
+    firmada_archivo = Column(String(80), nullable=True)
+    firmada_hash = Column(String(64), nullable=True)                       # SHA-256 del PDF subido
+    firmada_en = Column(DateTime, nullable=True)
+    firmada_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    # --- publicación a los propietarios ---
+    publicada_en = Column(DateTime, nullable=True)
+    publicada_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
