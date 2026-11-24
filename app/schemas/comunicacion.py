@@ -4,7 +4,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.constantes import CategoriaDocumento, EstadoPQRS, TipoPQRS
+from app.constantes import EstadoPQRS, TipoPQRS
 
 
 def _limpiar(v: Optional[str]) -> Optional[str]:

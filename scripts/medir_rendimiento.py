@@ -17,7 +17,6 @@ os.environ.update(SECRET_KEY="clave-solo-para-medir-0123456789abcdef01234567", D
 from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import event  # noqa: E402
 
-from app.constantes import RolNombre  # noqa: E402
 from app.database import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models import (AccesoVisitante, Anuncio, Auditoria, CodigoQR, EscaneoQR, Notificacion, Paquete, PQRS, Reserva, Rol,  # noqa: E402

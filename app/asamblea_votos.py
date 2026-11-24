@@ -14,10 +14,9 @@
 #  · Al cerrar se valida el quórum de ese momento, se calcula el resultado y se CONGELA con su huella SHA-256, que también queda en la bitácora encadenada.
 #
 # Qué NO hace: no reemplaza al presidente y al secretario de la asamblea ni a un abogado. Las reglas de mayoría y los bloqueos del 70 % son las lecturas
-# prudentes de la ley que se documentan en PASOS_V5.2.md; si tu reglamento de propiedad horizontal dice otra cosa, el reglamento manda.
+# prudentes de la ley que se documentan en docs/historial/PASOS_V5.2.md; si tu reglamento de propiedad horizontal dice otra cosa, el reglamento manda.
 import hashlib
 import json
-from datetime import datetime
 from typing import Optional
 
 from fastapi import HTTPException
@@ -70,7 +69,7 @@ def requisito(v: AsambleaVotacion) -> str:
 # ---------------------------------------------------------------- bloqueo del 70 %
 def motivo_bloqueo_70(a: Asamblea, mayoria: str) -> Optional[str]:
     """Decisiones de mayoría calificada (70 %) no se toman en reuniones no presenciales ni en segunda convocatoria (lectura prudente de los Art. 41, 45 y 46 de la Ley 675).
-    Cada bloqueo se puede apagar con una variable de entorno si el abogado del conjunto lo indica (ver PASOS_V5.2.md)."""
+    Cada bloqueo se puede apagar con una variable de entorno si el abogado del conjunto lo indica (ver docs/historial/PASOS_V5.2.md)."""
     if mayoria != MayoriaAsamblea.CALIFICADA.value:
         return None
     if config.ASAMBLEA_BLOQUEA_70_VIRTUAL and a.modalidad == ModalidadAsamblea.VIRTUAL.value:

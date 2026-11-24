@@ -5,7 +5,6 @@
 #   (1.ª convocatoria: más de la mitad de los coeficientes; 2.ª: cualquier número plural de propietarios); todo movimiento queda en la bitácora encadenada.
 import io
 import json
-from datetime import datetime, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
@@ -23,7 +22,7 @@ from app.auditoria import auditar
 from app.coeficientes import norm_apto
 from app.constantes import CategoriaDocumento, EstadoAsamblea, EstadoPoder, ModalidadAsamblea, RolNombre, TipoAsamblea
 from app.database import get_db
-from app.dependencies import get_current_user, requiere_roles
+from app.dependencies import requiere_roles
 from app.models import (Asamblea, AsambleaAsistente, AsambleaDocumento, AsambleaEvento, AsambleaPoder, AsambleaVotacion, Documento, Unidad, Usuario, ahora_utc)
 from app.notificaciones import notificar
 from app.schemas import asambleas as esq

@@ -4,11 +4,12 @@ import { api } from "./api.js";
 import { h, icono, modal, toast, deUtc, hace, estadoVacio } from "./ui.js";
 
 let reloj = null;
+let alVolver = null;                    // único oyente de «volví a la app»: se quita al detener, así no se acumulan al cerrar e iniciar sesión
 let refrescarExterno = null;
 /** La app lo llama cuando llega un aviso push mientras está abierta. */
 export const actualizarCampana = () => refrescarExterno?.();
 
-export function detenerCampana() { clearInterval(reloj); reloj = null; try { navigator.clearAppBadge?.(); } catch { /* nada */ } }
+export function detenerCampana() { clearInterval(reloj); reloj = null; if (alVolver) { document.removeEventListener("visibilitychange", alVolver); alVolver = null; } try { navigator.clearAppBadge?.(); } catch { /* nada */ } }
 
 export function crearCampana(ir) {
   const burbuja = h("span", { class: "burbuja", hidden: true });
@@ -42,6 +43,7 @@ export function crearCampana(ir) {
   refrescarExterno = refrescar;
   refrescar();
   reloj = setInterval(() => { if (!document.hidden) refrescar(); }, 60000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && reloj) refrescar(); });
+  alVolver = () => { if (!document.hidden && reloj) refrescar(); };
+  document.addEventListener("visibilitychange", alVolver);
   return boton;
 }

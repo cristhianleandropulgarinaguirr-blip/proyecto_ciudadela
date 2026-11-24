@@ -5,7 +5,7 @@
 import io
 import socket
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 from typing import Optional
 
 import segno
@@ -22,7 +22,7 @@ from app import arrendamientos as reglas_arr, config, marca
 from app.auditoria import auditar
 from app.constantes import Delegacion, RolNombre
 from app.database import get_db
-from app.dependencies import get_current_user, requiere_roles
+from app.dependencies import requiere_roles
 from app.models import PazSalvo, Usuario, ahora_utc
 from app.notificaciones import notificar
 from app.schemas.paz_y_salvo import PazSalvoCreate, PazSalvoResponse

@@ -2,7 +2,7 @@
 from datetime import timedelta
 
 from app.models import Notificacion, Usuario, ahora_utc
-from tests.test_arrendamientos import ADM, ANA, CEL, LUIS, MARTA, contrato, inquilino_activo
+from tests.test_arrendamientos import ADM, ANA, CEL, LUIS, MARTA, inquilino_activo
 
 
 def delegar(client, auth, cid, pagar=False, votar=False, quien=ANA):

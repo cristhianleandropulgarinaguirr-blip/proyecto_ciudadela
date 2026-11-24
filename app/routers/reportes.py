@@ -22,7 +22,7 @@ from app.auditoria import auditar
 from app import arrendamientos as reglas_arr, config, marca
 from app.constantes import Delegacion, RolNombre
 from app.database import get_db
-from app.dependencies import get_current_user, reauth_admin, requiere_roles
+from app.dependencies import get_current_user, reauth_admin
 from app.models import AccesoVisitante, Auditoria, Pago, Paquete, PQRS, Rol, Usuario, VisitanteAutorizado
 from app.routers.pqrs import radicado
 

@@ -7,7 +7,7 @@ from PIL import Image
 
 from app.config import ALGORITHM
 from app.models import Usuario
-from app.security import SECRET_KEY, encriptar_password, es_hash_antiguo, verificar_password
+from app.security import SECRET_KEY, es_hash_antiguo, verificar_password
 from tests.conftest import CLAVE
 
 FUTURO = (datetime.now() + timedelta(days=10)).strftime("%Y-%m-%dT14:00:00")

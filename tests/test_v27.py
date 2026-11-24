@@ -1,7 +1,6 @@
 # tests/test_v27.py — Versión 2.7: sesión del guarda, visita de un día, política de datos, pagos con comprobante y calendario.
 from datetime import date, datetime, timedelta, timezone
 
-import jwt
 
 from app.config import GUARDIA_TOKEN_HORAS
 from app.models import Sesion, Usuario, VisitanteAutorizado, ahora_utc

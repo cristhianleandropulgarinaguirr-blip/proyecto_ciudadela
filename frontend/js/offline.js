@@ -33,7 +33,6 @@ async function emitir() {
 }
 /** fn(pendientes, fotosPorSubir) cada vez que cambia la cola. */
 export const alCambiarCola = (fn) => { oyentes.add(fn); return () => oyentes.delete(fn); };
-export const resultadoDe = (uuid) => resultados.get(uuid) ?? null;
 
 async function quitar(op) { await almacen.borrar("cola", claveCola(op)); if (op.fotoId) { /* la foto se conserva hasta que suba */ } }
 

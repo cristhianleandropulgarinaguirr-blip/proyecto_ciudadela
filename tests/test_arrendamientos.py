@@ -1,7 +1,6 @@
 # tests/test_arrendamientos.py — Rol Inquilino: registro por el propietario, aprobación, permisos acotados, mora heredada y vencimiento.
 from datetime import datetime, timedelta
 
-import pytest
 
 from app import arrendamientos as reglas
 from app.models import Arrendamiento, CodigoQR, Documento, Notificacion, Paquete, Usuario, VisitanteAutorizado

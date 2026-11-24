@@ -18,6 +18,7 @@ jobs:
         with:
           node-version: "22"
       - run: node --test tests/js/atras.test.mjs      # v4.2 · botón «Atrás» del celular
+      - run: node --test tests/js/imports.test.mjs    # v5.5 · que ningún import del frontend apunte a algo que no existe
       - run: python -m pytest -q
         env:
           SECRET_KEY: clave-solo-para-ci-0123456789abcdef0123456789

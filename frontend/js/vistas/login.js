@@ -66,7 +66,8 @@ export function vistaLogin(alIngresar) {
   const sincronizar = () => [email, clave, codigo].forEach((campo) => campo.parentElement?.classList.toggle("lleno", estaRelleno(campo)));
   [email, clave, codigo].forEach((campo) => ["input", "change", "animationstart", "focus", "blur"].forEach((ev) => campo.addEventListener(ev, sincronizar)));
   [0, 100, 300, 800, 1500, 3000].forEach((ms) => setTimeout(sincronizar, ms));   // el autocompletar llega unos instantes después de pintar
-  window.addEventListener("pageshow", sincronizar);
+  const alMostrar = () => { if (!form.isConnected) return window.removeEventListener("pageshow", alMostrar); sincronizar(); };
+  window.addEventListener("pageshow", alMostrar);
 
   function fallar(texto) {
     error.textContent = texto; error.hidden = false;

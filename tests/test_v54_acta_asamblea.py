@@ -8,7 +8,6 @@ import os
 import tempfile
 from datetime import date, timedelta
 
-import pytest
 from alembic import command
 from reportlab import rl_config
 
@@ -16,7 +15,6 @@ from app import asamblea_acta as acta_reglas, asambleas as reglas, calendario_co
 from app.models import Asamblea, AsambleaActa, AsambleaAsistente, AsambleaEvento, Notificacion
 from app.models import ahora_utc
 from tests.test_v46_asambleas import ADMIN, ANA, CELADOR, LUIS, PDF, _config_alembic, _tablas, lista_para_sesion
-from tests.test_v53_seguridad import CLAVE
 from tests.test_v52_votaciones_asamblea import APTO_LUIS, CONTRA, FAVOR, MARTA, abierta, cerrar, nueva, presencial, sesion, votar
 
 DATOS = {"presidente_nombre": "Carlos Presidente", "secretario_nombre": "Sofia Secretaria", "comision": "Pedro Perez y Lucia Gomez",

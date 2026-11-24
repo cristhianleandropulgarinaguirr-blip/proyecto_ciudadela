@@ -196,7 +196,7 @@ DEMO_CONTACTO = " ".join(os.getenv("DEMO_CONTACTO", "").split())[:40]
 DEMO_CORREO = os.getenv("DEMO_CORREO", "").strip()[:120]                                                   # correo de ventas que se muestra en la landing (opcional)
 
 # v4.8 · AVISO AL VENDEDOR por Telegram cuando alguien pide una demo desde la landing (ya NO le llega a ningún administrador de la app).
-# El cliente no necesita Telegram: solo lo usas TÚ para enterarte al instante. Se configura una sola vez (pasos en PASOS_V4.8.md):
+# El cliente no necesita Telegram: solo lo usas TÚ para enterarte al instante. Se configura una sola vez (pasos en docs/historial/PASOS_V4.8.md):
 #   TELEGRAM_BOT_TOKEN   el token que te da @BotFather al crear tu bot. Es secreto.
 #   TELEGRAM_CHAT_ID     el número de tu chat con el bot (se obtiene escribiéndole «/start» y abriendo getUpdates; ver la guía).
 # Sin ambos no se envía nada (la solicitud igual queda guardada en la base).

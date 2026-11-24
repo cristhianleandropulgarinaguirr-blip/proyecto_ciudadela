@@ -437,20 +437,20 @@ Fase 4 (presentación comercial): **white-label** (nombre, color, logos y asiste
 Versión 4.2 (móvil, landing, asistente por rol, pagos de prueba y seguridad): aviso ámbar de «sin enviar» en portería, botón «Atrás» que cierra modales y chat, guía de instalación de la PWA en la landing, asistente coherente con cada rol, **pasarela de pagos de prueba tipo Wompi/PSE** y revisión de seguridad. Requiere `alembic upgrade head` (migración 0021). Ver `docs/historial/PASOS_V4.2.md`.
 
 ## Versión 4.6
-Asambleas de copropietarios (Ley 675 de 2001), fases 1 y 2: unidades y coeficientes como base del quórum, convocatoria con plazos y bitácora de evidencia encadenada, registro de asistentes presencial/virtual, poderes con aprobación y quórum en vivo con pantalla grande. Requiere `alembic upgrade head` (migración 0022). Ver `PASOS_V4.6.md`.
+Asambleas de copropietarios (Ley 675 de 2001), fases 1 y 2: unidades y coeficientes como base del quórum, convocatoria con plazos y bitácora de evidencia encadenada, registro de asistentes presencial/virtual, poderes con aprobación y quórum en vivo con pantalla grande. Requiere `alembic upgrade head` (migración 0022). Ver `docs/historial/PASOS_V4.6.md`.
 
 ## Versión 3.8
 Fase 3 (legal y operativo): coeficiente de copropiedad, votación ponderada con quórum (Ley 675) y flujo de trasteos con validación de paz y salvo, aprobación y alerta a la portería. Ver `docs/historial/PASOS_V3.8.md`.
 
-Versión 4.7: las solicitudes de demo llegan por WhatsApp al vendedor (CallMeBot, `CALLMEBOT_APIKEY`) y ya no las ve ningún administrador de la app; la landing y «Solicitar demo» existen solo donde `LANDING_ACTIVA=1` (servicio de la demo) y en la app real (`LANDING_ACTIVA=0`) la raíz abre directo la app. Sin migración nueva. Ver `PASOS_V4.7.md`.
+Versión 4.7: las solicitudes de demo llegan por WhatsApp al vendedor (CallMeBot, `CALLMEBOT_APIKEY`) y ya no las ve ningún administrador de la app; la landing y «Solicitar demo» existen solo donde `LANDING_ACTIVA=1` (servicio de la demo) y en la app real (`LANDING_ACTIVA=0`) la raíz abre directo la app. Sin migración nueva. Ver `docs/historial/PASOS_V4.7.md`.
 
-Versión 4.8: el aviso de solicitudes de demo al vendedor es por Telegram (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`; CallMeBot tiene el cupo lleno) y al terminar el formulario la landing ofrece enviar los datos por WhatsApp ya escritos. El cliente solo usa WhatsApp. Ver `PASOS_V4.8.md`.
+Versión 4.8: el aviso de solicitudes de demo al vendedor es por Telegram (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`; CallMeBot tiene el cupo lleno) y al terminar el formulario la landing ofrece enviar los datos por WhatsApp ya escritos. El cliente solo usa WhatsApp. Ver `docs/historial/PASOS_V4.8.md`.
 
-Versión 5.2: asambleas, Fase 3 — votaciones dentro de la asamblea (padrón congelado al abrir, voto secreto desde la app para asistentes virtuales, voto presencial registrado por el administrador, mayoría simple o calificada del 70 % con bloqueos en reuniones virtuales/mixtas y en segunda convocatoria, quórum validado por pregunta y resultado congelado con huella SHA-256). **Recuerda `alembic upgrade head` (migración 0023).** Ver `PASOS_V5.2.md`.
+Versión 5.2: asambleas, Fase 3 — votaciones dentro de la asamblea (padrón congelado al abrir, voto secreto desde la app para asistentes virtuales, voto presencial registrado por el administrador, mayoría simple o calificada del 70 % con bloqueos en reuniones virtuales/mixtas y en segunda convocatoria, quórum validado por pregunta y resultado congelado con huella SHA-256). **Recuerda `alembic upgrade head` (migración 0023).** Ver `docs/historial/PASOS_V5.2.md`.
 
 ## Versión 5.3: seguridad completa — recuerda `pip install -r requirements.txt` y `alembic upgrade head` (migración 0024)
 
-Guía completa en `PASOS_V5.3.md`. En resumen: el **administrador** se cierra tras 8 h **sin actividad real** (tope de 72 h); las acciones sensibles piden la
+Guía completa en `docs/historial/PASOS_V5.3.md`. En resumen: el **administrador** se cierra tras 8 h **sin actividad real** (tope de 72 h); las acciones sensibles piden la
 **contraseña de nuevo** (pase de 5 min); **verificación en dos pasos (TOTP)** con códigos de recuperación; el login ya no delata qué correos existen
 (ni por mensaje ni por tiempo) y tiene tope por IP; se rechazan contraseñas débiles; `Cache-Control: no-store` y aislamiento de origen en toda la API;
 y una prueba que **barre las 200 rutas** para que ninguna nueva quede sin proteger por olvido. Rescate si se pierde el celular: `python -m app.reset_2fa correo`.
@@ -464,4 +464,8 @@ Cierra el ciclo del módulo de asambleas (Ley 675 de 2001, Art. 47):
 - **Verificar integridad**: recalcula todo y detecta cualquier cambio posterior a la firma.
 - Endpoints bajo `/asambleas/{id}/acta` (Swagger, etiqueta «Acta de la Asamblea»). Variable opcional: `ASAMBLEA_ACTA_DIAS_HABILES` (por defecto 20).
 
-Detalle, pasos y puntos para revisar con un abogado: [`PASOS_V5.4.md`](PASOS_V5.4.md).
+Detalle, pasos y puntos para revisar con un abogado: [`PASOS_V5.4.md`](docs/historial/PASOS_V5.4.md).
+
+## Versión 5.5 · Limpieza, optimización y correcciones
+
+Sin funciones nuevas y **sin migración**. Se eliminó basura (una captura de 1,2 MB, una imagen y una pantalla del administrador que ya no tenían uso, y 10 guías duplicadas), se quitó código muerto, se corrigieron tres fugas de oyentes en el frontend (campana de notificaciones, foto y login) y se añadió una prueba automática que detecta imports rotos antes de publicar. Las guías anteriores quedaron en `docs/historial/`. Detalle y pasos para publicar: [`PASOS_V5.5.md`](PASOS_V5.5.md).

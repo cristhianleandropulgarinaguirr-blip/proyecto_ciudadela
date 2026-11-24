@@ -1,7 +1,6 @@
 # tests/test_v35.py — Versión 3.5: Fase 0 (filtros de reservas, índices) y Fase 1 (PIN, página pública del pase, avisos).
 from datetime import datetime, timedelta
 
-import pytest
 
 from app import config, limitador
 from app.models import CodigoQR, Notificacion, Reserva, Usuario, ahora_utc

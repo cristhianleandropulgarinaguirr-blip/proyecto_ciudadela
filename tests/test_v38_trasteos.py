@@ -1,7 +1,7 @@
 # tests/test_v38_trasteos.py — Versión 3.8, Fase 3 (operativo): trasteos con solicitud, validación de paz y salvo, aprobación y alerta al guardia.
 from datetime import timedelta
 
-from app.models import Auditoria, Notificacion, PazSalvo, Trasteo, Usuario, ahora_utc
+from app.models import Auditoria, Notificacion, PazSalvo, Trasteo, ahora_utc
 from tests.test_arrendamientos import ADM, ANA, CEL, LUIS, inquilino_activo
 from tests.test_v36_paz_kpis import poner_saldo
 from tests.test_delegaciones import id_de

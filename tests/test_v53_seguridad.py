@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from app import config, limitador, sesiones, totp
 from app.main import app
 from app.models import Auditoria, IntentoLogin, Sesion, Usuario, ahora_utc
-from app.security import ALGORITHM, SECRET_KEY, _CLAVE_REAUTH, crear_token_acceso
+from app.security import ALGORITHM, SECRET_KEY, _CLAVE_REAUTH
 
 CLAVE = "claveSegura123"
 ADMIN, ANA, GUARDIA = "admin@conjunto.com", "ana@conjunto.com", "celador@conjunto.com"

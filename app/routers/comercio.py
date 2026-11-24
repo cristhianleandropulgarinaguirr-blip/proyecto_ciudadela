@@ -3,7 +3,6 @@
 # aparecer en el directorio del conjunto. Flujo:
 #   Pendiente de pago -> (el dueño informa el comprobante) En revision -> (el administrador confirma) Activa -> Vencida
 # El cobro es manual (transferencia + comprobante); más adelante se puede cambiar por una pasarela como Wompi.
-import os
 from datetime import timedelta
 from typing import Optional
 from urllib.parse import quote

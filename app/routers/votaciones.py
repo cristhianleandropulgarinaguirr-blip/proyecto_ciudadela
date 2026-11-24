@@ -17,7 +17,6 @@ from app.database import get_db
 from app.dependencies import requiere_roles
 from app.models import Rol, Usuario, Votacion, VotacionOpcion, VotacionParticipacion, ahora_utc
 from app.notificaciones import notificar, usuarios_activos
-from app.schemas.negocio import MensajeResponse
 from app.schemas.votaciones import (OpcionResponse, ParticipacionResponse, PendientesResponse, VotacionCreate, VotacionResponse, VotoIn)
 
 TAG = "Votaciones"

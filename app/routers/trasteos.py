@@ -4,7 +4,7 @@
 # Regla legal/operativa: una SALIDA de muebles solo se aprueba y se inicia si el apartamento tiene paz y salvo VIGENTE. Se vuelve a comprobar en
 # cada paso (solicitud, aprobación e inicio en portería) porque la cartera puede cambiar entre un paso y otro.
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

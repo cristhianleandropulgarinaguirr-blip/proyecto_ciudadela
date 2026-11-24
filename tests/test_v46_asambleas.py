@@ -7,12 +7,11 @@ import sqlite3
 import tempfile
 from datetime import date, datetime, timedelta
 
-import pytest
 from alembic import command
 from alembic.config import Config
 
 from app import calendario_co, config
-from app.models import (Asamblea, AsambleaAsistente, AsambleaEvento, AsambleaPoder, Documento, Notificacion, Unidad, Usuario, ahora_utc)
+from app.models import (Asamblea, AsambleaAsistente, AsambleaEvento, Documento, Notificacion, Unidad, Usuario, ahora_utc)
 
 PDF = b"%PDF-1.4\n% poder de prueba\n"
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -534,7 +533,7 @@ def test_limite_de_poderes_por_persona(client, auth, db):
 
 
 def test_el_personal_del_conjunto_no_recibe_poderes(client, auth, db):
-    ids = base(client, auth, db)
+    base(client, auth, db)
     aid = lista_para_sesion(client, auth, db)
     celador = db.query(Usuario).filter(Usuario.email == CELADOR).one()
     pid = subir_poder(client, auth, aid).json()["id"]
@@ -566,7 +565,7 @@ def test_archivos_de_poderes_validan_el_contenido(client, auth, db):
 
 
 def test_privacidad_de_los_poderes(client, auth, db):
-    ids = base(client, auth, db)
+    base(client, auth, db)
     aid = lista_para_sesion(client, auth, db)
     p = subir_poder(client, auth, aid, quien=ANA).json()
     assert client.get(f"/asambleas/{aid}/poderes/{p['id']}/archivo", headers=auth(ADMIN)).content == PDF

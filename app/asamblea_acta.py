@@ -257,7 +257,6 @@ def render_pdf(c: dict, *, borrador: bool, huella_acta: Optional[str] = None, se
     titulo = ParagraphStyle("t", parent=est["Title"], fontSize=14.5, leading=18, spaceAfter=2)
     sub = ParagraphStyle("s", parent=est["Heading3"], fontSize=11, spaceBefore=11, spaceAfter=3, textColor=colors.HexColor("#17324D"))
     pequeno = ParagraphStyle("p", parent=normal, fontSize=8, leading=10.5, textColor=colors.HexColor("#555555"))
-    mono = ParagraphStyle("m", parent=pequeno, fontName="Courier", fontSize=8)
     aviso = ParagraphStyle("a", parent=normal, fontSize=9, leading=12, textColor=colors.HexColor("#8A1C1C"), borderColor=colors.HexColor("#C9A0A0"), borderWidth=0.8, borderPadding=5, spaceAfter=8)
     P = lambda t, e=normal: Paragraph(re.sub(r"(?<!\.)\.\.(?!\.)", ".", t), e)        # noqa: E731  (las fechas terminan en «p. m.»: evita el doble punto al cerrar la frase)
     E = escape

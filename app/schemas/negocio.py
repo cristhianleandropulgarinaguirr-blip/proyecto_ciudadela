@@ -4,7 +4,6 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from app.constantes import EstadoReserva
 
 
 # ---------------- RESERVAS ----------------

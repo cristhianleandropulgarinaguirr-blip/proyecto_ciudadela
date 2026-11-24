@@ -37,8 +37,6 @@ ALIAS: dict[str, dict[str, set[str]]] = {
 }
 # Columnas sin las cuales la planilla no sirve (de «cartera» basta con una de email/apartamento, se valida aparte).
 OBLIGATORIAS = {"residentes": {"nombre_completo", "email", "apartamento"}, "cartera": {"saldo_pendiente"}}
-TITULOS = {"nombre_completo": "nombre_completo", "email": "email", "apartamento": "apartamento", "parqueadero": "parqueadero",
-           "valor_administracion": "valor_administracion", "saldo_pendiente": "saldo_pendiente", "coeficiente": "coeficiente"}
 
 _EMAIL = TypeAdapter(EmailStr)
 

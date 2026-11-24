@@ -9,8 +9,7 @@ from fastapi.testclient import TestClient
 from app import config, push, sesiones
 from app.generar_vapid import generar
 from app.main import app
-from app.models import (AccesoVisitante, OperacionOffline, Paquete, Sesion, SuscripcionPush, Usuario, VehiculoVisitante, VisitanteAutorizado,
-                        Votacion, ahora_utc)
+from app.models import (AccesoVisitante, OperacionOffline, Paquete, Sesion, SuscripcionPush, Usuario, VehiculoVisitante, Votacion, ahora_utc)
 from app.security import crear_token_acceso, encriptar_password
 
 ANA, LUIS, CEL, ADM = "ana@conjunto.com", "luis@conjunto.com", "celador@conjunto.com", "admin@conjunto.com"

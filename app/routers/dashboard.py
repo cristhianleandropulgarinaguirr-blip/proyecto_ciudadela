@@ -3,7 +3,7 @@
 # (COUNT / SUM / GROUP BY): el servidor devuelve ~1 KB de números en vez de miles de filas para que el navegador las cuente.
 # Además se guarda 60 s en memoria: si el administrador abre y cierra la pantalla, o hay varios administradores, no se repite el cálculo.
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import case, func

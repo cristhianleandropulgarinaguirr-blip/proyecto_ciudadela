@@ -135,7 +135,11 @@ export function selectorFoto({ titulo = "Agregar foto", ayuda = "Toma una foto o
     zona.replaceChildren(video, h("div", { class: "foto-acciones" }, capturar,
       h("button", { type: "button", class: "btn suave", onclick: () => { apagarCamara(); pintar(); } }, "Cancelar")));
   }
-  document.addEventListener("visibilitychange", () => { if (document.hidden && flujo) { apagarCamara(); pintar(); } });
+  const alOcultar = () => {
+    if (!caja.isConnected) return document.removeEventListener("visibilitychange", alOcultar);     // el formulario salió de la pantalla: este oyente se retira solo
+    if (document.hidden && flujo) { apagarCamara(); pintar(); }
+  };
+  document.addEventListener("visibilitychange", alOcultar);
 
   function botones() {
     return h("div", { class: "foto-acciones" },

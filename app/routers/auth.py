@@ -102,7 +102,6 @@ def _exigir_clave(db: Session, request: Request, usuario: Usuario, password: str
                429: {"description": "Demasiados intentos fallidos: espera unos minutos"}},
 )
 def login_usuario(request: Request, response: Response, form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    ahora = ahora_utc()
     clave = form.username.strip().lower()
 
     # Límite de intentos: tras 5 fallos seguidos ese correo queda bloqueado 15 minutos (y la IP tiene su propio tope).
