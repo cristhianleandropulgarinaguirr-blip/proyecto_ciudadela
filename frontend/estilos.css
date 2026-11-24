@@ -1708,3 +1708,32 @@ html[data-modo-demo]::after {
 .asm-paso { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; font-size: .95rem; }
 .asm-paso.hecho { color: var(--tinta-2, inherit); }
 .asm-paso:not(.hecho) { font-weight: 600; }
+
+/* ==========================================================================
+   v5.5 · Pulido visual
+   Para volver atrás: borra este bloque completo (no hay nada más modificado en el frontend).
+   ========================================================================== */
+
+/* Cabecera sobre la ilustración: en modo claro el patrón baja de .55 a .24 para que no moleste detrás de los textos.
+   El modo oscuro conserva su intensidad actual (.6). */
+:root,
+:root[data-tema="claro"] {
+  --ciudad-op: .24;
+}
+:root[data-tema="oscuro"] {
+  --ciudad-op: .6;
+}
+/* Refuerzo de contraste del título y textos de la cabecera, solo en modo claro (un halo del color del papel). */
+:root[data-tema="claro"] .pagina-cab .saludo,
+:root[data-tema="claro"] .pagina-cab h1,
+:root[data-tema="claro"] .pagina-cab p {
+  text-shadow: 0 1px 12px var(--papel), 0 0 6px var(--papel), 0 0 2px var(--papel);
+}
+
+/* Celular y tableta (< 1024 px): más espacio al final para que el botón flotante de Ciudabot no tape la última tarjeta.
+   Reemplaza al 5.5rem de la línea ~1299 (mismo selector, va después, por eso gana sin !important). */
+@media (max-width: 1023px) {
+  .main {
+    padding-bottom: calc(var(--nav-h) + var(--safe-b) + 7.2rem);
+  }
+}

@@ -84,7 +84,7 @@ services:
 #    plan: free
 #    region: virginia
 #    buildCommand: pip install -r requirements.txt
-#    startCommand: alembic upgrade head && python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+#    startCommand: alembic upgrade head && python -m app.seed && python -m app.seed_demo --reiniciar --con-admin --si --clave "$DEMO_CLAVE" && uvicorn app.main:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
 #    healthCheckPath: /salud
 #    envVars:
 #      - key: PYTHON_VERSION
@@ -112,9 +112,11 @@ services:
 #      - key: DOCS_ACTIVAS
 #        value: "1"
 #      - key: DEMO_WHATSAPP             # tu WhatsApp de ventas (10 dígitos que empiecen en 3): botón «Escribir por WhatsApp» de la landing
-#        value: "3224101828"
+#        sync: false                    # se escribe SOLO en el panel de Render (Environment), nunca en este archivo
 #      - key: DEMO_CONTACTO
 #        value: "Cristhian"
+#      - key: DEMO_CLAVE                # clave FIJA de las cuentas de la demo (mín. 8 caracteres). Va solo en el panel de Render; sin ella la clave cambia en cada arranque
+#        sync: false
 #      - key: DEMO_CORREO
 #        sync: false
 #      - key: TELEGRAM_BOT_TOKEN        # v4.8 · el token de tu bot de Telegram (@BotFather). Con él y el chat te llega el aviso de cada solicitud de demo (ver PASOS_V4.8.md)
