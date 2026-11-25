@@ -341,7 +341,9 @@ def test_cambiar_password_tambien_exige_una_clave_decente(client):
 # ======================================================================= 6 · barrido de TODAS las rutas
 PUBLICAS = {("POST", "/auth/login"), ("POST", "/auth/logout"), ("POST", "/auth/refresh"), ("POST", "/demo/solicitar"),
             ("GET", "/pase-publico/{token}"), ("POST", "/pase-publico/{token}/aviso"), ("GET", "/pase-publico/{token}/imagen"),
-            ("GET", "/salud"), ("GET", "/verificacion-publica/{codigo}")}
+            ("GET", "/salud"), ("GET", "/verificacion-publica/{codigo}"),
+            # v5.6 · enlace de técnico de mantenimiento: sin sesión a propósito (el token del enlace es la llave; ver tests/test_v56_enlace_tecnico.py)
+            ("GET", "/tecnico-publico/{token}"), ("GET", "/tecnico-publico/{token}/foto"), ("POST", "/tecnico-publico/{token}/estado")}
 
 
 def _operaciones():

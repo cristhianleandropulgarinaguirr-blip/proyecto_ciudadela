@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#9A3412">
+  <title>Reporte de mantenimiento</title>
+  <link rel="icon" type="image/png" href="/app/img/favicon.png">
+  <!-- Página pública del técnico de mantenimiento (rol Mantenimiento: sin cuenta, solo con este enlace).
+       Sin fuentes ni librerías externas: carga rápido incluso con datos móviles lentos. HTML, CSS y JS van en archivos separados. -->
+  <link rel="stylesheet" href="/app/tecnico/tecnico.css">
+</head>
+<body>
+  <main class="tec" id="tec">
+    <header class="cab">
+      <img class="logo" src="/app/img/logo-crema.png" alt="" width="40" height="40">
+      <div>
+        <p class="peq" id="conjunto-etiqueta">Mantenimiento</p>
+        <h1 id="conjunto">Cargando…</h1>
+      </div>
+    </header>
+
+    <!-- Enlace vigente: el reporte y el formulario para actualizarlo -->
+    <section class="tarjeta" id="tarjeta" hidden>
+      <div class="estado" id="estado" role="status"></div>
+
+      <h2 id="titulo"></h2>
+      <p class="descripcion" id="descripcion"></p>
+
+      <figure class="foto-caja" id="foto-caja" hidden>
+        <button type="button" class="foto-btn" id="foto-btn" aria-label="Ampliar la foto del daño">
+          <img id="foto" alt="Foto del daño reportado" width="640" height="480">
+        </button>
+      </figure>
+
+      <dl class="datos">
+        <div><dt>Apartamento</dt><dd id="apartamento"></dd></div>
+        <div><dt>Reportado</dt><dd id="reportado"></dd></div>
+        <div><dt>Este enlace sirve hasta</dt><dd id="vence"></dd></div>
+      </dl>
+
+      <div class="historial" id="historial" hidden>
+        <h3>Lo que ya dejaste en este reporte</h3>
+        <ul id="lista-historial"></ul>
+      </div>
+
+      <form id="form" novalidate hidden>
+        <h3>Actualizar el estado</h3>
+        <div class="opciones" role="radiogroup" aria-label="Nuevo estado del reporte">
+          <label class="opcion" id="op-reparacion">
+            <input type="radio" name="estado" value="En Reparacion">
+            <span><b>Estoy reparando</b><small>Pasa a «En reparación»</small></span>
+          </label>
+          <label class="opcion" id="op-solucionado">
+            <input type="radio" name="estado" value="Solucionado">
+            <span><b>Ya quedó solucionado</b><small>Pasa a «Solucionado» y cierra este enlace</small></span>
+          </label>
+        </div>
+
+        <label class="campo-titulo" for="nota">Nota <span class="pista" id="nota-pista">(opcional)</span></label>
+        <textarea id="nota" maxlength="500" rows="3" placeholder="Ej: Cambié el sifón y revisé que no gotee."></textarea>
+
+        <p class="campo-titulo">Foto de evidencia <span class="pista" id="foto-pista">(opcional)</span></p>
+        <div class="foto-acciones">
+          <label class="btn btn-claro" for="archivo-camara">Tomar foto</label>
+          <label class="btn btn-claro" for="archivo-galeria">Elegir de la galería</label>
+        </div>
+        <input type="file" id="archivo-camara" accept="image/*" capture="environment" hidden>
+        <input type="file" id="archivo-galeria" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden>
+        <div class="vista" id="vista" hidden>
+          <img id="vista-img" alt="Vista previa de tu foto de evidencia">
+          <button type="button" class="btn btn-claro" id="quitar-foto">Quitar foto</button>
+        </div>
+
+        <button class="btn btn-fuerte" type="submit" id="enviar">Enviar actualización</button>
+        <p class="mensaje" id="mensaje" role="status"></p>
+      </form>
+    </section>
+
+    <!-- Enlace que ya no sirve (vencido, anulado o cerrado): ni un dato del reporte -->
+    <section class="tarjeta final" id="final" hidden>
+      <h2 id="final-titulo"></h2>
+      <p id="final-texto"></p>
+    </section>
+
+    <section class="tarjeta error" id="error" hidden>
+      <h2 id="error-titulo">Este enlace no es válido</h2>
+      <p id="error-texto">Revisa que lo copiaste completo o pídele al administrador que te envíe uno nuevo.</p>
+    </section>
+
+    <footer class="pie peq">__MARCA_NOMBRE__ · Este enlace es solo para este reporte. No lo reenvíes.</footer>
+  </main>
+  <script src="/app/tecnico/tecnico.js" defer></script>
+</body>
+</html>

@@ -291,6 +291,7 @@ Endpoints: `POST/GET /arrendamientos/` · `GET /arrendamientos/mio` · `POST /ar
 | Reportar daños con foto | ✅ | ✅ | ❌ |
 | Ver reportes de daños | todos | solo los míos | solo los míos |
 | Cambiar estado de un daño | ✅ | ❌ | ❌ |
+| Crear / anular el enlace de un técnico para un daño (v5.6) | ✅ | ❌ | ❌ |
 | Ver estado de cuenta | cualquiera | solo el mío | solo el mío |
 | Registrar deuda de un apartamento | ✅ | ❌ | ❌ |
 | Registrar un pago recibido (transferencia/efectivo) | ✅ | ❌ | ❌ |
@@ -468,4 +469,8 @@ Detalle, pasos y puntos para revisar con un abogado: [`PASOS_V5.4.md`](docs/hist
 
 ## Versión 5.5 · Limpieza, optimización y correcciones
 
-Sin funciones nuevas y **sin migración**. Se eliminó basura (una captura de 1,2 MB, una imagen y una pantalla del administrador que ya no tenían uso, y 10 guías duplicadas), se quitó código muerto, se corrigieron tres fugas de oyentes en el frontend (campana de notificaciones, foto y login) y se añadió una prueba automática que detecta imports rotos antes de publicar. Las guías anteriores quedaron en `docs/historial/`. Detalle y pasos para publicar: [`PASOS_V5.5.md`](PASOS_V5.5.md).
+Sin funciones nuevas y **sin migración**. Se eliminó basura (una captura de 1,2 MB, una imagen y una pantalla del administrador que ya no tenían uso, y 10 guías duplicadas), se quitó código muerto, se corrigieron tres fugas de oyentes en el frontend (campana de notificaciones, foto y login) y se añadió una prueba automática que detecta imports rotos antes de publicar. Las guías anteriores quedaron en `docs/historial/`. Detalle y pasos para publicar: [`PASOS_V5.5.md`](docs/historial/PASOS_V5.5.md).
+
+## Versión 5.6 · Rol Mantenimiento (enlace de técnico, sin cuenta) — recuerda `alembic upgrade head` (migración 0026)
+
+El administrador le comparte a un técnico un **enlace temporal atado a un solo reporte de daño**. El técnico entra sin cuenta (página `/tecnico/<token>`), ve solo el apartamento, la descripción y la foto del daño —nunca el nombre ni el teléfono del residente— y solo puede pasar el estado a *En reparación* o *Solucionado* subiendo su foto de evidencia con una nota. Cada cambio queda en la auditoría y avisa al residente. El enlace vence pronto (72 h por defecto), se puede anular y se cierra solo al quedar solucionado. Color del rol: naranja de obra. Detalle, riesgos y pasos para publicar: [`PASOS_V5.6.md`](PASOS_V5.6.md).

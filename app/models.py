@@ -99,6 +99,48 @@ class ReporteDanio(Base):
     foto_url = Column(String, nullable=True, default="sin_foto.jpg")
     estado = Column(String, default="Abierto", index=True)  # Abierto | En Revision | En Reparacion | Solucionado
     fecha_creacion = Column(DateTime, default=ahora_utc)
+    # v5.6 · lo que el técnico fue dejando (nota + foto de evidencia) desde su enlace. Vive en otra tabla: reportes_danios no cambia.
+    evidencias = relationship("EvidenciaDanio", back_populates="reporte", order_by="EvidenciaDanio.id")
+
+
+class EnlaceTecnico(Base):
+    """v5.6 · Enlace temporal para que un técnico (sin cuenta) atienda UN solo reporte de daño.
+    Como el pase de visitante, guarda solo un token aleatorio: lo que el enlace permite vive aquí y se puede anular al instante.
+    Estado visible (se calcula, no se guarda): Vigente | Vencido | Revocado | Cerrado (el técnico lo marcó Solucionado)."""
+    __tablename__ = "enlaces_tecnico"
+
+    id = Column(Integer, primary_key=True, index=True)
+    reporte_id = Column(Integer, ForeignKey("reportes_danios.id"), nullable=False, index=True)   # el enlace sirve para ESTE reporte y ninguno más
+    token = Column(String, unique=True, nullable=False, index=True)
+    creado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    etiqueta = Column(String(80), nullable=True)           # ej. «Plomero · Don Jaime»: solo para que el administrador distinga el enlace
+    valido_hasta = Column(DateTime, nullable=False)        # vence pronto (por defecto 72 h; máximo 7 días)
+    fecha_creacion = Column(DateTime, default=ahora_utc)
+    revocado_en = Column(DateTime, nullable=True)
+    revocado_por = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    cerrado_en = Column(DateTime, nullable=True)           # el técnico marcó «Solucionado»: el enlace se cierra solo
+    ultimo_uso = Column(DateTime, nullable=True)           # última vez que el técnico actualizó el reporte
+
+    reporte = relationship("ReporteDanio")
+
+
+class EvidenciaDanio(Base):
+    """v5.6 · Cada actualización del técnico: a qué estado pasó el reporte, su nota y (opcional) la foto de evidencia."""
+    __tablename__ = "evidencias_danio"
+
+    id = Column(Integer, primary_key=True, index=True)
+    reporte_id = Column(Integer, ForeignKey("reportes_danios.id"), nullable=False, index=True)
+    enlace_id = Column(Integer, ForeignKey("enlaces_tecnico.id"), nullable=False, index=True)
+    estado = Column(String(20), nullable=False)           # En Reparacion | Solucionado
+    nota = Column(String(500), nullable=True)
+    foto = Column(String(80), nullable=True)              # nombre aleatorio del archivo guardado (como foto_url del reporte)
+    fecha = Column(DateTime, default=ahora_utc)
+
+    reporte = relationship("ReporteDanio", back_populates="evidencias")
+
+    @property
+    def tiene_foto(self) -> bool:
+        return bool(self.foto)
 
 
 # ==========================================

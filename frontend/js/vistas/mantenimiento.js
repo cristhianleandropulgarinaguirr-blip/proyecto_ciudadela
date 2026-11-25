@@ -2,9 +2,13 @@
 // Endpoints: POST /mantenimiento/reportar-danio (multipart) · GET /mantenimiento/listar-danios
 //            GET /mantenimiento/danios/{id}/foto (protegida: se pide con el token y se muestra como blob)
 //            PATCH /mantenimiento/cambiar-estado/{id} (admin)
+//   v5.6 · Rol Mantenimiento (técnico sin cuenta): el administrador crea un enlace temporal por reporte
+//            POST /mantenimiento/danios/{id}/enlace-tecnico · GET /mantenimiento/danios/{id}/enlaces-tecnico · POST /mantenimiento/enlaces-tecnico/{id}/revocar
+//            GET /mantenimiento/danios/{id}/evidencias/{evidencia_id}/foto (lo que dejó el técnico: nota + foto)
 import { api, apiBlob } from "../api.js";
 import { botonResidente, tomarBorrador } from "../asistente.js";
-import { h, icono, badge, estadoVacio, toast, conCarga, modal, deUtc, hace } from "../ui.js";
+import { marca } from "../marca.js";
+import { h, icono, badge, estadoVacio, toast, conCarga, modal, confirmar, deUtc, hace, fmtFechaHora } from "../ui.js";
 import { selectorFoto } from "../foto.js";
 import { autoguardar } from "../autoguardado.js";
 import { cabecera, filtros, mapaUsuarios, nombreDe } from "./comun.js";
@@ -32,6 +36,109 @@ function cargarFoto(reporte, destino) {
     } catch { /* si falla, se queda el ícono */ }
   };
   observador ? observador.observe(destino) : destino._cargar();
+}
+
+// ================================================================ v5.6 · evidencia del técnico
+const ETIQUETA_ESTADO = Object.fromEntries(PASOS);
+
+function cargarFotoEvidencia(reporte, ev, destino) {
+  const ruta = `/mantenimiento/danios/${reporte.id}/evidencias/${ev.id}/foto`;
+  destino._cargar = async () => {
+    try {
+      const url = URL.createObjectURL(await apiBlob(ruta, { params: { miniatura: true } }));
+      destino.replaceChildren(h("img", { src: url, alt: "Foto de evidencia del técnico" }));
+      destino.onclick = async () => {
+        const grande = h("img", { class: "visor", src: url, alt: "Foto de evidencia del técnico" });
+        modal(`Evidencia · ${reporte.titulo}`, grande);
+        try { grande.src = URL.createObjectURL(await apiBlob(ruta)); } catch { /* se queda la miniatura */ }
+      };
+      destino.disabled = false;
+    } catch { /* si falla, se queda el ícono */ }
+  };
+  observador ? observador.observe(destino) : destino._cargar();
+}
+
+/** Lo que el técnico dejó desde su enlace (estado, nota y foto). Lo ven el administrador y quien hizo el reporte. */
+function bloqueEvidencias(r) {
+  if (!r.evidencias?.length) return null;
+  return h("div", { class: "evidencias" }, r.evidencias.map((ev) => {
+    const foto = ev.tiene_foto ? h("button", { class: "evidencia-foto", type: "button", disabled: true, "aria-label": "Ampliar foto de evidencia" }, icono("imagen")) : null;
+    if (foto) cargarFotoEvidencia(r, ev, foto);
+    return h("div", { class: "evidencia" }, foto,
+      h("div", {}, h("span", { class: "badge-mant" }, "Técnico"), " ", h("b", {}, ETIQUETA_ESTADO[ev.estado] ?? ev.estado),
+        h("span", { class: "small muted" }, ` · ${hace(deUtc(ev.fecha))}`), ev.nota ? h("p", {}, ev.nota) : null));
+  }));
+}
+
+const VIGENCIAS = [[24, "1 día"], [72, "3 días (recomendado)"], [168, "7 días (el máximo)"]];
+const BADGE_ENLACE = { Vigente: "bosque", Vencido: "laton", Revocado: "arcilla", Cerrado: "borde" };
+const urlDelEnlace = (e) => `${location.origin}${e.enlace}`;
+
+async function copiarEnlace(e) {
+  try { await navigator.clipboard.writeText(urlDelEnlace(e)); toast("Enlace copiado."); }
+  catch { toast("No se pudo copiar: selecciona el enlace y cópialo a mano.", "error"); }
+}
+
+/** Botones Copiar y WhatsApp de un enlace vigente. */
+function accionesDelEnlace(e, r) {
+  const mensaje = `Enlace para atender el daño «${r.titulo}» en ${marca.nombre}. Sirve hasta ${fmtFechaHora(deUtc(e.valido_hasta))} y es solo para este reporte, no lo reenvíes: ${urlDelEnlace(e)}`;
+  return h("div", { class: "tec-acciones" },
+    h("button", { class: "btn mant sm", type: "button", onclick: () => copiarEnlace(e) }, icono("compartir", 16), "Copiar"),
+    h("a", { class: "btn mant-suave sm", href: `https://wa.me/?text=${encodeURIComponent(mensaje)}`, target: "_blank", rel: "noopener noreferrer" }, "Enviar por WhatsApp"));
+}
+
+/** Ventana del administrador: crear el enlace de un técnico, copiarlo/enviarlo y anular los que ya no hagan falta. */
+async function abrirEnlaceTecnico(r) {
+  const vigencia = h("select", { id: "tec-horas" }, VIGENCIAS.map(([v, t]) => h("option", { value: v, selected: v === 72 }, t)));
+  const etiqueta = h("input", { id: "tec-etiqueta", maxlength: "80", placeholder: " " });
+  const resultado = h("div", { class: "tec-resultado" });
+  const lista = h("div", { class: "tec-lista" });
+
+  async function pintarLista() {
+    try {
+      const enlaces = await api(`/mantenimiento/danios/${r.id}/enlaces-tecnico`);
+      lista.replaceChildren(...(enlaces.length ? enlaces.map((e) => h("div", { class: "tec-fila" },
+        h("div", {}, h("span", {}, h("span", { class: `badge ${BADGE_ENLACE[e.estado] ?? ""}` }, e.estado), e.etiqueta ? ` ${e.etiqueta}` : ""),
+          h("span", { class: "small muted" }, e.estado === "Vigente" ? `Sirve hasta ${fmtFechaHora(deUtc(e.valido_hasta))}` : `Creado ${hace(deUtc(e.fecha_creacion))}`)),
+        e.estado === "Vigente" ? h("div", { class: "tec-acciones" },
+          h("button", { class: "btn suave sm", type: "button", onclick: () => copiarEnlace(e) }, "Copiar"),
+          h("button", { class: "btn peligro sm", type: "button", onclick: () => anular(e) }, "Anular")) : null))
+        : [h("p", { class: "small muted" }, "Todavía no has creado enlaces para este reporte.")]));
+    } catch { lista.replaceChildren(h("p", { class: "small muted" }, "No se pudo cargar la lista de enlaces.")); }
+  }
+
+  async function anular(e) {
+    const si = await confirmar("¿Anular este enlace?", "El técnico ya no podrá abrirlo ni actualizar el reporte. Cuando quieras puedes crear otro.", "Anular enlace", true);
+    if (si) {
+      try { await api(`/mantenimiento/enlaces-tecnico/${e.id}/revocar`, { metodo: "POST" }); toast("Enlace anulado."); }
+      catch (err) { toast(err.message, "error"); }
+    }
+    abrirEnlaceTecnico(r);          // el aviso de confirmación usa la misma ventana: se vuelve a abrir ya actualizada
+  }
+
+  const generar = h("button", { class: "btn mant block", type: "button", onclick: () => conCarga(generar, async () => {
+    try {
+      const e = await api(`/mantenimiento/danios/${r.id}/enlace-tecnico`, { metodo: "POST", json: { horas: Number(vigencia.value), etiqueta: etiqueta.value.trim() || null } });
+      resultado.replaceChildren(
+        h("b", {}, "Enlace listo. Cualquiera que lo tenga puede abrirlo hasta que venza o lo anules."),
+        h("input", { class: "tec-url", readonly: true, value: urlDelEnlace(e), "aria-label": "Enlace para el técnico", onfocus: (ev) => ev.target.select() }),
+        accionesDelEnlace(e, r));
+      toast("Enlace creado. Si había otro vigente, quedó anulado.");
+      await pintarLista();
+    } catch (err) { toast(err.message, "error"); }
+  }) }, icono("llave", 18), "Generar enlace");
+
+  pintarLista();
+  modal("Enlace para el técnico", h("div", { class: "tec-modal" },
+    h("p", { class: "muted small" }, "El técnico lo abre sin contraseña. Podrá pasar el reporte a «En reparación» o «Solucionado» y subir su foto de evidencia con una nota. Cada cambio queda en la auditoría y le avisa al residente."),
+    h("div", { class: "tec-aviso" },
+      h("b", {}, "Esto es lo que verá el técnico (más la foto del daño):"),
+      h("blockquote", {}, h("b", {}, r.titulo), h("br"), r.descripcion),
+      h("span", { class: "small" }, "Nunca verá el nombre ni el teléfono de quien reportó, pero el texto se muestra tal cual: revisa que no incluya datos personales.")),
+    h("div", { class: "field" }, vigencia, h("label", { for: "tec-horas" }, "¿Cuánto tiempo sirve el enlace?")),
+    h("div", { class: "field" }, etiqueta, h("label", { for: "tec-etiqueta" }, "¿Para quién es? (opcional, solo lo ves tú)")),
+    generar, resultado,
+    h("h3", {}, "Enlaces de este reporte"), lista));
 }
 
 export async function render(ctx) {
@@ -62,7 +169,10 @@ export async function render(ctx) {
         h("div", { style: "display:flex;justify-content:space-between;gap:.5rem;align-items:center;flex-wrap:wrap" }, badge(r.estado),
           h("span", { class: "small muted" }, hace(deUtc(r.fecha_creacion)))),
         h("h3", {}, r.titulo), h("p", {}, r.descripcion),
-        esAdmin ? h("span", { class: "small muted" }, `Reportó: ${nombreDe(mapa, r.usuario_id)}`) : null, pasos));
+        esAdmin ? h("span", { class: "small muted" }, `Reportó: ${nombreDe(mapa, r.usuario_id)}`) : null, bloqueEvidencias(r), pasos,
+        esAdmin ? h("div", { class: "acciones-tec" }, h("button", { class: "btn mant-suave sm", type: "button", disabled: r.estado === "Solucionado",
+          title: r.estado === "Solucionado" ? "Este reporte ya está solucionado" : "Crear un enlace temporal para que un técnico lo atienda sin cuenta",
+          onclick: () => abrirEnlaceTecnico(r) }, icono("llave", 16), "Enlace para técnico")) : null));
   }
   function pintar() {
     const conteo = DEFS.map(([id, texto]) => ({ id, texto, n: datos.filter(GRUPOS[id]).length }));

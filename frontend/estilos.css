@@ -76,6 +76,7 @@
 /* ==========================================================================
    COLOR POR ROL  (<html data-rol="…"> lo pone app.js / tema.js)
    Administrador = azul marino (base de arriba). Residente = verde azulado (teal). Guardia = ámbar. Inquilino = violeta.
+   v5.6 · Mantenimiento = naranja de obra (el técnico entra con un enlace, sin cuenta: ver el bloque «MANTENIMIENTO» al final de este archivo).
    Solo se redefinen las variables del color principal: los componentes no se tocan.
    ========================================================================== */
 :root[data-rol="Residente"] {
@@ -1737,3 +1738,60 @@ html[data-modo-demo]::after {
     padding-bottom: calc(var(--nav-h) + var(--safe-b) + 7.2rem);
   }
 }
+
+
+/* ==========================================================================
+   v5.6 · MANTENIMIENTO = naranja de obra (casco y chaleco de seguridad)
+   El técnico NO tiene cuenta: entra con un enlace temporal a UN reporte (página /tecnico/<token>, con su propio tecnico.css). Su color
+   aparece también aquí, en la app del administrador y del residente, para que todo lo que viene del técnico se reconozca de un vistazo:
+   la insignia «Técnico», el botón del enlace y la evidencia (nota + foto) que dejó. El naranja apunta al rojo-teja, así no se confunde
+   con el ámbar del Guardia. Los tonos del tema oscuro son más claros para mantener el contraste (WCAG AA).
+   Las variables --mant* sirven en cualquier rol; el bloque :root[data-rol="Mantenimiento"] sigue el mismo formato de los otros roles.
+   ========================================================================== */
+:root {
+  --mant: #C2410C; --mant-ink: #9A3412; --mant-100: #FFEDD5; --mant-borde: #FDBA74; --sobre-mant: #FFFFFF;
+}
+:root[data-tema="oscuro"] {
+  --mant: #FB923C; --mant-ink: #FDBA74; --mant-100: #3A1E0E; --mant-borde: #8A4A1E; --sobre-mant: #2A1203;
+}
+:root[data-rol="Mantenimiento"] {
+  --bosque: #C2410C; --bosque-2: #DA5A1E; --bosque-100: #FFEDD5;
+  --menu: #7C2D12; --primario: #C2410C; --sobre-primario: #FFF7ED;
+  --acento-rol: #FDBA74;
+  --rol-rgb: 194, 65, 12;
+  --tarjeta: #FBE6D4; --tarjeta-borde: #E0A57D;
+}
+:root[data-rol="Mantenimiento"][data-tema="oscuro"] {
+  --bosque: #FB923C; --bosque-2: #F97316; --bosque-100: #3A1E0E;
+  --menu: #2B1206; --primario: #FB923C; --sobre-primario: #2A1203;
+  --acento-rol: #FDBA74;
+  --rol-rgb: 251, 146, 60;
+  --tarjeta: #2E1708; --tarjeta-borde: #B9632B; --campo: #1D0E04; --linea: #4D2A14;
+}
+
+.badge-mant { display: inline-flex; align-items: center; gap: .3rem; padding: .1rem .6rem; border-radius: 999px; font-size: .72rem; font-weight: 700; letter-spacing: .02em; background: var(--mant-100); color: var(--mant-ink); box-shadow: inset 0 0 0 1px var(--mant-borde); }
+.btn.mant { --bg: var(--mant); --fg: var(--sobre-mant); }
+.btn.mant:hover { box-shadow: 0 8px 18px -8px rgba(194, 65, 12, .55); }
+.btn.mant-suave { --bg: var(--mant-100); --fg: var(--mant-ink); border-color: var(--mant-borde); }
+.btn.mant-suave:hover { box-shadow: none; border-color: var(--mant); }
+
+/* Lo que dejó el técnico (nota + foto de evidencia), dentro de cada tarjeta de daño */
+.evidencias { display: grid; gap: .5rem; }
+.evidencia { display: flex; gap: .6rem; align-items: flex-start; border-left: 4px solid var(--mant); background: var(--mant-100); border-radius: 0 12px 12px 0; padding: .55rem .7rem; }
+.evidencia > div { min-width: 0; }
+.evidencia-foto { flex: none; width: 56px; height: 56px; border-radius: 10px; overflow: hidden; border: 0; padding: 0; background: var(--mant-borde); display: grid; place-items: center; color: var(--mant-ink); cursor: zoom-in; }
+.evidencia-foto img { width: 100%; height: 100%; object-fit: cover; }
+.evidencia-foto svg { width: 22px; height: 22px; opacity: .7; }
+.danio .evidencia p { display: block; -webkit-line-clamp: unset; overflow: visible; margin: .25rem 0 0; color: var(--tinta); font-size: .88rem; }
+
+/* Ventana «Enlace para el técnico» (administrador) */
+.tec-aviso { border-left: 4px solid var(--mant); background: var(--mant-100); border-radius: 0 12px 12px 0; padding: .7rem .85rem; margin: .8rem 0 1rem; display: grid; gap: .45rem; color: var(--tinta); }
+.tec-aviso blockquote { margin: 0; padding: .45rem .7rem; background: var(--superficie); border-radius: 8px; font-size: .9rem; overflow-wrap: anywhere; white-space: pre-line; }
+.tec-resultado:not(:empty) { margin-top: 1rem; display: grid; gap: .6rem; padding: .85rem; border: 2px solid var(--mant); border-radius: 14px; background: var(--mant-100); }
+.tec-url { width: 100%; font: inherit; font-size: .85rem; padding: .55rem .7rem; border-radius: 10px; border: 1px solid var(--mant-borde); background: var(--superficie); color: var(--tinta); }
+.tec-acciones { display: flex; gap: .5rem; flex-wrap: wrap; }
+.tec-lista { display: grid; gap: .5rem; margin-top: .4rem; }
+.tec-fila { display: flex; gap: .5rem; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: .5rem .7rem; border: 1px solid var(--linea); border-radius: 12px; background: var(--superficie); }
+.tec-fila > div { min-width: 0; display: grid; gap: .15rem; }
+.tec-modal h3 { margin: 1.2rem 0 .4rem; font-size: 1rem; color: var(--mant-ink); }
+.danio .acciones-tec { display: flex; justify-content: flex-end; }

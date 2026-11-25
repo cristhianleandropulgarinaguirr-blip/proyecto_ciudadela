@@ -8,7 +8,7 @@ from tests.test_arrendamientos import ADM, ANA
 
 FRONTEND = Path(__file__).resolve().parent.parent / "frontend"
 NUCLEO = {".html", ".js", ".css", ".webmanifest"}          # lo mismo que app/main.py guarda al instalar
-EXCLUIDOS = {"vendor", "pase", "verificar"}                  # carpetas con su propia política (jsQR pesado y páginas públicas)
+EXCLUIDOS = {"vendor", "pase", "verificar", "tecnico"}                # carpetas con su propia política (jsQR pesado y páginas públicas)
 
 
 def test_todo_archivo_estatico_nuevo_entra_solo_a_la_cache_del_service_worker(client):

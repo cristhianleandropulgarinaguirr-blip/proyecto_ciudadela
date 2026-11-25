@@ -24,6 +24,24 @@ class EstadoDanio(str, Enum):
     SOLUCIONADO = "Solucionado"
 
 
+# ---------- v5.6: enlace de técnico de mantenimiento (sin cuenta) ----------
+class EstadoTecnico(str, Enum):
+    """Los ÚNICOS estados que el técnico puede poner desde su enlace (no puede reabrir, ni revisar, ni tocar nada más)."""
+    EN_REPARACION = "En Reparacion"
+    SOLUCIONADO = "Solucionado"
+
+
+class EstadoEnlaceTecnico(str, Enum):
+    VIGENTE = "Vigente"
+    VENCIDO = "Vencido"
+    REVOCADO = "Revocado"    # lo anuló el administrador (o lo reemplazó por uno nuevo)
+    CERRADO = "Cerrado"      # el trabajo quedó Solucionado
+
+
+VIGENCIA_ENLACE_TECNICO_HORAS = 72          # por defecto: 3 días
+MAX_VIGENCIA_ENLACE_TECNICO_HORAS = 168     # tope: 7 días
+
+
 class TipoAnuncio(str, Enum):
     REUNION = "Reunion"
     EVENTO = "Evento"

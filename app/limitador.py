@@ -74,6 +74,10 @@ LECTURAS_PUBLICAS = Ventana(maximo=90, segundos=60)
 AVISOS_PUBLICOS = Ventana(maximo=10, segundos=60)
 # PIN de portería: solo cuentan los FALLOS; 8 en 10 minutos bloquea al guardia unos minutos (1 millón de combinaciones).
 PIN_FALLIDOS = Ventana(maximo=8, segundos=600)
+# v5.6 · Enlace de técnico (sin sesión). Cambiar el estado sube una foto: es lo más costoso y lo más atacable, por eso va más apretado que las lecturas.
+# Por IP: 10 intentos cada 10 minutos. Por ENLACE: 12 por hora (este tope no depende de la IP, que detrás de un proxy puede falsearse).
+CAMBIOS_TECNICO_IP = Ventana(maximo=10, segundos=600)
+CAMBIOS_TECNICO_ENLACE = Ventana(maximo=12, segundos=3600)
 # V4.0 · «Solicitar demo» de la landing (sin sesión): máximo 5 envíos por IP cada 10 minutos.
 SOLICITUDES_DEMO = Ventana(maximo=5, segundos=600)
 # V4.2 · Tope GLOBAL (sin importar la IP). En Render uvicorn confía en la cabecera X-Forwarded-For, que quien envía la petición puede

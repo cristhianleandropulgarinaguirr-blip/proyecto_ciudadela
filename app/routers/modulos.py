@@ -9,7 +9,7 @@ from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session, aliased, selectinload
 
 from app import arrendamientos as reglas_arr, config
 from app.archivos import guardar_imagen_validada, leer_imagen
@@ -222,7 +222,7 @@ async def crear_reporte_danio(
             summary="Listar reportes de daños",
             description="**Administrador** ve todos; los demás roles ven solo los que ellos reportaron.")
 def listar_danios(db: Session = Depends(get_db), usuario: Usuario = Depends(get_current_user)):
-    consulta = db.query(ReporteDanio)
+    consulta = db.query(ReporteDanio).options(selectinload(ReporteDanio.evidencias))      # v5.6: lo que dejó el técnico, en una sola consulta extra
     if usuario.rol != ADMIN.value:
         consulta = consulta.filter(ReporteDanio.usuario_id == usuario.id)
     return consulta.order_by(ReporteDanio.id.desc()).all()

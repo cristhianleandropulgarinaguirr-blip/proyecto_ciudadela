@@ -1,0 +1,89 @@
+/* Página pública del técnico de mantenimiento (rol Mantenimiento).
+   COLOR DEL ROL: naranja de obra (casco y chaleco de seguridad). Los otros roles son: Administrador azul marino · Residente verde azulado ·
+   Guardia ámbar · Inquilino violeta. El naranja es el único que apunta al rojo-teja, así no se confunde con el ámbar del Guardia.
+   Pensada para verse bajo el sol y con guantes: texto grande, alto contraste y botones de 56 px. Sin fuentes externas. */
+:root {
+  --mant: #C2410C; --mant-fuerte: #9A3412; --mant-100: #FFEDD5; --mant-borde: #FDBA74;
+  --fondo: #FBF6F1; --tinta: #2B1B12; --tinta-2: #6B5444; --linea: #E5D3C4; --tarjeta: #FFFFFF;
+  --ok: #176B3A; --ok-100: #DDF3E4; --mal: #B3261E; --mal-100: #FDE3E1; --aviso: #7A4B00; --aviso-100: #FBEBCB;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --mant: #FB923C; --mant-fuerte: #7C2D12; --mant-100: #3A1E0E; --mant-borde: #8A4A1E;
+          --fondo: #170C06; --tinta: #FBEADB; --tinta-2: #D1B49E; --linea: #4A2B18; --tarjeta: #26140A;
+          --ok: #7FE09B; --ok-100: #0E3A22; --mal: #FF9C94; --mal-100: #40201D; --aviso: #F3CB92; --aviso-100: #3A2C17; }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--fondo); color: var(--tinta); min-height: 100vh;
+       font: 17px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+.tec { max-width: 480px; margin: 0 auto; padding: 1rem 1rem 2rem; }
+[hidden] { display: none !important; }
+
+.cab { display: flex; gap: .75rem; align-items: center; background: var(--mant-fuerte); color: #FFF4EA; border-radius: 18px 18px 0 0; padding: .9rem 1rem; position: relative; }
+.cab h1 { margin: 0; font-size: 1.15rem; line-height: 1.2; }
+.cab .peq { color: #FFD9B8; margin: 0; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; font-size: .75rem; }
+/* Franja de «obra» bajo el encabezado: marca visual del rol */
+.cab::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+              background: repeating-linear-gradient(135deg, var(--mant-borde) 0 10px, var(--mant-fuerte) 10px 20px); }
+.logo { border-radius: 10px; }
+.peq { font-size: .85rem; color: var(--tinta-2); margin: 0 0 .35rem; }
+
+.tarjeta { background: var(--tarjeta); border: 1px solid var(--linea); border-top: 0; border-radius: 0 0 18px 18px; padding: 1.1rem 1rem 1.3rem; }
+.tarjeta h2 { margin: 0 0 .35rem; font-size: 1.25rem; line-height: 1.25; overflow-wrap: anywhere; }
+.tarjeta h3 { margin: 1.2rem 0 .5rem; font-size: 1rem; color: var(--mant); }
+.descripcion { margin: 0 0 1rem; white-space: pre-line; overflow-wrap: anywhere; }
+.final, .error { border-radius: 18px; border-top: 1px solid var(--linea); margin-top: 1rem; }
+.final h2 { color: var(--mant); }
+.error h2 { color: var(--mal); }
+
+.estado { font-weight: 700; text-align: center; padding: .55rem .8rem; border-radius: 12px; margin-bottom: 1rem; background: var(--mant-100); color: var(--mant); border: 1px solid var(--mant-borde); }
+.estado.ok { background: var(--ok-100); color: var(--ok); border-color: transparent; }
+
+.foto-caja { margin: 0 0 1rem; }
+.foto-btn { display: block; width: 100%; padding: 0; border: 2px solid var(--mant-borde); border-radius: 14px; overflow: hidden; background: var(--mant-100); cursor: zoom-in; }
+.foto-btn img { display: block; width: 100%; height: auto; max-height: 280px; object-fit: cover; }
+.foto-btn.grande img { max-height: none; object-fit: contain; }
+.foto-btn.grande { cursor: zoom-out; }
+
+.datos { margin: 0 0 .4rem; display: grid; gap: .55rem; }
+.datos div { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--linea); padding-bottom: .5rem; }
+.datos dt { color: var(--tinta-2); font-size: .9rem; }
+.datos dd { margin: 0; font-weight: 600; text-align: right; }
+
+.historial ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.historial li { border-left: 4px solid var(--mant); background: var(--mant-100); border-radius: 0 10px 10px 0; padding: .5rem .7rem; font-size: .92rem; overflow-wrap: anywhere; }
+.historial li b { color: var(--mant); }
+
+.opciones { display: grid; gap: .6rem; }
+.opcion { display: block; cursor: pointer; }
+.opcion input { position: absolute; opacity: 0; pointer-events: none; }
+.opcion span { display: grid; gap: .1rem; border: 2px solid var(--linea); border-radius: 14px; padding: .75rem .9rem; min-height: 56px; background: var(--tarjeta); }
+.opcion small { color: var(--tinta-2); font-size: .82rem; }
+.opcion input:checked + span { border-color: var(--mant); background: var(--mant-100); box-shadow: 0 0 0 3px rgba(194, 65, 12, .18); }
+.opcion input:focus-visible + span { outline: 3px solid var(--mant); outline-offset: 2px; }
+.opcion.apagada { opacity: .45; cursor: not-allowed; }
+
+.campo-titulo { display: block; font-weight: 700; margin: 1.1rem 0 .35rem; }
+.pista { font-weight: 500; color: var(--tinta-2); font-size: .88rem; }
+.pista.obligatorio { color: var(--mal); font-weight: 700; }
+textarea { width: 100%; font: inherit; color: var(--tinta); background: var(--tarjeta); border: 2px solid var(--linea); border-radius: 12px; padding: .7rem .8rem; resize: vertical; min-height: 92px; }
+textarea:focus { outline: none; border-color: var(--mant); box-shadow: 0 0 0 3px rgba(194, 65, 12, .18); }
+
+.foto-acciones { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; }
+.vista { margin-top: .8rem; display: grid; gap: .6rem; }
+.vista img { width: 100%; max-height: 260px; object-fit: contain; border-radius: 12px; background: var(--mant-100); border: 1px solid var(--linea); }
+
+.btn { appearance: none; border: 2px solid var(--mant); background: transparent; color: var(--mant); font: inherit; font-weight: 700;
+       padding: .85rem 1rem; border-radius: 14px; min-height: 56px; text-align: center; text-decoration: none; cursor: pointer; display: grid; place-items: center; width: 100%; }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 3px solid var(--mant); outline-offset: 2px; }
+.btn[disabled] { opacity: .55; cursor: default; }
+.btn-fuerte { background: var(--mant); color: #FFF; margin-top: 1.2rem; }
+.btn-claro { border-color: var(--linea); color: var(--tinta); font-weight: 600; }
+@media (prefers-color-scheme: dark) { .btn-fuerte { color: #1F0E04; } }
+
+.mensaje { min-height: 1.4em; text-align: center; font-weight: 600; color: var(--ok); margin: .7rem 0 0; }
+.mensaje.mal { color: var(--mal); }
+.pie { text-align: center; margin-top: 1.2rem; }

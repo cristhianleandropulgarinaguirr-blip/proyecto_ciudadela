@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from app import config, marca
 from app.routers import (
     anuncios, arrendamientos, asamblea_acta, asamblea_votos, asambleas, asistente, auditoria, auth, comercio, dashboard, demo, documentos, emergencias, importaciones, modulos, notificaciones, paquetes, pagos_simulados, paz_y_salvo, pqrs, push, qr, reportes,
-    publico, sincronizacion, trasteos, usuarios, visitantes, votaciones,
+    publico, sincronizacion, tecnico, trasteos, usuarios, visitantes, votaciones,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -35,6 +35,7 @@ API para la gestión de un **conjunto residencial** (propiedad horizontal).
 | **Residente** | Reservar zonas, reportar daños, pagar su administración, crear pases QR, autorizar visitantes frecuentes, ver sus paquetes, radicar PQRS, descargar documentos y anunciar su negocio |
 | **Inquilino** | Lo registra su propietario y lo aprueba el administrador; el acceso vence con el contrato. Reservar zonas (si el apartamento está al día), reportar daños, recibir paquetes, crear pases QR y visitantes (hasta 5), radicar PQRS, ver reglamento y circulares. **Sin** comercio propio. Cartera/pagos y votaciones **solo si su propietario se los delega** (y por defecto no puede ninguno) |
 | **Guardia** | Controlar vehículos y visitantes (también escaneando QR), registrar y entregar paquetes, ver reservas |
+| **Mantenimiento** | Un técnico **sin cuenta**: el administrador le comparte un enlace temporal atado a UN reporte de daño. Solo ve apartamento, descripción y foto del daño (nunca datos del residente); solo puede pasar el estado a *En reparación* o *Solucionado* y subir su foto de evidencia con una nota. Cada cambio queda en la auditoría y avisa al residente |
 
 Errores de seguridad: **401** = no has iniciado sesión o el token expiró · **403** = tu rol no tiene permiso.
 """
@@ -60,6 +61,7 @@ TAGS = [
     {"name": "Control de Parqueaderos", "description": "Portería: ingreso, salida e historial de vehículos visitantes, y sincronización de lo registrado sin internet."},
     {"name": "Arrendamientos (Inquilinos)", "description": "El propietario registra a su inquilino, el administrador lo aprueba y el acceso vence con el contrato."},
     {"name": "Pase público (sin sesión)", "description": "La página que abre el visitante con el enlace de su pase: QR, PIN, «Cómo llegar» y avisos «Estoy en camino / Llegué». Sin sesión; protegida por un token imposible de adivinar y por límites de uso."},
+    {"name": "Enlace de técnico (sin sesión)", "description": "La página que abre el técnico de mantenimiento con el enlace que le compartió el administrador: ve lo mínimo de UN reporte de daño y solo puede pasarlo a «En reparación» o «Solucionado» con nota y foto de evidencia. Sin sesión; el enlace vence pronto, se puede anular y está limitado contra abuso."},
     {"name": "Carga masiva (Excel/CSV)", "description": "El administrador sube el censo de apartamentos y la cartera mensual desde Excel o CSV: primero una vista previa sin guardar nada, luego se aplica en una sola transacción."},
     {"name": "Indicadores (KPIs)", "description": "Números para la pantalla de indicadores del administrador: cartera, zonas más reservadas, tiempos de respuesta de PQRS y flujo de visitantes por hora."},
     {"name": "Paz y salvo", "description": "Certificado en PDF con código QR de verificación: se emite solo si el apartamento está al día y cualquiera puede comprobar su autenticidad escaneando el QR."},
@@ -76,7 +78,7 @@ TAGS = [
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 # Con DOCS_ACTIVAS=0 las tres rutas de documentación desaparecen (responden 404), como si no existieran.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="5.5.0", openapi_tags=TAGS,
+              version="5.6.0", openapi_tags=TAGS,
               docs_url="/docs" if config.DOCS_ACTIVAS else None,
               redoc_url="/redoc" if config.DOCS_ACTIVAS else None,
               openapi_url="/openapi.json" if config.DOCS_ACTIVAS else None)
@@ -105,6 +107,7 @@ app.include_router(arrendamientos.router)
 app.include_router(push.router)
 app.include_router(sincronizacion.router)
 app.include_router(publico.router)
+app.include_router(tecnico.router)
 app.include_router(importaciones.router)
 app.include_router(dashboard.router)
 app.include_router(paz_y_salvo.router)
@@ -123,7 +126,7 @@ _IMG_NUCLEO = {"icono.png", "icono-crema.png", "logo-crema.png", "favicon.png"}
 
 
 def _archivos_de_la_app() -> list[Path]:
-    return sorted(p for p in FRONTEND_DIR.rglob("*") if p.is_file() and p.name != "sw.js" and "vendor" not in p.parts and "pase" not in p.parts and "verificar" not in p.parts
+    return sorted(p for p in FRONTEND_DIR.rglob("*") if p.is_file() and p.name != "sw.js" and "vendor" not in p.parts and "pase" not in p.parts and "verificar" not in p.parts and "tecnico" not in p.parts
                   and (p.suffix in _EXT_NUCLEO or (p.parent.name == "img" and p.name in _IMG_NUCLEO)))
 
 

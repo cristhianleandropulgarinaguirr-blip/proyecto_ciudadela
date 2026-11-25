@@ -43,6 +43,17 @@ class ReservaResponse(BaseModel):
 
 
 # ---------------- REPORTES DE DAÑOS ----------------
+class EvidenciaResponse(BaseModel):
+    """v5.6 · Lo que dejó el técnico desde su enlace: a qué estado pasó el reporte, su nota y si subió foto (se descarga aparte, con sesión)."""
+    id: int
+    estado: str
+    nota: Optional[str] = None
+    tiene_foto: bool = False
+    fecha: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ReporteResponse(BaseModel):
     id: int
     usuario_id: int
@@ -51,6 +62,7 @@ class ReporteResponse(BaseModel):
     foto_url: Optional[str]
     estado: str
     fecha_creacion: datetime
+    evidencias: list[EvidenciaResponse] = []      # v5.6 · vacío mientras ningún técnico haya intervenido
 
     model_config = ConfigDict(from_attributes=True, json_schema_extra={"example": {
         "id": 1,
