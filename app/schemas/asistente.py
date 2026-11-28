@@ -88,6 +88,7 @@ class TurnoChat(BaseModel):
 class MensajeChat(BaseModel):
     mensaje: str = Field(..., min_length=2, max_length=400, examples=["¿Qué días suele estar más congestionado el BBQ?"])
     historial: list[TurnoChat] = Field(default_factory=list, max_length=10)
+    idioma: Literal["es", "en"] = Field("es", description="Idioma en que la persona usa la app (v5.8). Con «en» la IA responde en inglés; el modo básico (sin IA) y los borradores siguen en español.")
 
 
 class DiaConteo(BaseModel):

@@ -1,10 +1,11 @@
 // Votaciones y consultas del conjunto. VOTO SECRETO: el servidor guarda quién votó y cuántos votos tiene cada opción por separado.
 // Endpoints: GET /votaciones/ · POST /votaciones/ · POST /{id}/votar · POST /{id}/cerrar · POST /{id}/anular · GET /{id}/participacion
+import { locale } from "../i18n.js";
 import { api } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, confirmar, deUtc, fmtFechaHora, kpi } from "../ui.js";
 import { cabecera } from "./comun.js";
 
-const pc = (n) => Number(n ?? 0).toLocaleString("es-CO", { maximumFractionDigits: 4 });   // 0,8523 (coma decimal)
+const pc = (n) => Number(n ?? 0).toLocaleString(locale(), { maximumFractionDigits: 4 });   // 0,8523 (coma decimal)
 
 function faltan(d) {
   const ms = d - Date.now();

@@ -471,6 +471,13 @@ Detalle, pasos y puntos para revisar con un abogado: [`PASOS_V5.4.md`](docs/hist
 
 Sin funciones nuevas y **sin migración**. Se eliminó basura (una captura de 1,2 MB, una imagen y una pantalla del administrador que ya no tenían uso, y 10 guías duplicadas), se quitó código muerto, se corrigieron tres fugas de oyentes en el frontend (campana de notificaciones, foto y login) y se añadió una prueba automática que detecta imports rotos antes de publicar. Las guías anteriores quedaron en `docs/historial/`. Detalle y pasos para publicar: [`PASOS_V5.5.md`](docs/historial/PASOS_V5.5.md).
 
+## Versión 5.8 · Inglés/español y dictado por voz (sin migraciones nuevas)
+
+Completa los cinco cambios del instructor (incluye todo lo de la v5.7). Guía paso a paso en `PASOS_V5.8.md`.
+
+- **Idioma:** botón EN/ES en la barra y en el ingreso. Un traductor con diccionario (`i18n.js` + `i18n-en.js`) traduce lo que aparece en pantalla sin tocar cada vista; lo que falta se ve en español. Fechas, horas y dinero usan el formato del idioma. El chat con IA responde en el idioma elegido. Cobertura ≈ 95 % (Asambleas, ≈ 13 %).
+- **Voz a texto:** botón de micrófono en los campos de redacción y en el chat (Web Speech API del navegador; sin costo ni servidor). Nunca en campos sensibles. Chrome, Edge, Safari y Android; no en Firefox. `Permissions-Policy` ahora permite `microphone=(self)` en la app (las páginas públicas siguen sin micrófono).
+
 ## Versión 5.7 · Daños con aprobación, notificaciones «por gestionar» y chat con datos — recuerda `alembic upgrade head` (migración 0027)
 
 Cambios pedidos por el instructor (entrega 1 de 2; la v5.8 trae inglés/español y voz a texto). Guía completa paso a paso en `PASOS_V5.7.md`.

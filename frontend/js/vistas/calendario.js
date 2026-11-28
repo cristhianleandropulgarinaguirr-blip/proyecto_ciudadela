@@ -1,5 +1,6 @@
 // Calendario mensual de disponibilidad de una zona común.
 // Endpoint: GET /reservas/ocupacion?zona=&mes=AAAA-MM (solo devuelve el día y el estado, nunca quién reservó).
+import { locale } from "../i18n.js";
 import { api } from "../api.js";
 import { h, icono, toast } from "../ui.js";
 
@@ -8,7 +9,7 @@ const DIAS = ["L", "M", "M", "J", "V", "S", "D"];
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 export const textoDia = (isoDia) => {
   const [a, m, d] = isoDia.split("-").map(Number);
-  return new Date(a, m - 1, d).toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+  return new Date(a, m - 1, d).toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" });
 };
 
 /** `alElegir(isoDia)` se llama al tocar un día libre. Devuelve { nodo, cambiarZona(z), recargar(), limpiar() }. */

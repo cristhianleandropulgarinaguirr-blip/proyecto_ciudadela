@@ -1,5 +1,6 @@
 // Gestión de usuarios (solo administrador).
 // Endpoints: GET /usuarios/ · POST /usuarios/ · PATCH /usuarios/{id}/activo?esta_activo= · PATCH /usuarios/{id}/parqueadero
+import { locale } from "../i18n.js";
 import { api } from "../api.js";
 import { h, icono, badge, iniciales, estadoVacio, toast, conCarga, modal, confirmar } from "../ui.js";
 import { cabecera, filtros } from "./comun.js";
@@ -37,7 +38,7 @@ export async function render(ctx) {
         h("td", { "data-et": "Apartamento" }, u.apartamento ?? "—"),
         h("td", { "data-et": "Parqueadero" }, h("button", { class: "btn suave sm", onclick: () => editarParqueadero(u) }, u.parqueadero_asignado)),
         h("td", { "data-et": "Coeficiente" }, u.rol === "Residente" && u.apartamento ? h("button", { class: "btn suave sm", title: "Porcentaje de copropiedad del apartamento (Ley 675)", onclick: () => editarCoeficiente(u) },
-          u.coeficiente != null ? `${Number(u.coeficiente).toLocaleString("es-CO", { maximumFractionDigits: 4 })} %` : "Asignar") : "—"),
+          u.coeficiente != null ? `${Number(u.coeficiente).toLocaleString(locale(), { maximumFractionDigits: 4 })} %` : "Asignar") : "—"),
         h("td", { "data-et": "Cartera" }, u.rol === "Residente" ? (u.esta_al_dia ? badge("Al día", "Al día") : badge("En mora", "En mora")) : "—"),
         h("td", { "data-et": "Activo" }, h("div", { class: "acciones-celda" }, h("label", { class: "switch" }, sw, h("i")),
           yo ? null : h("button", { class: "btn suave sm", title: "Genera una contraseña temporal", onclick: () => restablecerClave(u) }, "Restablecer clave"))));
@@ -90,7 +91,7 @@ export async function render(ctx) {
   async function resumen() {
     try {
       const r = await api("/usuarios/coeficientes/resumen");
-      const f = (n) => Number(n).toLocaleString("es-CO", { maximumFractionDigits: 4 });
+      const f = (n) => Number(n).toLocaleString(locale(), { maximumFractionDigits: 4 });
       avisoCoef.className = `small ${r.completo ? "muted" : "texto-error"}`;
       avisoCoef.textContent = r.apartamentos === 0 ? "" : r.completo ? `Coeficiente de copropiedad completo: ${r.apartamentos} apartamentos, suman ${f(r.total)} %. Ya puedes votar por coeficiente.`
         : `Coeficiente de copropiedad: ${r.con_coeficiente} de ${r.apartamentos} apartamentos cargados, suman ${f(r.total)} % (deben sumar 100 % para votar por coeficiente).`;

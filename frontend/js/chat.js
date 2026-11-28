@@ -3,6 +3,7 @@
 // NUNCA reserva ni modifica nada: solo informa y lleva a la sección correcta.
 // La conversación vive solo en memoria (se borra al cerrar sesión). Todo el DOM se arma con h(): nada de innerHTML.
 // Endpoints: GET /asistente/chat/estado · POST /asistente/chat
+import { idioma } from "./i18n.js";
 import { api } from "./api.js";
 import { h, icono, badge, deUtc, hace } from "./ui.js";
 import { marca } from "./marca.js";
@@ -127,7 +128,7 @@ async function enviar(texto, repetir = false) {
   const espera = escribiendo(); cuerpo.append(espera); bajar();
   const previo = historial.slice(-MAX_TURNOS);
   try {
-    const r = await api("/asistente/chat", { metodo: "POST", json: { mensaje: texto.slice(0, 400), historial: previo } });
+    const r = await api("/asistente/chat", { metodo: "POST", json: { mensaje: texto.slice(0, 400), historial: previo, idioma: idioma() } });
     historial.push({ rol: "usuario", texto: texto.slice(0, 700) }, { rol: "asistente", texto: String(r.respuesta).slice(0, 700) });
     historial = historial.slice(-MAX_TURNOS * 2);
     if (estado && r.restantes != null) estado.restantes = r.restantes;

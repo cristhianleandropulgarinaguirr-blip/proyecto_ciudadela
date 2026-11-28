@@ -1829,3 +1829,20 @@ html[data-modo-demo]::after {
 .tec-fila > div { min-width: 0; display: grid; gap: .15rem; }
 .tec-modal h3 { margin: 1.2rem 0 .4rem; font-size: 1rem; color: var(--mant-ink); }
 .danio .acciones-tec { display: flex; justify-content: flex-end; }
+
+/* v5.8 · Idioma y dictado por voz */
+.btn-idioma { gap: .35rem; font-weight: 700; letter-spacing: .02em; min-width: 44px; }
+.btn-idioma-nombre { display: none; }
+@media (min-width: 900px) { .btn-idioma-nombre { display: inline; font-weight: 600; } }
+.login-idioma { position: absolute; top: calc(.9rem + var(--safe-t)); right: 4.4rem; z-index: 2; }
+@media (min-width: 900px) { .login-idioma { right: 5.6rem; } }
+.voz-btn { display: inline-grid; place-items: center; flex: none; width: 40px; height: 40px; border: 0; border-radius: 50%; background: transparent; color: var(--tinta-2); cursor: pointer; }
+.voz-btn:hover { background: var(--laton-100); color: var(--tinta); }
+.voz-btn:focus-visible { outline: 2px solid var(--laton); outline-offset: 2px; }
+.field.con-voz textarea, .field.con-voz input { padding-right: 3rem; }
+.field.con-voz > .voz-btn { position: absolute; right: .3rem; top: .35rem; }
+.field.con-voz.una-linea > .voz-btn { top: 50%; transform: translateY(-50%); }
+.voz-btn.en-chat { width: 42px; height: 42px; align-self: flex-end; }
+.voz-btn.escuchando { background: var(--arcilla); color: var(--sobre-arcilla); animation: voz-pulso 1.3s ease-out infinite; }
+@keyframes voz-pulso { 0% { box-shadow: 0 0 0 0 rgba(200, 80, 60, .5); } 70% { box-shadow: 0 0 0 11px rgba(200, 80, 60, 0); } 100% { box-shadow: 0 0 0 0 rgba(200, 80, 60, 0); } }
+@media (prefers-reduced-motion: reduce) { .voz-btn.escuchando { animation: none; outline: 3px solid var(--arcilla); outline-offset: 2px; } }

@@ -1,11 +1,12 @@
 // Indicadores (KPIs) del administrador: cartera, zonas más reservadas, tiempo de respuesta de PQRS y flujo de visitantes por hora.
 // Endpoint: GET /dashboard/kpis  (todo calculado en el servidor con consultas agregadas; ~1 KB de respuesta, guardado 60 s)
+import { locale } from "../i18n.js";
 import { api } from "../api.js";
 import { h, icono, kpi, dinero, toast, conCarga, deUtc, hace } from "../ui.js";
 import { cabecera } from "./comun.js";
 import { barrasHorizontales, barrasPorHora, dona, leyenda } from "../graficos.js";
 
-const hora12 = (n) => (n == null ? "—" : new Date(2000, 0, 1, n).toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" }));
+const hora12 = (n) => (n == null ? "—" : new Date(2000, 0, 1, n).toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit" }));
 const tiempo = (horas) => {
   if (horas == null) return "Sin respuestas aún";
   if (horas < 1) return `${Math.round(horas * 60)} min`;

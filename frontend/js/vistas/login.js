@@ -1,6 +1,7 @@
 // Pantalla de inicio de sesión (POST /auth/login con formulario, como exige OAuth2PasswordRequestForm).
 import { api, sesion } from "../api.js";
 import { h, icono, logoCompleto, conCarga, botonTema } from "../ui.js";
+import { botonIdioma } from "../i18n.js";
 import { marca } from "../marca.js";
 
 // «Tu conjunto, siempre en orden.» → la parte después de la última coma va resaltada (como siempre); un eslogan sin coma se muestra entero.
@@ -80,5 +81,5 @@ export function vistaLogin(alIngresar) {
         h("h1", {}, ...titular(marca.eslogan)),
         h("p", {}, "Reservas, mantenimiento, cartera y portería en un solo lugar, para administradores, residentes y guardias.")),
       h("small", { style: "opacity:.6" }, "Control residencial inteligente")),
-    h("section", { class: "login-form" }, botonTema("login-tema"), form));
+    h("section", { class: "login-form" }, botonIdioma(h, "login-idioma"), botonTema("login-tema"), form));
 }

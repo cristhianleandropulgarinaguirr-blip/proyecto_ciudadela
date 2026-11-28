@@ -2,14 +2,15 @@
 // Administrador: crea, convoca, instala y cierra; acredita asistentes, revisa poderes y consulta la bitácora de evidencia.
 // Guardia: acredita en la puerta. Residente: ve la convocatoria, se conecta si es virtual, sube su poder y (V5.2) vota desde la app.
 // Endpoints: /asambleas/… · /asambleas/{id}/votaciones/… · /unidades/…  (el servidor valida todas las reglas: aquí solo se muestran y se piden).
+import { locale } from "../i18n.js";
 import { api, apiBlob } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, confirmar, deUtc, fmtFechaHora, kpi, esqueleto } from "../ui.js";
 import { descargar, guardarBlob } from "../descargas.js";
 import { abrirCapa } from "../atras.js";
 import { cabecera, filtros } from "./comun.js";
 
-const pc = (n) => Number(n ?? 0).toLocaleString("es-CO", { maximumFractionDigits: 4 });          // 0,8523 (coma decimal)
-const largo = (s) => deUtc(s).toLocaleString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" });
+const pc = (n) => Number(n ?? 0).toLocaleString(locale(), { maximumFractionDigits: 4 });          // 0,8523 (coma decimal)
+const largo = (s) => deUtc(s).toLocaleString(locale(), { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" });
 const aLocal = (d) => new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);   // valor de un <input type="datetime-local">
 const campo = (id, etiqueta, el) => h("div", { class: "field" }, el, h("label", { for: id }, etiqueta));
 const ORDEN_TIPO = `1. Verificación del quórum.
@@ -639,7 +640,7 @@ function vistaResidente(a, recargar) {
 // ================================================================ acta de la asamblea (V5.4 · Fase 4, Art. 47 de la Ley 675 de 2001)
 // El servidor decide todo (quién puede editar, cuándo se puede sellar, el plazo): aquí solo se muestra y se pide.
 // Ciclo: redactar el borrador → (asamblea cerrada) sellar = congelar con huella → subir la copia firmada → publicar a los propietarios.
-const fechaCorta = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+const fechaCorta = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" });
 
 function modalVerificarActa(r) {
   modal("Verificación de integridad", h("div", {},
@@ -776,7 +777,7 @@ async function mostrarDetalle(raiz, ctx, id, pestana = "resumen", volver) {
       pestana = p;
       cuerpo.replaceChildren(esqueleto(80, 3));
       if (p === "resumen") poner(cuerpo, bloqueInfo(a), accionesAdmin(a, recargar, volver), bloqueOrden(a, true, recargar),
-        a.morosos?.length ? h("div", { class: "card" }, h("div", { class: "etiqueta-seccion", style: "margin-top:0" }, `Unidades en mora al convocar (${a.morosos.length})`), h("ul", { class: "lista-simple" }, a.morosos.map((m) => h("li", {}, `${m.apartamento} · $ ${Number(m.saldo).toLocaleString("es-CO")}`)))) : null);
+        a.morosos?.length ? h("div", { class: "card" }, h("div", { class: "etiqueta-seccion", style: "margin-top:0" }, `Unidades en mora al convocar (${a.morosos.length})`), h("ul", { class: "lista-simple" }, a.morosos.map((m) => h("li", {}, `${m.apartamento} · $ ${Number(m.saldo).toLocaleString(locale())}`)))) : null);
       else if (p === "asistencia") cuerpo.replaceChildren(await panelAsistencia(a, true, recargar));
       else if (p === "votaciones") cuerpo.replaceChildren(await panelVotaciones(a, recargar));
       else if (p === "poderes") cuerpo.replaceChildren(await panelPoderes(a, true, recargar));

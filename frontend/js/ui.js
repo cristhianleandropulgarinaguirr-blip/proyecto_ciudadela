@@ -1,5 +1,6 @@
 // Utilidades de interfaz: crear DOM de forma segura, iconos, formatos, toasts y modales.
 // h() usa textContent / setAttribute: nunca innerHTML con datos del usuario (evita XSS).
+import { locale, segun } from "./i18n.js";
 import { marca } from "./marca.js";
 import { abrirCapa } from "./atras.js";
 
@@ -63,6 +64,7 @@ const ICONOS = {
   caja: '<path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5M12 13v8"/>',
   telefono: '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/>',
   identificacion: '<rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="9" cy="11" r="2.5"/><path d="M5 17c.6-1.7 2-2.5 4-2.5s3.4.8 4 2.5M15 9h4M15 13h4"/>',
+  microfono: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v3"/>',
   campana: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
   grafico: '<path d="M4 20V11M10 20V4M16 20v-7M22 20H2"/>',
   archivo: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
@@ -162,23 +164,23 @@ export function logo(sobreOscuro = false) {
 export const logoCompleto = () => h("img", { class: "logo-completo", src: "img/logo-crema.png", alt: `${marca.nombre} · Control Residencial` });
 
 // ---------- Formatos ----------
-const cop = new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
+const cop = new Intl.NumberFormat(locale(), { style: "currency", currency: "COP", currencyDisplay: "narrowSymbol", maximumFractionDigits: 0 });
 export const dinero = (n) => cop.format(n ?? 0);
 // La API guarda created/ingreso en UTC sin "Z": se la agregamos para convertir a hora local.
 export const deUtc = (s) => new Date(/Z|[+-]\d\d:\d\d$/.test(s) ? s : s + "Z");
 export const deLocal = (s) => new Date(s);
 // Fecha LOCAL como AAAA-MM-DD (para los filtros `desde`/`hasta` de la API). toISOString() usaría UTC y en la noche daría el día siguiente.
 export const diaLocal = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-export const fmtHora = (d) => d.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" });
-export const fmtFechaLarga = (d) => d.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
-export const fmtFechaCorta = (d) => d.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" });
+export const fmtHora = (d) => d.toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit" });
+export const fmtFechaLarga = (d) => d.toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" });
+export const fmtFechaCorta = (d) => d.toLocaleDateString(locale(), { day: "numeric", month: "short", year: "numeric" });
 export function hace(d) {
   const min = Math.max(0, Math.floor((Date.now() - d.getTime()) / 60000));
-  if (min < 1) return "ahora mismo";
-  if (min < 60) return `hace ${min} min`;
+  if (min < 1) return segun("ahora mismo", "just now");
+  if (min < 60) return segun(`hace ${min} min`, `${min} min ago`);
   const hrs = Math.floor(min / 60);
-  if (hrs < 24) return `hace ${hrs} h ${min % 60} min`;
-  return `hace ${Math.floor(hrs / 24)} d`;
+  if (hrs < 24) return segun(`hace ${hrs} h ${min % 60} min`, `${hrs} h ${min % 60} min ago`);
+  return segun(`hace ${Math.floor(hrs / 24)} d`, `${Math.floor(hrs / 24)} d ago`);
 }
 export const iniciales = (n = "") => n.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "?";
 
@@ -203,7 +205,7 @@ export const badge = (estado, texto) => h("span", { class: `badge ${COLOR_ESTADO
 const TIPOS = { Reunion: ["Reunión", "bosque"], Evento: ["Evento", "laton"], Aviso: ["Aviso", ""], Urgente: ["Urgente", "arcilla"], Mantenimiento: ["Mantenimiento", "borde"] };
 export const etiquetaTipo = (t) => TIPOS[t]?.[0] ?? t;
 export const badgeTipo = (t) => h("span", { class: `badge ${TIPOS[t]?.[1] ?? ""}` }, etiquetaTipo(t));
-export const fmtFechaHora = (d) => d.toLocaleString("es-CO", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+export const fmtFechaHora = (d) => d.toLocaleString(locale(), { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 export function duracion(min) {
   if (min == null) return "—";
   if (min < 60) return `${min} min`;

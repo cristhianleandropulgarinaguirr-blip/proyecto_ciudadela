@@ -1,4 +1,5 @@
 // Piezas compartidas entre vistas.
+import { locale } from "../i18n.js";
 import { h, toast } from "../ui.js";
 
 export function cabecera(titulo, texto, { saludo } = {}) {
@@ -6,7 +7,7 @@ export function cabecera(titulo, texto, { saludo } = {}) {
     saludo ? h("div", { class: "saludo" }, saludo) : null,
     h("h1", {}, titulo), texto ? h("p", {}, texto) : null);
 }
-export const hoyLargo = () => new Date().toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" });
+export const hoyLargo = () => new Date().toLocaleDateString(locale(), { weekday: "long", day: "numeric", month: "long" });
 export const mapaUsuarios = (lista) => new Map(lista.map((u) => [u.id, u]));
 export const nombreDe = (mapa, id) => mapa.get(id)?.nombre_completo ?? `Residente #${id}`;
 
@@ -21,7 +22,7 @@ export function filtros(opciones, inicial, alCambiar) {
 
 // Fecha en formato "bloque" (día grande + mes) usada en reservas.
 export function bloqueFecha(d) {
-  return h("div", { class: "fecha" }, h("b", {}, d.getDate()), h("span", {}, d.toLocaleDateString("es-CO", { month: "short" }).replace(".", "")));
+  return h("div", { class: "fecha" }, h("b", {}, d.getDate()), h("span", {}, d.toLocaleDateString(locale(), { month: "short" }).replace(".", "")));
 }
 
 /** Avisa el resultado de un registro de portería (ver offline.registrar). Devuelve true si NO fue rechazado. */

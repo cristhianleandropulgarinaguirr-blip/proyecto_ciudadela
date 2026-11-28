@@ -1,12 +1,13 @@
 // Trasteos (mudanzas): solicitud → validación de paz y salvo → aprobación del administrador → alerta a la portería → inicio y fin que registra el guardia.
 // Endpoints: GET /trasteos · POST /trasteos · POST /trasteos/{id}/aprobar · /rechazar · /cancelar · /iniciar · /finalizar
 // Un solo archivo para todos los roles; cada rol ve y hace solo lo suyo (la API valida igual con 403).
+import { locale } from "../i18n.js";
 import { api } from "../api.js";
 import { h, icono, badge, estadoVacio, toast, conCarga, modal, confirmar, deUtc, kpi } from "../ui.js";
 import { cabecera, filtros } from "./comun.js";
 
-const DIA = (d) => d.toLocaleDateString("es-CO", { weekday: "short", day: "numeric", month: "short" });
-const HORA = (d) => d.toLocaleTimeString("es-CO", { hour: "numeric", minute: "2-digit" });
+const DIA = (d) => d.toLocaleDateString(locale(), { weekday: "short", day: "numeric", month: "short" });
+const HORA = (d) => d.toLocaleTimeString(locale(), { hour: "numeric", minute: "2-digit" });
 const aLocal = (d) => new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 const esHoy = (d) => d.toDateString() === new Date().toDateString();
 

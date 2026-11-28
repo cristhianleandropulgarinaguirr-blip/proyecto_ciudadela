@@ -1,4 +1,5 @@
 // Pantalla de inicio: cambia según el rol de quien ingresó.
+import { locale } from "../i18n.js";
 import { api } from "../api.js";
 import { tarjetaPorGestionar } from "../campana.js";
 import { h, icono, badge, estadoVacio, kpi, propio, toast, dinero, deUtc, hace, placa, deLocal, conCarga, diaLocal } from "../ui.js";
@@ -88,7 +89,7 @@ async function inquilino(ctx) {
   const [contrato, mias, danios, avisos, paq, votos] = await Promise.all([api("/arrendamientos/mio"), api("/reservas/mis-reservas"), api("/mantenimiento/listar-danios"), api("/anuncios/"),
     api("/paquetes/", { params: { estado: "En porteria" } }), del.includes("votar") ? api("/votaciones/pendientes").catch(() => ({ pendientes: 0 })) : null]);
   const proximas = mias.filter((r) => r.estado !== "Cancelada" && deLocal(r.fecha_reserva) >= hoy0()).sort((a, b) => deLocal(a.fecha_reserva) - deLocal(b.fecha_reserva)).slice(0, 3);
-  const hasta = new Date(`${contrato.fecha_fin}T00:00:00`).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
+  const hasta = new Date(`${contrato.fecha_fin}T00:00:00`).toLocaleDateString(locale(), { day: "numeric", month: "long", year: "numeric" });
   return h("div", {},
     cabecera(`Hola, ${primerNombre(ctx.usuario.nombre_completo)}`, bienvenida(contrato.apartamento), { saludo: hoyLargo() }),
     h("div", { class: "grid dos escalona" },

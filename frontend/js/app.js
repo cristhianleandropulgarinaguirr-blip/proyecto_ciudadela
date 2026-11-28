@@ -11,6 +11,8 @@ import { iniciarOffline, limpiarAlSalir, hayPendientes, alCambiarCola, sincroniz
 import { reasociarPush, liberarPushAlSalir, soportaPush } from "./push.js";
 import { avisoCamara } from "./foto.js";
 import { marca } from "./marca.js";
+import { iniciarIdioma, botonIdioma } from "./i18n.js";
+import { iniciarVoz } from "./voz.js";
 
 const A = "Administrador", R = "Residente", G = "Guardia", I = "Inquilino";
 // Cada ruta declara qué roles la ven: el menú se arma solo con lo permitido (la API igual valida con 403).
@@ -227,7 +229,7 @@ function construirShell() {
     h("div", { class: "main" },
       crearBanner(),
       h("header", { class: "topbar" }, logo(false),
-        h("div", { class: "topbar-acciones" }, crearCampana((ruta) => { location.hash = `#/${ruta}`; }), botonTema(),
+        h("div", { class: "topbar-acciones" }, crearCampana((ruta) => { location.hash = `#/${ruta}`; }), botonIdioma(h), botonTema(),
         h("div", { class: "usuario-chip" },
           h("div", { class: "datos" }, h("b", {}, propio(usuario.nombre_completo)), h("span", { class: "rol-insignia" }, usuario.rol)),
           crearMenuUsuario(false)))),
@@ -320,4 +322,5 @@ navigator.serviceWorker?.addEventListener("message", (e) => {
 
 registrarServiceWorker();
 addEventListener("hashchange", navegar);
-sesion.posible ? arrancar() : mostrarLogin();
+// v5.8 · primero el idioma (en inglés carga el diccionario) y recién después se pinta la primera pantalla: nunca se ve un destello en español.
+iniciarIdioma().then(() => { iniciarVoz(); sesion.posible ? arrancar() : mostrarLogin(); });          // v5.8 · el micrófono se pone solo en los campos de redacción
