@@ -70,9 +70,10 @@ def test_vigencia_por_defecto_y_topes(client, auth, db):
 def test_no_se_crea_enlace_para_reporte_inexistente_ni_solucionado(client, auth):
     assert client.post("/mantenimiento/danios/9999/enlace-tecnico", json={}, headers=auth(ADM)).status_code == 404
     rid = _reporte(client, auth)
-    assert client.patch(f"/mantenimiento/cambiar-estado/{rid}", params={"nuevo_estado": "Solucionado"}, headers=auth(ADM)).status_code == 200
+    e = _enlace(client, auth, rid)
+    assert _estado(client, e["token"], "Solucionado", "Cambié el sifón y quedó seco.").status_code == 200      # v5.7: solo el técnico lo deja «Solucionado»
     r = client.post(f"/mantenimiento/danios/{rid}/enlace-tecnico", json={}, headers=auth(ADM))
-    assert r.status_code == 400 and "solucionado" in r.json()["detail"].lower()
+    assert r.status_code == 400 and "técnico ya terminó" in r.json()["detail"]
 
 
 def test_un_enlace_nuevo_anula_el_anterior(client, auth):

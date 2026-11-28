@@ -11,11 +11,11 @@
   const API = `/tecnico-publico/${encodeURIComponent(token)}`;
 
   const LADO_MAX = 1600, CALIDAD = 0.82, LIMITE_MB = 5, MIN_NOTA_SOLUCIONADO = 5;
-  const ESTADOS = { Abierto: "Abierto", "En Revision": "En revisión", "En Reparacion": "En reparación", Solucionado: "Solucionado" };
+  const ESTADOS = { Abierto: "Abierto", "En Revision": "En revisión", "En Reparacion": "En reparación", Solucionado: "Solucionado", Aprobado: "Aprobado" };
   const FINALES = {
     Vencido: ["Este enlace venció", "El tiempo de este enlace terminó. Si todavía falta trabajo, pídele al administrador que te envíe uno nuevo."],
     Revocado: ["El administrador anuló este enlace", "Ya no puedes actualizar este reporte desde aquí. Si crees que es un error, comunícate con el administrador."],
-    Cerrado: ["Este trabajo ya quedó cerrado", "El reporte está solucionado y el enlace se cerró. ¡Gracias por tu trabajo!"],
+    Cerrado: ["Este trabajo ya quedó cerrado", "El reporte quedó solucionado y el enlace se cerró. La administración hará la revisión final. ¡Gracias por tu trabajo!"],
   };
   let archivo = null, urlVista = null, enviando = false, datosActuales = null;
 

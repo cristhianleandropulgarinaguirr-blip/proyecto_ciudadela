@@ -67,7 +67,8 @@ def _calcular(db: Session) -> dict:
         "visitantes": {"dias": DIAS_VISITANTES, "por_hora": por_hora, "total": total_v, "hora_pico": por_hora.index(max(por_hora)) if total_v else None},
         "operacion": {"vehiculos_dentro": db.query(func.count(VehiculoVisitante.id)).filter(VehiculoVisitante.estado == "Dentro").scalar(),
                       "paquetes_sin_entregar": db.query(func.count(Paquete.id)).filter(Paquete.estado == "En porteria").scalar(),
-                      "danios_sin_resolver": db.query(func.count(ReporteDanio.id)).filter(ReporteDanio.estado != "Solucionado").scalar(),
+                      "danios_sin_resolver": db.query(func.count(ReporteDanio.id)).filter(ReporteDanio.estado != "Aprobado").scalar(),       # v5.7: «sin resolver» = todo lo que aún no cerró el administrador
+                      "danios_por_aprobar": db.query(func.count(ReporteDanio.id)).filter(ReporteDanio.estado == "Solucionado").scalar(),
                       "arrendamientos_por_aprobar": db.query(func.count(Arrendamiento.id)).filter(Arrendamiento.estado == "Pendiente").scalar()},
     }
 

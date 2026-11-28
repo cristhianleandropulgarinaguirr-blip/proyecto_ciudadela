@@ -64,9 +64,22 @@ function solicitudes(lista) {
     h("div", {}, h("b", {}, `${s.referencia} · ${s.titulo}`), h("span", { class: "small muted" }, `${s.clase} · ${hace(deUtc(s.fecha))}`)), badge(s.estado))));
 }
 
+/** v5.7 · Datos reales que trajo el servidor (residentes en mora, reservas pendientes…). Solo llega para quien tiene permiso.
+ *  Esta tabla NO se guarda en el historial que se reenvía a la IA: ahí solo va el texto de la respuesta, que nunca lleva nombres. */
+function tabla(t) {
+  const hay = t.filas.length > 0;
+  return h("figure", { class: "chat-tabla" },
+    h("figcaption", {}, h("b", {}, t.titulo), h("span", {}, t.total === 1 ? "1 registro" : `${t.total} registros`)),
+    hay ? h("div", { class: "chat-tabla-scroll", tabindex: "0", role: "region", "aria-label": t.titulo },
+      h("table", {}, h("thead", {}, h("tr", {}, t.columnas.map((c) => h("th", { scope: "col" }, c)))),
+        h("tbody", {}, t.filas.map((f) => h("tr", {}, f.map((celda, i) => h(i === 0 ? "th" : "td", i === 0 ? { scope: "row" } : {}, celda))))))) : h("p", { class: "small muted" }, t.vacio || "No hay nada por mostrar."),
+    hay && t.total > t.mostrando ? h("small", {}, `Se muestran ${t.mostrando} de ${t.total}. El detalle completo está en la sección.`) : null);
+}
+
 function agregarBot(r) {
   quitarSugerencias();
   const partes = [...formatear(r.respuesta)];
+  if (r.tabla) partes.push(tabla(r.tabla));
   if (r.grafico) partes.push(grafico(r.grafico));
   if (r.solicitudes?.length) partes.push(solicitudes(r.solicitudes));
   if (r.accion) partes.push(h("a", { class: "btn suave chat-accion", href: r.accion.enlace, onclick: () => cerrar() }, r.accion.texto, icono("flecha", 16)));

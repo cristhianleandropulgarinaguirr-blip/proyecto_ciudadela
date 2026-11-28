@@ -24,7 +24,7 @@ from app.constantes import CategoriaDocumento, EstadoAsamblea, EstadoPoder, Moda
 from app.database import get_db
 from app.dependencies import requiere_roles
 from app.models import (Asamblea, AsambleaAsistente, AsambleaDocumento, AsambleaEvento, AsambleaPoder, AsambleaVotacion, Documento, Unidad, Usuario, ahora_utc)
-from app.notificaciones import notificar
+from app.notificaciones import marcar_gestionadas, notificar
 from app.schemas import asambleas as esq
 from app.schemas.negocio import MensajeResponse
 
@@ -687,7 +687,8 @@ async def subir_poder(asamblea_id: int, apoderado_nombre: str = Form(..., min_le
     reglas.registrar_evento(db, a.id, "PoderRecibido", usuario, unidad_id=u.id, detalle=f"Apoderado: {nombre}")
     admins = notificaciones.usuarios_activos(db, [ADMIN])
     if admins:
-        notificar(db, admins, "Poder por revisar", f"{u.apartamento} subió un poder para «{a.titulo}».", "#/asambleas")
+        notificar(db, admins, "Poder por revisar", f"{u.apartamento} subió un poder para «{a.titulo}».", "#/asambleas",
+                  requiere_gestion=True, ref_tipo="poder", ref_id=p.id)
     db.commit()
     aptos, nombres = _nombres_aptos(db, [p])
     return _vista_poder(db, p, a, aptos, nombres)
@@ -743,6 +744,7 @@ def aprobar_poder(asamblea_id: int, poder_id: int, datos: esq.PoderAprobar, db: 
         raise HTTPException(status_code=400, detail=f"{p.apoderado_nombre} ya tiene {ya} poder(es) aprobado(s): el máximo en esta asamblea es {a.max_poderes}.")
     p.estado, p.revisado_por, p.revisado_en, p.motivo = EstadoPoder.APROBADO.value, admin.id, ahora_utc(), None
     reglas.registrar_evento(db, a.id, "PoderAprobado", admin, unidad_id=p.unidad_id, detalle=f"Apoderado: {p.apoderado_nombre} ({ya + 1}/{a.max_poderes})")
+    marcar_gestionadas(db, "poder", p.id)
     _avisar_unidad(db, p.unidad_id, "Tu poder fue aprobado", f"{p.apoderado_nombre} podrá representarte en «{a.titulo}».")
     db.commit()
     aptos, nombres = _nombres_aptos(db, [p])
@@ -762,6 +764,7 @@ def rechazar_poder(asamblea_id: int, poder_id: int, datos: esq.PoderRechazar, db
         raise HTTPException(status_code=409, detail="El apoderado ya fue acreditado con este poder: no se puede revocar.")
     p.estado, p.motivo, p.revisado_por, p.revisado_en = EstadoPoder.RECHAZADO.value, datos.motivo, admin.id, ahora_utc()
     reglas.registrar_evento(db, a.id, "PoderRechazado", admin, unidad_id=p.unidad_id, detalle=f"Apoderado: {p.apoderado_nombre} · {datos.motivo}")
+    marcar_gestionadas(db, "poder", p.id)
     _avisar_unidad(db, p.unidad_id, "Tu poder no fue aprobado", f"Motivo: {datos.motivo}. Puedes subir uno nuevo.")
     db.commit()
     aptos, nombres = _nombres_aptos(db, [p])

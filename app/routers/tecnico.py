@@ -28,11 +28,11 @@ from sqlalchemy.orm import Session
 from app import arrendamientos as reglas_arr, config, limitador, marca
 from app.archivos import borrar_imagen, guardar_imagen_validada, leer_imagen
 from app.auditoria import auditar
-from app.constantes import EstadoDanio, EstadoEnlaceTecnico, EstadoTecnico, RolNombre
+from app.constantes import DANIO_TRABAJO_TERMINADO, EstadoDanio, EstadoEnlaceTecnico, EstadoTecnico, RolNombre
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
 from app.models import EnlaceTecnico, EvidenciaDanio, ReporteDanio, Usuario, ahora_utc
-from app.notificaciones import notificar
+from app.notificaciones import marcar_gestionadas, notificar
 from app.routers.publico import CABECERAS_API, CABECERAS_PAGINA as _CABECERAS_PASE
 from app.schemas.tecnico import EnlaceTecnicoCrear, EnlaceTecnicoResponse
 
@@ -60,7 +60,7 @@ def _estado_enlace(e: EnlaceTecnico, reporte: Optional[ReporteDanio], ahora=None
     ahora = ahora or ahora_utc()
     if e.revocado_en is not None:
         return EstadoEnlaceTecnico.REVOCADO.value
-    if e.cerrado_en is not None or (reporte is not None and reporte.estado == EstadoDanio.SOLUCIONADO.value):
+    if e.cerrado_en is not None or (reporte is not None and reporte.estado in DANIO_TRABAJO_TERMINADO):
         return EstadoEnlaceTecnico.CERRADO.value
     if e.valido_hasta <= ahora:
         return EstadoEnlaceTecnico.VENCIDO.value
@@ -94,8 +94,9 @@ def crear_enlace(reporte_id: int, datos: EnlaceTecnicoCrear, db: Session = Depen
     reporte = db.get(ReporteDanio, reporte_id)
     if reporte is None:
         raise HTTPException(status_code=404, detail="Reporte no encontrado.")
-    if reporte.estado == EstadoDanio.SOLUCIONADO.value:
-        raise HTTPException(status_code=400, detail="Este reporte ya está solucionado: no hace falta un enlace de técnico.")
+    if reporte.estado in DANIO_TRABAJO_TERMINADO:
+        raise HTTPException(status_code=400, detail="El técnico ya terminó este reporte: no hace falta un enlace" + (
+            ". Revisa la evidencia y apruébalo o devuélvelo." if reporte.estado == EstadoDanio.SOLUCIONADO.value else "."))
     ahora = ahora_utc()
     previos = (db.query(EnlaceTecnico).filter(EnlaceTecnico.reporte_id == reporte.id, EnlaceTecnico.revocado_en.is_(None),
                                               EnlaceTecnico.cerrado_en.is_(None), EnlaceTecnico.valido_hasta > ahora).all())
@@ -106,6 +107,7 @@ def crear_enlace(reporte_id: int, datos: EnlaceTecnicoCrear, db: Session = Depen
                           valido_hasta=ahora + timedelta(hours=datos.horas), fecha_creacion=ahora)
     db.add(nuevo)
     db.flush()          # para conocer su número y dejarlo en la auditoría
+    marcar_gestionadas(db, "danio", reporte.id)          # v5.7 · el aviso «Nuevo daño por atender» ya se gestionó: el administrador generó el enlace
     auditar(db, admin, "Creó enlace de técnico", "Daño", reporte.id,
             f"{reporte.titulo} · enlace #{nuevo.id} · {datos.horas} h" + (f" · {etiqueta}" if etiqueta else "") + (f" · anuló {len(previos)} anterior(es)" if previos else ""))
     db.commit()
@@ -297,14 +299,14 @@ async def cambiar_estado_como_tecnico(token: str, request: Request, response: Re
     response.headers.update(CABECERAS_API)
     cerrado = nuevo is EstadoTecnico.SOLUCIONADO
     return {"ok": True, "estado": nuevo.value, "cerrado": cerrado,
-            "mensaje": "¡Gracias! El reporte quedó como solucionado y este enlace se cerró." if cerrado else "Listo: el reporte quedó «En reparación» y avisamos al residente."}
+            "mensaje": "¡Gracias! El reporte quedó como solucionado y este enlace se cerró. La administración revisará tu evidencia y lo aprobará." if cerrado else "Listo: el reporte quedó «En reparación» y avisamos al residente."}
 
 
 def _avisar(db: Session, e: EnlaceTecnico, reporte: ReporteDanio, nuevo: EstadoTecnico, nota: str) -> None:
     """Avisa al residente (y a su propietario si es inquilino) y al administrador que creó el enlace. Va en la MISMA transacción del cambio."""
     solucionado = nuevo is EstadoTecnico.SOLUCIONADO
     titulo = "Tu reporte quedó solucionado" if solucionado else "Tu reporte está en reparación"
-    mensaje = f"«{reporte.titulo[:80]}»" + (f" · Nota del técnico: {nota[:140]}" if nota else "")
+    mensaje = f"«{reporte.titulo[:80]}»" + (f" · Nota del técnico: {nota[:140]}" if nota else "") + (" · Falta la revisión final de la administración." if solucionado else "")
     residente = db.get(Usuario, reporte.usuario_id)
     if residente is not None:
         notificar(db, [residente], titulo, mensaje, "#/mantenimiento")
@@ -312,4 +314,8 @@ def _avisar(db: Session, e: EnlaceTecnico, reporte: ReporteDanio, nuevo: EstadoT
             reglas_arr.avisar_al_propietario(db, residente, titulo, mensaje, "#/mantenimiento")
     admin = db.get(Usuario, e.creado_por)
     if admin is not None and (residente is None or admin.id != residente.id):
-        notificar(db, [admin], "El técnico actualizó un daño", f"«{reporte.titulo[:80]}» pasó a {nuevo.value}" + (f" · {e.etiqueta}" if e.etiqueta else ""), "#/mantenimiento")
+        if solucionado:       # v5.7 · terminó el técnico: ahora toca la revisión final del administrador, y eso NO se debe perder
+            notificar(db, [admin], "Daño por aprobar: el técnico terminó", f"«{reporte.titulo[:80]}» · revisa la nota y la foto, y apruébalo o devuélvelo." + (f" · {e.etiqueta}" if e.etiqueta else ""),
+                      "#/mantenimiento", requiere_gestion=True, ref_tipo="danio", ref_id=reporte.id)
+        else:
+            notificar(db, [admin], "El técnico actualizó un daño", f"«{reporte.titulo[:80]}» pasó a {nuevo.value}" + (f" · {e.etiqueta}" if e.etiqueta else ""), "#/mantenimiento")

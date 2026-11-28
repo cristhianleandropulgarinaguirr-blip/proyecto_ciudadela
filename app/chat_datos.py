@@ -131,7 +131,7 @@ def perfil_de(db: Session, usuario) -> Perfil:
 def sugerencias_iniciales(p: Perfil) -> list[str]:
     """Las 4 preguntas con las que arranca el chat: solo cosas que ESE rol puede hacer en la app."""
     if p.rol == RolNombre.ADMINISTRADOR.value:
-        return ["¿Cómo apruebo una reserva?", "¿Qué zonas están más congestionadas?", "¿Cómo registro un pago de administración?", "¿Cómo publico un aviso en la Cartelera?"]
+        return ["¿Qué residentes están en mora?", "¿Qué tengo pendiente por gestionar?", "¿Cómo apruebo una reserva?", "¿Cómo registro un pago de administración?"]
     if p.rol == RolNombre.GUARDIA.value:
         return ["¿Cómo registro el ingreso de un vehículo?", "¿Cómo valido el PIN de un pase?", "¿Cómo registro un paquete?", "¿Qué hago si no hay internet?"]
     if p.rol == RolNombre.INQUILINO.value:
@@ -204,7 +204,8 @@ GUIA_ADMIN = """GUÍA DE LA APP PARA LA ADMINISTRACIÓN (cómo se hace cada cosa
 - Cargar datos: en Cargar datos subes el censo de residentes o la cartera mensual desde Excel/CSV; primero ves una «Vista previa» con los errores fila por fila y luego aplicas.
 - Cartelera: en Cartelera pulsas «Nuevo anuncio» y «Publicar» (avisos, reuniones y eventos). Si es «Urgente» y hay correo configurado, además sale por correo.
 - Votaciones: «Nueva votación» (voto secreto, un voto por apartamento o por coeficiente de copropiedad con quórum). Los resultados se ven al cerrar.
-- Quejas y sugerencias (PQRS) y Daños: los residentes radican y tú pulsas «Responder» y cambias el estado; el residente ve el avance.
+- Quejas y sugerencias (PQRS): los residentes radican y tú pulsas «Responder» y cambias el estado; el residente ve el avance.
+- Daños: el residente reporta, tú generas el «Enlace para técnico» (el técnico pasa el reporte a «En reparación» y luego a «Solucionado» con nota y foto) y al final revisas esa evidencia y pulsas «Aprobar» o «Devolver». Tú no pones «En revisión» ni «En reparación».
 - Arrendamientos: el propietario registra a su inquilino y tú pulsas «Aprobar» o «Rechazar»; el acceso vence con el contrato.
 - Trasteos (mudanzas): el residente solicita, el sistema revisa el paz y salvo en las salidas, tú pulsas «Aprobar» y se alerta a la portería.
 - Usuarios: creas cuentas, activas o desactivas y restableces claves temporales. Auditoría: bitácora de lo que se hizo en la app. Indicadores: cartera, zonas más reservadas y tiempos de respuesta.
@@ -272,7 +273,7 @@ AYUDA_ADMIN = [
     (r"(crear|nuevo|desactivar|activar|restablecer|resetear).*(usuario|cuenta|clave|residente)|(usuario|cuenta|residente).*(crear|desactivar|restablecer)", "En Usuarios creas cuentas, las activas o desactivas y restableces una clave temporal cuando alguien la olvida.", "residentes"),
     (r"(auditoria|bitacora|quien (hizo|cambio)|historial de cambios)", "En Auditoría ves la bitácora de lo que se hizo en la app: quién, qué y cuándo.", "auditoria"),
     (r"(indicador|kpi|estadistica|informe|reporte)", "En Indicadores ves la cartera, las zonas más reservadas, los tiempos de respuesta de las PQRS y el flujo de visitantes por hora.", "indicadores"),
-    (r"(pqrs|queja|reclamo|dano|danio|reparar)", "En Quejas y sugerencias y en Daños ves lo que radicaron los residentes: pulsas «Responder» y cambias el estado para que el residente vea el avance.", "pqrs"),
+    (r"(pqrs|queja|reclamo|dano|danio|reparar)", "En Quejas y sugerencias pulsas «Responder» y cambias el estado. En Daños generas el «Enlace para técnico»: el técnico lo pasa a «En reparación» y «Solucionado» con foto, y tú revisas la evidencia y pulsas «Aprobar» (o «Devolver» si hay que corregir).", "pqrs"),
 ]
 AYUDA_GUARDIA = [
     (r"(votacion|votar|pagar|pagos?\b|saldo|cartera|queja|pqrs|dano|danio|comercio)", "Eso no hace parte de las funciones de portería: en tu cuenta no aparece. Si un residente lo necesita, que lo haga desde su propia cuenta o con la administración.", None),

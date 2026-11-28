@@ -80,9 +80,14 @@ class NotificacionResponse(BaseModel):
     enlace: Optional[str] = None
     leida: bool
     fecha: datetime
+    # v5.7 · informativa (no pide nada) | por_gestionar | gestionada
+    requiere_gestion: bool = False
+    estado_gestion: str = "informativa"
+    gestionada_en: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class ConteoNotificaciones(BaseModel):
     no_leidas: int
+    por_gestionar: int = 0          # v5.7 · avisos que piden una acción y aún no se gestionaron (aunque ya estén leídos)

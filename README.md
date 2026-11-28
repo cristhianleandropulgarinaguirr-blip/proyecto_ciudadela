@@ -471,6 +471,14 @@ Detalle, pasos y puntos para revisar con un abogado: [`PASOS_V5.4.md`](docs/hist
 
 Sin funciones nuevas y **sin migración**. Se eliminó basura (una captura de 1,2 MB, una imagen y una pantalla del administrador que ya no tenían uso, y 10 guías duplicadas), se quitó código muerto, se corrigieron tres fugas de oyentes en el frontend (campana de notificaciones, foto y login) y se añadió una prueba automática que detecta imports rotos antes de publicar. Las guías anteriores quedaron en `docs/historial/`. Detalle y pasos para publicar: [`PASOS_V5.5.md`](docs/historial/PASOS_V5.5.md).
 
+## Versión 5.7 · Daños con aprobación, notificaciones «por gestionar» y chat con datos — recuerda `alembic upgrade head` (migración 0027)
+
+Cambios pedidos por el instructor (entrega 1 de 2; la v5.8 trae inglés/español y voz a texto). Guía completa paso a paso en `PASOS_V5.7.md`.
+
+- **Daños:** el administrador ya no pone «En revisión» ni «En reparación» (lo hace el técnico). Al final revisa la evidencia y **aprueba** o **devuelve**. Ciclo: `Abierto → En reparación → Solucionado → Aprobado`. La regla vive en el servidor.
+- **Notificaciones:** «leída» ≠ «gestionada». Los avisos que piden una acción siguen **por gestionar** aunque se abran, y se cierran solos cuando se resuelve lo que pedían. Burbuja ámbar en la campana, filtros y tarjeta en Inicio.
+- **Chat con datos (Administrador):** «¿Qué residentes están en mora?» devuelve una tabla real. La IA solo elige una consulta de un catálogo cerrado; el servidor la ejecuta con el rol de la sesión; la IA redacta el análisis sin ver nombres.
+
 ## Versión 5.6 · Rol Mantenimiento (enlace de técnico, sin cuenta) — recuerda `alembic upgrade head` (migración 0026)
 
 El administrador le comparte a un técnico un **enlace temporal atado a un solo reporte de daño**. El técnico entra sin cuenta (página `/tecnico/<token>`), ve solo el apartamento, la descripción y la foto del daño —nunca el nombre ni el teléfono del residente— y solo puede pasar el estado a *En reparación* o *Solucionado* subiendo su foto de evidencia con una nota. Cada cambio queda en la auditoría y avisa al residente. El enlace vence pronto (72 h por defecto), se puede anular y se cierra solo al quedar solucionado. Color del rol: naranja de obra. Detalle, riesgos y pasos para publicar: [`PASOS_V5.6.md`](PASOS_V5.6.md).

@@ -1,5 +1,6 @@
 // Pantalla de inicio: cambia según el rol de quien ingresó.
 import { api } from "../api.js";
+import { tarjetaPorGestionar } from "../campana.js";
 import { h, icono, badge, estadoVacio, kpi, propio, toast, dinero, deUtc, hace, placa, deLocal, conCarga, diaLocal } from "../ui.js";
 import { cabecera, hoyLargo, mapaUsuarios, nombreDe } from "./comun.js";
 import { itemReserva } from "./reservas.js";
@@ -17,7 +18,7 @@ async function admin(ctx) {
   const mapa = mapaUsuarios(usuarios);
   const residentes = usuarios.filter((u) => u.rol === "Residente");
   const pendientes = reservas.filter((r) => r.estado === "Pendiente");
-  const abiertos = danios.filter((d) => d.estado !== "Solucionado");
+  const abiertos = danios.filter((d) => d.estado !== "Aprobado");        // v5.7: «Solucionado» aún espera la aprobación del administrador
   const pqrsAbiertas = todasPqrs.filter((p) => p.estado === "Radicada" || p.estado === "En tramite").length;
   const porAtender = pendientes.length + abiertos.length + comercio.por_revisar + porAprobar.length + pqrsAbiertas;   // todo lo que espera una acción del administrador
 
@@ -130,4 +131,11 @@ async function guardia(ctx) {
       cartelaResumen(avisos)));
 }
 
-export const render = (ctx) => ({ Administrador: admin, Residente: residente, Inquilino: inquilino, Guardia: guardia })[ctx.usuario.rol](ctx);
+const POR_ROL = { Administrador: admin, Residente: residente, Inquilino: inquilino, Guardia: guardia };
+
+// v5.7 · Debajo del saludo de cualquier rol aparece lo que sigue «por gestionar», aunque ya se hayan abierto sus avisos.
+export const render = async (ctx) => {
+  const [vista, aviso] = await Promise.all([POR_ROL[ctx.usuario.rol](ctx), tarjetaPorGestionar()]);
+  if (aviso) vista.firstElementChild?.after(aviso);
+  return vista;
+};

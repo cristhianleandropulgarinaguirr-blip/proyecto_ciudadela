@@ -17,7 +17,7 @@ from app.constantes import (EstadoTrasteo, HORAS_ANTES_PERMITIDAS, MAX_TRASTEOS_
 from app.database import get_db
 from app.dependencies import requiere_roles
 from app.models import PazSalvo, Trasteo, Usuario, ahora_utc
-from app.notificaciones import notificar, usuarios_activos
+from app.notificaciones import marcar_gestionadas, notificar, usuarios_activos
 from app.routers.paz_y_salvo import estado_de, folio
 from app.schemas.trasteos import AprobarIn, MotivoIn, TrasteoCreate, TrasteoResponse
 
@@ -140,7 +140,8 @@ def solicitar(datos: TrasteoCreate, db: Session = Depends(get_db), actual: Usuar
     db.add(t)
     db.flush()
     auditar(db, actual, "Solicitó un trasteo", "Trasteo", t.id, f"{t.tipo} · {t.apartamento or 'sin apto'} · {_cuando(t)}" + (f" · paz y salvo {folio(paz)}" if paz else ""))
-    notificar(db, reglas_arr.administradores(db), f"Nueva solicitud de trasteo ({t.tipo.lower()})", f"{t.apartamento or actual.nombre_completo} · {_cuando(t)}", "#/trasteos")
+    notificar(db, reglas_arr.administradores(db), f"Nueva solicitud de trasteo ({t.tipo.lower()})", f"{t.apartamento or actual.nombre_completo} · {_cuando(t)}", "#/trasteos",
+              requiere_gestion=True, ref_tipo="trasteo", ref_id=t.id)
     if actual.id != titular.id:
         reglas_arr.avisar_al_propietario(db, actual, "Tu inquilino solicitó un trasteo", f"{t.tipo} · {_cuando(t)}", "#/trasteos")
     db.commit()
@@ -190,6 +191,7 @@ def aprobar(trasteo_id: int, datos: Optional[AprobarIn] = None, db: Session = De
         raise HTTPException(status_code=409, detail=f"Ya hay un trasteo aprobado en ese horario ({otro.apartamento or 'otro apartamento'}). Cambia la hora o aprueba de todas formas.")
     t.estado, t.decidido_por, t.fecha_decision = EstadoTrasteo.APROBADO.value, admin.id, ahora_utc()
     auditar(db, admin, "Aprobó un trasteo", "Trasteo", t.id, f"{t.tipo} · {t.apartamento or 'sin apto'} · {_cuando(t)}")
+    marcar_gestionadas(db, "trasteo", t.id)
     interesados = {u.id: u for u in (db.get(Usuario, t.solicitante_id), titular)}
     notificar(db, list(interesados.values()), "Tu trasteo fue aprobado", f"{t.tipo} · {_cuando(t)}. Avisamos a la portería.", "#/trasteos")
     notificar(db, _guardias(db), f"Trasteo aprobado: {t.apartamento or 'apartamento'} ({t.tipo.lower()})",
@@ -207,6 +209,7 @@ def rechazar(trasteo_id: int, datos: MotivoIn, db: Session = Depends(get_db), ad
         raise HTTPException(status_code=400, detail="Solo se rechazan las solicitudes pendientes.")
     t.estado, t.decidido_por, t.fecha_decision, t.motivo = EstadoTrasteo.RECHAZADO.value, admin.id, ahora_utc(), datos.motivo
     auditar(db, admin, "Rechazó un trasteo", "Trasteo", t.id, f"{t.apartamento or 'sin apto'} · {datos.motivo}")
+    marcar_gestionadas(db, "trasteo", t.id)
     notificar(db, [db.get(Usuario, t.solicitante_id), _titular(db, t)] if t.solicitante_id != t.titular_id else [_titular(db, t)],
               "Tu solicitud de trasteo no fue aprobada", datos.motivo, "#/trasteos")
     db.commit()
@@ -225,6 +228,7 @@ def cancelar(trasteo_id: int, datos: Optional[MotivoIn] = None, db: Session = De
     estaba_aprobado = t.estado == EstadoTrasteo.APROBADO.value
     t.estado, t.motivo = EstadoTrasteo.CANCELADO.value, (datos.motivo if datos else None)
     auditar(db, actual, "Canceló un trasteo", "Trasteo", t.id, f"{t.apartamento or 'sin apto'} · {_cuando(t)}")
+    marcar_gestionadas(db, "trasteo", t.id)          # ya no hay nada que decidir sobre esa solicitud
     if estaba_aprobado:
         notificar(db, _guardias(db), f"Trasteo cancelado: {t.apartamento or 'apartamento'}", f"{_cuando(t)}. Ya no debe pasar.", "#/trasteos")
     if actual.rol != ADMIN.value:

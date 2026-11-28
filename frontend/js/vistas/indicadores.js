@@ -43,7 +43,7 @@ export async function render() {
         tarjeta("Pendientes de hoy", "Lo que está esperando una acción",
           h("div", { class: "lista" },
             [["Vehículos dentro", o.vehiculos_dentro, "#/porteria"], ["Paquetes sin entregar", o.paquetes_sin_entregar, "#/paquetes"],
-             ["Daños sin resolver", o.danios_sin_resolver, "#/mantenimiento"], ["Arrendamientos por aprobar", o.arrendamientos_por_aprobar, "#/inquilinos"]]
+             ["Daños sin resolver", o.danios_sin_resolver, "#/mantenimiento"], ["Daños por aprobar", o.danios_por_aprobar ?? 0, "#/mantenimiento"], ["Arrendamientos por aprobar", o.arrendamientos_por_aprobar, "#/inquilinos"]]
               .map(([texto, n, ruta]) => h("a", { class: "item", href: ruta }, h("div", { class: "cuerpo" }, h("b", {}, texto)), h("span", { class: `badge ${n ? "laton" : ""}` }, String(n))))))),
       h("p", { class: "small muted", style: "margin-top:.8rem" }, `Actualizado ${hace(deUtc(datos.generado))}. Los datos se guardan un minuto para que la pantalla cargue al instante.`));
   }

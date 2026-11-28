@@ -18,10 +18,17 @@ class EstadoReserva(str, Enum):
 
 
 class EstadoDanio(str, Enum):
+    """Ciclo de un reporte de daño (v5.7):  Abierto → En Reparacion (técnico) → Solucionado (técnico) → Aprobado (administrador).
+    «En Revision» ya no se usa en el flujo nuevo; se conserva solo para que los reportes viejos que quedaron ahí sigan funcionando."""
     ABIERTO = "Abierto"
-    EN_REVISION = "En Revision"
+    EN_REVISION = "En Revision"       # heredado (v5.6 y anteriores)
     EN_REPARACION = "En Reparacion"
-    SOLUCIONADO = "Solucionado"
+    SOLUCIONADO = "Solucionado"       # el técnico terminó: queda POR APROBAR por el administrador
+    APROBADO = "Aprobado"             # el administrador revisó la evidencia y cerró el reporte
+
+
+# Estados en los que el trabajo del técnico ya terminó (su enlace deja de servir y no se puede crear otro).
+DANIO_TRABAJO_TERMINADO = (EstadoDanio.SOLUCIONADO.value, EstadoDanio.APROBADO.value)
 
 
 # ---------- v5.6: enlace de técnico de mantenimiento (sin cuenta) ----------

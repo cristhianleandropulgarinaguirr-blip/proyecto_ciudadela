@@ -13,7 +13,7 @@ from app.constantes import EstadoArrendamiento, RolNombre
 from app.database import get_db
 from app.dependencies import requiere_roles
 from app.models import Arrendamiento, Rol, Usuario
-from app.notificaciones import notificar
+from app.notificaciones import marcar_gestionadas, notificar
 from app.schemas.arrendamientos import AprobacionResponse, ArrendamientoCreate, ArrendamientoResponse, Motivo, PermisosIn
 from app.security import encriptar_password
 
@@ -88,7 +88,8 @@ def registrar(datos: ArrendamientoCreate, db: Session = Depends(get_db), actor: 
     auditar(db, actor, "Registró arrendamiento", "Arrendamiento", contrato.id,
             f"{inquilino.nombre_completo} en {contrato.apartamento} (propietario: {propietario.nombre_completo})")
     notificar(db, reglas.administradores(db), f"Arrendamiento por aprobar: {inquilino.nombre_completo}",
-              f"{contrato.apartamento} · propietario {propietario.nombre_completo}.", "#/inquilinos")
+              f"{contrato.apartamento} · propietario {propietario.nombre_completo}.", "#/inquilinos",
+              requiere_gestion=True, ref_tipo="arrendamiento", ref_id=contrato.id)
     db.commit()
     db.refresh(contrato)
     return _vista(contrato)
@@ -133,6 +134,7 @@ def aprobar(contrato_id: int, db: Session = Depends(get_db), admin: Usuario = De
     c.inquilino.debe_cambiar_password, c.inquilino.esta_activo = True, True
     c.estado, c.aprobado_por, c.fecha_decision = EstadoArrendamiento.ACTIVO.value, admin.id, reglas.ahora_local()
     auditar(db, admin, "Aprobó arrendamiento", "Arrendamiento", c.id, f"{c.inquilino.nombre_completo} · {c.apartamento}")
+    marcar_gestionadas(db, "arrendamiento", c.id)
     notificar(db, [c.propietario], f"Tu inquilino fue aprobado: {c.inquilino.nombre_completo}",
               "Ya puede ingresar a la aplicación con la clave temporal que le entregue la administración.", "#/inquilinos")
     db.commit()
@@ -150,6 +152,7 @@ def rechazar(contrato_id: int, datos: Motivo | None = None, db: Session = Depend
         raise HTTPException(status_code=400, detail=f"Este arrendamiento ya está «{c.estado.lower()}».")
     motivo = (datos.motivo if datos and datos.motivo else "").strip() or "Sin motivo indicado"
     reglas.finalizar(db, c, motivo, admin, EstadoArrendamiento.RECHAZADO)
+    marcar_gestionadas(db, "arrendamiento", c.id)
     notificar(db, [c.propietario], f"No se aprobó el arrendamiento de {c.inquilino.nombre_completo}", motivo, "#/inquilinos")
     db.commit()
     db.refresh(c)

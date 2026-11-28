@@ -12,7 +12,7 @@ from app.constantes import EstadoPQRS, RolNombre
 from app.database import get_db
 from app.dependencies import requiere_roles
 from app.models import PQRS, Usuario, ahora_utc
-from app.notificaciones import notificar, usuarios_activos
+from app.notificaciones import marcar_gestionadas, notificar, usuarios_activos
 from app.schemas.comunicacion import PQRSCreate, PQRSResponse, PQRSUpdate
 
 TAG = "PQRS"
@@ -52,7 +52,8 @@ def radicar(datos: PQRSCreate, db: Session = Depends(get_db), usuario: Usuario =
     p.fecha_creacion = p.fecha_creacion or ahora_utc()
     auditar(db, usuario, "Radicó PQRS", "PQRS", p.id, f"{p.tipo}: {p.asunto}")
     notificar(db, usuarios_activos(db, [ADMIN], excluir_id=usuario.id), f"Nueva {p.tipo.lower()}: {p.asunto}",
-              f"De {usuario.nombre_completo}{f' ({usuario.apartamento})' if usuario.apartamento else ''}.", "#/pqrs")
+              f"De {usuario.nombre_completo}{f' ({usuario.apartamento})' if usuario.apartamento else ''}.", "#/pqrs",
+              requiere_gestion=True, ref_tipo="pqrs", ref_id=p.id)
     db.commit()
     db.refresh(p)
     return _vistas(db, [p])[0]
@@ -90,6 +91,7 @@ def gestionar(pqrs_id: int, datos: PQRSUpdate, db: Session = Depends(get_db), ad
         p.respuesta, p.respondido_por, p.fecha_respuesta = datos.respuesta, admin.id, ahora_utc()
     anterior, p.estado = p.estado, nuevo
     auditar(db, admin, "Gestionó PQRS", "PQRS", p.id, f"{radicado(p)}: {anterior} → {nuevo}" + (" (con respuesta)" if datos.respuesta else ""))
+    marcar_gestionadas(db, "pqrs", p.id)          # v5.7 · el aviso «Nueva queja…» de los administradores ya se atendió
     dueno = db.get(Usuario, p.usuario_id)
     if dueno is not None and dueno.id != admin.id:
         texto = f"Respondieron tu solicitud: {datos.respuesta}" if datos.respuesta else f"Tu solicitud ahora está «{nuevo.lower()}»."

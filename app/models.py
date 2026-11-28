@@ -356,6 +356,21 @@ class Notificacion(Base):
     enlace = Column(String, nullable=True)            # ruta de la app, ej. "#/paquetes"
     leida = Column(Boolean, nullable=False, default=False, index=True)
     fecha = Column(DateTime, default=ahora_utc, index=True)
+    # v5.7 · «leída» y «gestionada» son cosas distintas: abrir un aviso lo marca leído, pero si pedía una acción (aprobar, responder, recoger…)
+    # sigue «por gestionar» hasta que se haga. Así lo pendiente no se pierde aunque se abra el aviso y se olvide.
+    requiere_gestion = Column(Boolean, nullable=False, default=False, server_default=text("false"))
+    gestionada_en = Column(DateTime, nullable=True)        # cuándo se gestionó (a mano o solo, al resolverse lo que pedía)
+    ref_tipo = Column(String(30), nullable=True)           # a qué cosa se refiere: reserva, danio, pqrs, arrendamiento, trasteo, poder, paquete, votacion
+    ref_id = Column(Integer, nullable=True)                # su número; con ref_tipo permite marcar el aviso como gestionado cuando esa cosa se resuelve
+
+    __table_args__ = (Index("ix_notificaciones_ref", "ref_tipo", "ref_id"),)
+
+    @property
+    def estado_gestion(self) -> str:
+        """informativa (no pide nada) | por_gestionar | gestionada."""
+        if not self.requiere_gestion:
+            return "informativa"
+        return "gestionada" if self.gestionada_en is not None else "por_gestionar"
 
 
 class PQRS(Base):

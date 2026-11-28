@@ -14,7 +14,7 @@ from app.constantes import ROLES_RESIDENCIALES, EstadoPaquete, RolNombre
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
 from app.models import Paquete, Rol, Usuario, ahora_utc
-from app.notificaciones import notificar
+from app.notificaciones import marcar_gestionadas, notificar
 from app.schemas.operacion import DestinatarioResponse, EntregaRequest, PaqueteCreate, PaqueteResponse
 
 TAG = "Paquetes y Correspondencia"
@@ -63,7 +63,8 @@ def crear_paquete(db: Session, personal: Usuario, datos: PaqueteCreate, cuando: 
     db.flush()
     auditar(db, personal, "Registró paquete", "Paquete", p.id, _resumen(p, dest))
     notificar(db, [dest], "Tienes un paquete en portería", f"{p.tipo}" + (f" de {p.remitente}" if p.remitente else "") + ". Pasa a recogerlo cuando puedas.",
-              "#/paquetes", correo=True)
+              "#/paquetes", correo=True,
+              requiere_gestion=True, ref_tipo="paquete", ref_id=p.id)          # v5.7 · «por gestionar» hasta que lo recoja
     return p
 
 
@@ -73,6 +74,7 @@ def entregar_paquete(db: Session, personal: Usuario, paquete_id: int, entregado_
     p.estado, p.fecha_entrega, p.entregado_por = EstadoPaquete.ENTREGADO.value, cuando or ahora_utc(), personal.id
     p.entregado_a = entregado_a or (dest.nombre_completo if dest else None)
     auditar(db, personal, "Entregó paquete", "Paquete", p.id, f"{_resumen(p, dest)} · lo recibió {p.entregado_a}")
+    marcar_gestionadas(db, "paquete", p.id)          # ya lo recogió: el aviso «Tienes un paquete en portería» queda gestionado
     return p
 
 
@@ -160,6 +162,7 @@ def anular(paquete_id: int, db: Session = Depends(get_db), personal: Usuario = D
     p = _en_porteria(db, paquete_id)
     p.estado = EstadoPaquete.ANULADO.value
     auditar(db, personal, "Anuló paquete", "Paquete", p.id, _resumen(p, db.get(Usuario, p.destinatario_id)))
+    marcar_gestionadas(db, "paquete", p.id)
     db.commit()
     db.refresh(p)
     return _vistas(db, [p])[0]

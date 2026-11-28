@@ -41,6 +41,7 @@ class OperacionKPI(BaseModel):
     vehiculos_dentro: int
     paquetes_sin_entregar: int
     danios_sin_resolver: int
+    danios_por_aprobar: int = 0          # v5.7: el técnico ya los solucionó y esperan la aprobación del administrador
     arrendamientos_por_aprobar: int
 
 

@@ -212,8 +212,11 @@ def test_solo_admin_cambia_estado_de_danio(client, auth):
     ana, admin = auth("ana@conjunto.com"), auth("admin@conjunto.com")
     rid = client.post("/mantenimiento/reportar-danio", headers=ana,
                       data={"titulo": "Bombillo dañado", "descripcion": "Pasillo del piso 3 sin luz"}).json()["id"]
-    assert client.patch(f"/mantenimiento/cambiar-estado/{rid}?nuevo_estado=Solucionado", headers=ana).status_code == 403
-    assert client.patch(f"/mantenimiento/cambiar-estado/{rid}?nuevo_estado=Solucionado", headers=admin).json()["estado"] == "Solucionado"
+    assert client.patch(f"/mantenimiento/cambiar-estado/{rid}?nuevo_estado=Aprobado", headers=ana).status_code == 403
+    # v5.7: el administrador ya no pone estados intermedios ni «Solucionado» (eso es del técnico); y solo aprueba lo que el técnico solucionó
+    for estado in ("En Revision", "En Reparacion", "Solucionado", "Aprobado"):
+        assert client.patch(f"/mantenimiento/cambiar-estado/{rid}?nuevo_estado={estado}", headers=admin).status_code == 400
+    assert client.get("/mantenimiento/listar-danios", headers=admin).json()[0]["estado"] == "Abierto"
 
 
 # ---------- Portería ----------

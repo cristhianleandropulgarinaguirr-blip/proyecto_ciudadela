@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, aliased, selectinload
 from app import arrendamientos as reglas_arr, config
 from app.archivos import guardar_imagen_validada, leer_imagen
 from app.auditoria import auditar
-from app.notificaciones import notificar
+from app.notificaciones import marcar_gestionadas, notificar, usuarios_activos
 from app.constantes import Delegacion, EstadoDanio, EstadoReserva, RolNombre
 from app.database import get_db
 from app.dependencies import get_current_user, requiere_roles
@@ -85,6 +85,9 @@ def crear_reserva(reserva_in: ReservaCreate, db: Session = Depends(get_db),
     db.add(nueva)
     db.flush()
     auditar(db, usuario, "Solicitó reserva", "Reserva", nueva.id, f"{nueva.zona_comun} · {nueva.fecha_reserva:%Y-%m-%d %H:%M}")
+    notificar(db, usuarios_activos(db, [ADMIN], excluir_id=usuario.id), "Reserva por aprobar",           # v5.7 · queda «por gestionar» hasta que se apruebe o cancele
+              f"{usuario.nombre_completo}{f' ({usuario.apartamento})' if usuario.apartamento else ''} · {nueva.zona_comun} · {nueva.fecha_reserva:%d/%m/%Y %H:%M}", "#/reservas",
+              requiere_gestion=True, ref_tipo="reserva", ref_id=nueva.id)
     if usuario.rol == INQUILINO.value:
         reglas_arr.avisar_al_propietario(db, usuario, f"{usuario.nombre_completo} pidió una reserva",
                                          f"{nueva.zona_comun} · {nueva.fecha_reserva:%d/%m/%Y %H:%M}", "#/reservas")
@@ -151,6 +154,8 @@ def cambiar_estado_reserva(reserva_id: int, nuevo_estado: EstadoReserva, db: Ses
         raise HTTPException(status_code=400, detail="Ya existe otra reserva aprobada para esa zona ese día.")
     anterior, reserva.estado = reserva.estado, nuevo_estado.value
     auditar(db, admin, f"Reserva {nuevo_estado.value.lower()}", "Reserva", reserva.id, f"{reserva.zona_comun}: {anterior} → {nuevo_estado.value}")
+    if nuevo_estado != EstadoReserva.PENDIENTE:
+        marcar_gestionadas(db, "reserva", reserva.id)          # v5.7 · ya se decidió: el aviso «Reserva por aprobar» queda gestionado
     if anterior != nuevo_estado.value and reserva.usuario_id != admin.id:
         notificar(db, [db.get(Usuario, reserva.usuario_id)], f"Tu reserva fue {nuevo_estado.value.lower()}",
                   f"{reserva.zona_comun} · {reserva.fecha_reserva:%d/%m/%Y %H:%M}", "#/reservas")
@@ -209,6 +214,10 @@ async def crear_reporte_danio(
     nuevo = ReporteDanio(usuario_id=usuario.id, titulo=titulo, descripcion=descripcion,
                          foto_url=nombre_foto or "sin_foto.jpg", estado=EstadoDanio.ABIERTO.value)
     db.add(nuevo)
+    db.flush()
+    notificar(db, usuarios_activos(db, [ADMIN], excluir_id=usuario.id), "Nuevo daño por atender",           # v5.7 · queda «por gestionar» hasta crear el enlace para el técnico
+              f"«{titulo[:80]}» · reportó {usuario.nombre_completo}. Genera el enlace para el técnico.", "#/mantenimiento",
+              requiere_gestion=True, ref_tipo="danio", ref_id=nuevo.id)
     if usuario.rol == INQUILINO.value:
         reglas_arr.avisar_al_propietario(db, usuario, f"{usuario.nombre_completo} reportó un daño", titulo[:100], "#/mantenimiento")
     db.commit()
@@ -244,15 +253,37 @@ def ver_foto_danio(reporte_id: int, miniatura: bool = False, db: Session = Depen
 
 
 @router.patch("/mantenimiento/cambiar-estado/{reporte_id}", response_model=ReporteResponse, tags=[TAG_DANIOS],
-              summary="Actualizar el estado de un daño", description="Solo **Administrador**.",
-              responses={404: {"description": "Reporte no encontrado"}})
-def cambiar_estado_danio(reporte_id: int, nuevo_estado: EstadoDanio, db: Session = Depends(get_db),
-                         admin: Usuario = Depends(requiere_roles(ADMIN))):
+              summary="El administrador aprueba (cierra) o devuelve un daño que el técnico marcó como solucionado",
+              description="Solo **Administrador**. Desde la v5.7 el administrador **ya no pone «En revisión» ni «En reparación»**: de eso se encarga el técnico de mantenimiento "
+                          "desde su enlace. Al final el administrador revisa la nota y la foto de evidencia y solo puede hacer una de dos cosas, siempre sobre un reporte "
+                          "en **Solucionado**: `Aprobado` (lo cierra) o `Abierto` (lo **devuelve** para que se atienda de nuevo; `motivo` es opcional y le llega al residente). "
+                          "Cualquier otro cambio responde 400.",
+              responses={400: {"description": "Cambio no permitido para el administrador"}, 404: {"description": "Reporte no encontrado"}})
+def cambiar_estado_danio(reporte_id: int, nuevo_estado: EstadoDanio, motivo: Optional[str] = Query(None, max_length=300),
+                         db: Session = Depends(get_db), admin: Usuario = Depends(requiere_roles(ADMIN))):
     reporte = db.get(ReporteDanio, reporte_id)
     if reporte is None:
         raise HTTPException(status_code=404, detail="Reporte no encontrado.")
-    auditar(db, admin, "Cambió estado de daño", "Daño", reporte.id, f"{reporte.titulo}: {reporte.estado} → {nuevo_estado.value}")
+    # La regla vive AQUÍ (en el servidor) y no solo en los botones: aunque alguien llame a la API a mano, el administrador no puede saltarse al técnico.
+    if nuevo_estado not in (EstadoDanio.APROBADO, EstadoDanio.ABIERTO):
+        raise HTTPException(status_code=400, detail="El administrador no pone «En revisión» ni «En reparación»: de eso se encarga el técnico de mantenimiento. "
+                                                    "Tú revisas al final y apruebas el reporte cuando esté solucionado.")
+    if reporte.estado != EstadoDanio.SOLUCIONADO.value:
+        raise HTTPException(status_code=400, detail=f"Solo puedes aprobar o devolver un reporte que el técnico ya marcó como solucionado (este está «{reporte.estado}»). "
+                                                    "Si aún no tiene técnico, crea el enlace con «Enlace para técnico».")
+    motivo = " ".join((motivo or "").split())[:300]
+    aprobado = nuevo_estado is EstadoDanio.APROBADO
+    auditar(db, admin, "Aprobó daño" if aprobado else "Devolvió daño", "Daño", reporte.id,
+            f"{reporte.titulo}: {reporte.estado} → {nuevo_estado.value}" + (f" · «{motivo[:80]}»" if motivo else ""))
     reporte.estado = nuevo_estado.value
+    marcar_gestionadas(db, "danio", reporte.id)          # v5.7 · la revisión final ya se hizo: se cierra el aviso «El técnico terminó…»
+    residente = db.get(Usuario, reporte.usuario_id)
+    if residente is not None:
+        titulo = "Tu reporte fue aprobado y cerrado" if aprobado else "Tu reporte volvió a atención"
+        mensaje = f"«{reporte.titulo[:80]}»" + ("" if aprobado else (f" · Motivo: {motivo[:140]}" if motivo else " · La administración pidió revisarlo de nuevo."))
+        notificar(db, [residente], titulo, mensaje, "#/mantenimiento")
+        if residente.rol == RolNombre.INQUILINO.value:
+            reglas_arr.avisar_al_propietario(db, residente, titulo, mensaje, "#/mantenimiento")
     db.commit()
     db.refresh(reporte)
     return reporte

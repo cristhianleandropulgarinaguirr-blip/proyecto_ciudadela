@@ -27,7 +27,7 @@ def estado(client, auth, quien):
 # ------------------------------------------------------------------ preguntas con las que arranca el chat
 def test_el_administrador_recibe_sugerencias_de_administrador(client, auth, sin_ia):
     s = estado(client, auth, ADM)["sugerencias"]
-    assert len(s) == 4 and "¿Cómo apruebo una reserva?" in s and "¿Cómo registro un pago de administración?" in s
+    assert len(s) == 4 and "¿Qué residentes están en mora?" in s and "¿Cómo apruebo una reserva?" in s and "¿Cómo registro un pago de administración?" in s
     assert not any("¿Cómo reservo una zona?" == x for x in s)             # el administrador aprueba reservas, no las pide
 
 

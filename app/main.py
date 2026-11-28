@@ -78,7 +78,7 @@ TAGS = [
 # Las tablas se crean con migraciones de Alembic (alembic upgrade head), no aquí.
 # Con DOCS_ACTIVAS=0 las tres rutas de documentación desaparecen (responden 404), como si no existieran.
 app = FastAPI(title="Mi Proyecto SENA API – Propiedad Horizontal", description=DESCRIPCION,
-              version="5.6.0", openapi_tags=TAGS,
+              version="5.7.0", openapi_tags=TAGS,
               docs_url="/docs" if config.DOCS_ACTIVAS else None,
               redoc_url="/redoc" if config.DOCS_ACTIVAS else None,
               openapi_url="/openapi.json" if config.DOCS_ACTIVAS else None)
